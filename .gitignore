@@ -71,6 +71,8 @@ Thumbs.db
 # ==========================================
 
 # 보안 - 증권사 API 키/토큰 (절대 커밋 금지!)
+config.yaml
+backend/config.yaml
 token_backup/
 *.token
 *.key
