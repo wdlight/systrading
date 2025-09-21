@@ -1,0 +1,16 @@
+
+
+1. token 발급 건.
+  - 1. 접근토큰(access_token)의 유효기간은 24시간 이며(1일 1회발급 원칙) 
+   갱신발급주기는 6시간 입니다.(6시간 이내는 기존 발급키로 응답)
+
+2. 접근토큰발급(/oauth2/tokenP) 시 접근토큰값(access_token)과 함께 수신되는 
+   접근토큰 유효기간(acess_token_token_expired)을 이용해 접근토큰을 관리하실 수 있습니다.
+
+
+대처 방안 : 
+  - 최초 또는 access.tok 파일이 없는 경우 신규 발급
+  - 기존 마지막 token 발급 시간을 기록. ( access.[YYYYMMDD]].tok )
+  - 12시간이 지난 경우 다시 발급해서 새로운 token 파일을 생성
+  - 기존에 있는 경우 기존 파일을 시간을 기록해서 backup - access.YYYYMMDD.tok
+  - 

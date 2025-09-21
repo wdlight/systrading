@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Connection Test</h1>
+    <div id="status">연결 상태: 대기 중...</div>
+    <div id="messages"></div>
+    
+    <script>
+        console.log('🔧 WebSocket 테스트 시작');
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        
+        try {
+            const ws = new WebSocket('ws://localhost:8000/ws');
+            
+            ws.onopen = function(event) {
+                console.log('✅ WebSocket 연결 성공!', event);
+                statusDiv.textContent = '연결 상태: 연결됨';
+                statusDiv.style.color = 'green';
+            };
+            
+            ws.onmessage = function(event) {
+                console.log('📥 메시지 수신:', event.data);
+                const messageDiv = document.createElement('div');
+                messageDiv.textContent = '수신: ' + event.data;
+                messagesDiv.appendChild(messageDiv);
+            };
+            
+            ws.onerror = function(error) {
+                console.error('❌ WebSocket 오류:', error);
+                statusDiv.textContent = '연결 상태: 오류 발생';
+                statusDiv.style.color = 'red';
+            };
+            
+            ws.onclose = function(event) {
+                console.log('🔌 WebSocket 연결 종료:', event);
+                statusDiv.textContent = '연결 상태: 연결 종료됨';
+                statusDiv.style.color = 'orange';
+            };
+            
+        } catch (error) {
+            console.error('❌ WebSocket 생성 실패:', error);
+            statusDiv.textContent = '연결 상태: 생성 실패';
+            statusDiv.style.color = 'red';
+        }
+    </script>
+</body>
+</html>

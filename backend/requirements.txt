@@ -1,0 +1,53 @@
+# FastAPI 및 웹서버
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+websockets==12.0
+
+# 데이터 처리
+pandas==2.1.3
+numpy==1.25.2
+talib-binary==0.4.26
+
+# HTTP 클라이언트
+requests==2.31.0
+httpx==0.25.2
+
+# 암호화 (기존 KoreaInvestAPI 호환)
+pycryptodome==3.19.0
+
+# 설정 관리
+pydantic[email]==2.5.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+
+# YAML 처리 (기존 config.yaml 호환)
+PyYAML==6.0.1
+
+# 로깅
+loguru==0.7.2
+
+# 날짜/시간 처리
+python-dateutil==2.8.2
+
+# 비동기 처리
+asyncio-mqtt==0.16.1
+
+# 개발/테스트 도구 (선택사항)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+
+# 모니터링 (선택사항)
+prometheus-client==0.19.0
+
+# 데이터베이스 (향후 확장용)
+sqlalchemy==2.0.23
+alembic==1.13.0
+
+# 캐싱 (선택사항)
+redis==5.0.1
+
+# CORS 지원 (FastAPI에 포함되어 있지만 명시)
+python-multipart==0.0.6

@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # FastAPI 백엔드 서비스
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+      - DEBUG=true
+    volumes:
+      - ./app:/app/app
+      - ../config.yaml:/app/config.yaml
+      - ../utils.py:/app/utils.py
+      - ./.env:/app/.env
+    depends_on:
+      - redis
+    networks:
+      - trading-network
+    restart: unless-stopped
+    
+  # Redis 캐싱 서비스 (선택사항)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - trading-network
+    restart: unless-stopped
+    
+  # Next.js 프론트엔드 서비스 (향후 추가)
+  frontend:
+    build: ../stock-trading-ui
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
+    depends_on:
+      - backend
+    networks:
+      - trading-network
+    restart: unless-stopped
+    profiles:
+      - full-stack
+
+volumes:
+  redis_data:
+
+networks:
+  trading-network:
+    driver: bridge

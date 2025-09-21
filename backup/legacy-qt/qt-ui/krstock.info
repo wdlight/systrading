@@ -1,0 +1,23 @@
+APP_KEY = 'PSvqYXFepNCae5F7uVMNfFVu4Cnjpp0mlD5B'
+APP_SECRET = 'wmC5sDBOj4v17eSsjIjM1zjLzkmgzSjBUCetd0eiASUqf/aKqFfpyZOPIWuFYShj/36trXKjoFq7kECfJ1JdtIrVQjj5u/O9PbYIgJPy5n0Nzat5eXrxMlfs3UIAxCxxcORvJoTHnBu0dCl6re2G5jQpuzW7He6cAyFgUqVsbfV0cBjv9QaldE13PgAV0msAGl17voOICdhAI5UoNNSjpIi4aKE='
+
+
+APPROVAL
+
+'api_key': 'PSvqYXFepNCae5F7uVMNfFVu4Cnjpp0mlD5B', 
+'api_secret_key': 'ASUqf/aKqFfpyZOPIWuFYShj/36trXKjoFq7kECfJ1JdtIrVQjj5u/O9PbYIgJPy5n0Nzat5eXrxMlfs3UIAxCxxcORvJoTHnBu0dCl6re2G5jQpuzW7He6cAyFgUqVsbfV0cBjv9QaldE13PgAV0msAGl17voOICdhAI5UoNNSjpIi4aKE=', 
+'stock_account_number': '63684939', 
+'paper_api_key': '', 
+'paper_api_secret_key': '', 
+'htsid': 'wdlight', 
+'custtype': 'P', 
+'is_paper_trading': False, 
+'my_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 
+'url': 'https://openapi.koreainvestment.com:9443', 
+'websocket_url': 'ws://ops.koreainvestment.com:21000', 
+'paper_url': 'https://openapivts.koreainventment.com:29443', 
+'paper_websocket_url': 'ws://ops.koreainvestment.com:31000', 
+
+'websocket_approval_key': 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJ0b2tlbiIsImF1ZCI6ImYwM2U4ZmE4LWQxZDQtNDFhNC05ZDM0LWU4ZTZkMzcwYTk1MCIsInByZHRfY2QiOiIiLCJpc3MiOiJ1bm9ndyIsImV4cCI6MTc1NjE5Nzc4NSwiaWF0IjoxNzU2MTExMzg1LCJqdGkiOiJQU3ZxWVhGZXBOQ2FlNUY3dVZNTmZGVnU0Q25qcHAwbWxENUIifQ.663XjFcun8c38ZMZQ9XdJLmuiWavapXFx8OBlb3VYMac6RS9Trl5df_hxE5ltLTLiABbzf5bjXEvf9YP235_VQ', 
+'account_number': '', 
+'using_url': 'https://openapi.koreainvestment.com:9443'})
