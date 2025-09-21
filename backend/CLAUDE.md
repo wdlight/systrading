@@ -26,19 +26,38 @@ backend/
 
 ## 🔧 개발 명령어
 
+### ⚠️ 필수: vkis 가상환경 사용
+**Backend 실행 시 반드시 vkis 가상환경을 활성화해야 합니다!**
+
 ```bash
-# 가상환경 활성화
-source vkis/bin/activate  # Linux/Mac
+# 1. Backend 디렉토리로 이동
+cd backend
+
+# 2. vkis 가상환경 활성화 (필수!)
+source vkis/bin/activate  # Linux/Mac/WSL
 # 또는
 vkis\Scripts\activate     # Windows
 
-# 서버 실행
+# 3. 가상환경 활성화 확인
+which python              # vkis/bin/python 경로 표시되어야 함
+python --version          # Python 3.12.x 확인
+
+# 4. 서버 실행
 python app/main.py        # 개발 서버 (포트 8000)
 python simple_server.py  # 간단한 테스트 서버
 
-# 테스트 실행
+# 5. 테스트 실행
 pytest tests/
+
+# 6. 개발 완료 후 가상환경 비활성화
+deactivate
 ```
+
+### 🚨 가상환경 사용 이유
+- **의존성 격리**: 프로젝트별 패키지 버전 관리
+- **Python 3.12**: 특정 Python 버전 사용
+- **패키지 충돌 방지**: 시스템 Python과 분리
+- **일관된 개발환경**: 모든 개발자가 동일한 환경 사용
 
 ---
 
