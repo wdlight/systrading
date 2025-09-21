@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Smart Trading Mobile</title>
+    <link rel="stylesheet" href="css/robinhood.css">
+    <link rel="stylesheet" href="css/mobile.css">
+    <meta name="description" content="모바일 최적화된 스마트 트레이딩 앱">
+    <meta name="theme-color" content="#110E08">
+
+    <!-- PWA 매니페스트 -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- 터치 아이콘 -->
+    <link rel="apple-touch-icon" href="assets/icon-192.png">
+
+    <!-- 상태바 스타일 -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+</head>
+<body class="mobile-body">
+    <!-- 모바일 헤더 -->
+    <header class="mobile-header">
+        <div class="mobile-header__content">
+            <div class="mobile-header__logo">
+                <span class="mobile-header__icon">🏛️</span>
+                <span class="mobile-header__title">Smart Trading</span>
+            </div>
+            <div class="mobile-header__actions">
+                <button class="mobile-header__btn">🔔</button>
+                <button class="mobile-header__btn">👤</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 모바일 메인 콘텐츠 -->
+    <main class="mobile-main">
+        <!-- 포트폴리오 카드 -->
+        <section class="mobile-portfolio-card">
+            <div id="mobile-portfolio-summary" class="mobile-portfolio-summary">
+                <!-- JavaScript로 동적 생성 -->
+            </div>
+            <div class="mobile-portfolio-actions">
+                <button class="mobile-action-btn mobile-action-btn--buy">
+                    <span class="mobile-action-btn__icon">💰</span>
+                    <span class="mobile-action-btn__text">매수</span>
+                </button>
+                <button class="mobile-action-btn mobile-action-btn--sell">
+                    <span class="mobile-action-btn__icon">💸</span>
+                    <span class="mobile-action-btn__text">매도</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 빠른 통계 -->
+        <section class="mobile-quick-stats">
+            <div class="mobile-stat-card">
+                <div class="mobile-stat-card__label">일일 수익</div>
+                <div class="mobile-stat-card__value mobile-stat-card__value--positive">+125,000원</div>
+            </div>
+            <div class="mobile-stat-card">
+                <div class="mobile-stat-card__label">총 수익률</div>
+                <div class="mobile-stat-card__value mobile-stat-card__value--positive">+6.66%</div>
+            </div>
+            <div class="mobile-stat-card">
+                <div class="mobile-stat-card__label">보유 종목</div>
+                <div class="mobile-stat-card__value">3개</div>
+            </div>
+        </section>
+
+        <!-- 모바일 주식 리스트 -->
+        <section class="mobile-stocks-section">
+            <div class="mobile-section-header">
+                <h2 class="mobile-section-title">내 종목</h2>
+                <button class="mobile-view-all-btn">전체보기</button>
+            </div>
+            <div id="mobile-stock-list" class="mobile-stock-list">
+                <!-- JavaScript로 동적 생성 -->
+            </div>
+        </section>
+
+        <!-- 관심종목 섹션 -->
+        <section class="mobile-stocks-section">
+            <div class="mobile-section-header">
+                <h2 class="mobile-section-title">관심종목</h2>
+                <button class="mobile-view-all-btn">편집</button>
+            </div>
+            <div class="mobile-watchlist">
+                <!-- 관심종목 목록 -->
+            </div>
+        </section>
+    </main>
+
+    <!-- 모바일 하단 네비게이션 -->
+    <nav class="mobile-bottom-nav">
+        <button class="mobile-nav-item mobile-nav-item--active">
+            <div class="mobile-nav-item__icon">🏠</div>
+            <div class="mobile-nav-item__label">홈</div>
+        </button>
+        <button class="mobile-nav-item">
+            <div class="mobile-nav-item__icon">💼</div>
+            <div class="mobile-nav-item__label">포트폴리오</div>
+        </button>
+        <button class="mobile-nav-item">
+            <div class="mobile-nav-item__icon">📈</div>
+            <div class="mobile-nav-item__label">거래</div>
+        </button>
+        <button class="mobile-nav-item">
+            <div class="mobile-nav-item__icon">🔍</div>
+            <div class="mobile-nav-item__label">검색</div>
+        </button>
+        <button class="mobile-nav-item">
+            <div class="mobile-nav-item__icon">⚙️</div>
+            <div class="mobile-nav-item__label">설정</div>
+        </button>
+    </nav>
+
+    <!-- 풀 투 리프레시 -->
+    <div class="pull-to-refresh" id="pullToRefresh">
+        <div class="pull-to-refresh__spinner">
+            <div class="loading"></div>
+        </div>
+        <div class="pull-to-refresh__text">당겨서 새로고침</div>
+    </div>
+
+    <!-- JavaScript 파일들 -->
+    <script src="js/sample-data.js"></script>
+    <script src="js/chart.js"></script>
+    <script src="js/main.js"></script>
+
+    <!-- 모바일 전용 JavaScript -->
+    <script>
+        class MobileApp {
+            constructor() {
+                this.setupMobileFeatures();
+                this.setupPullToRefresh();
+                this.setupSwipeGestures();
+            }
+
+            setupMobileFeatures() {
+                // 포트폴리오 요약 렌더링 (모바일 최적화)
+                this.renderMobilePortfolioSummary();
+                this.renderMobileStockList();
+
+                // 터치 이벤트 최적화
+                this.optimizeTouchEvents();
+            }
+
+            renderMobilePortfolioSummary() {
+                const portfolioData = window.sampleData.getPortfolioData();
+                const summaryElement = document.getElementById('mobile-portfolio-summary');
+
+                if (!summaryElement) return;
+
+                const isPositive = portfolioData.totalGain >= 0;
+                const gainClass = isPositive ? 'mobile-portfolio-gain--positive' : 'mobile-portfolio-gain--negative';
+
+                summaryElement.innerHTML = `
+                    <div class="mobile-portfolio-value">
+                        ${this.formatCurrency(portfolioData.totalValue)}
+                    </div>
+                    <div class="mobile-portfolio-gain ${gainClass}">
+                        ${isPositive ? '▲' : '▼'} ${this.formatCurrency(Math.abs(portfolioData.totalGain))} (${Math.abs(portfolioData.totalGainPercent).toFixed(2)}%)
+                    </div>
+                `;
+            }
+
+            renderMobileStockList() {
+                const positions = window.sampleData.getPositions();
+                const listElement = document.getElementById('mobile-stock-list');
+
+                if (!listElement) return;
+
+                listElement.innerHTML = positions.map(position => {
+                    const isPositive = position.gain >= 0;
+                    const gainClass = isPositive ? 'mobile-stock-gain--positive' : 'mobile-stock-gain--negative';
+
+                    return `
+                        <div class="mobile-stock-item" data-symbol="${position.code}">
+                            <div class="mobile-stock-info">
+                                <div class="mobile-stock-symbol">${position.code}</div>
+                                <div class="mobile-stock-name">${position.name}</div>
+                                <div class="mobile-stock-shares">${position.shares}주</div>
+                            </div>
+                            <div class="mobile-stock-price">
+                                <div class="mobile-stock-current">${this.formatPrice(position.currentPrice)}</div>
+                                <div class="mobile-stock-gain ${gainClass}">
+                                    ${this.formatCurrency(position.gain)} (${position.gainPercent.toFixed(2)}%)
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            setupPullToRefresh() {
+                let startY = 0;
+                let currentY = 0;
+                let isRefreshing = false;
+
+                const pullToRefresh = document.getElementById('pullToRefresh');
+
+                document.addEventListener('touchstart', (e) => {
+                    if (window.scrollY === 0) {
+                        startY = e.touches[0].pageY;
+                    }
+                });
+
+                document.addEventListener('touchmove', (e) => {
+                    if (window.scrollY === 0 && !isRefreshing) {
+                        currentY = e.touches[0].pageY;
+                        const pullDistance = currentY - startY;
+
+                        if (pullDistance > 0) {
+                            e.preventDefault();
+                            const opacity = Math.min(pullDistance / 100, 1);
+                            pullToRefresh.style.opacity = opacity;
+                            pullToRefresh.style.transform = `translateY(${Math.min(pullDistance - 50, 50)}px)`;
+                        }
+                    }
+                });
+
+                document.addEventListener('touchend', () => {
+                    if (currentY - startY > 100 && !isRefreshing) {
+                        this.performRefresh();
+                    } else {
+                        pullToRefresh.style.opacity = '0';
+                        pullToRefresh.style.transform = 'translateY(-50px)';
+                    }
+                });
+            }
+
+            setupSwipeGestures() {
+                let startX = 0;
+                let startY = 0;
+
+                document.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].pageX;
+                    startY = e.touches[0].pageY;
+                });
+
+                document.addEventListener('touchend', (e) => {
+                    const endX = e.changedTouches[0].pageX;
+                    const endY = e.changedTouches[0].pageY;
+                    const deltaX = endX - startX;
+                    const deltaY = endY - startY;
+
+                    // 가로 스와이프 감지 (세로 스와이프보다 가로가 더 클 때)
+                    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+                        if (deltaX > 0) {
+                            // 오른쪽 스와이프
+                            this.handleRightSwipe();
+                        } else {
+                            // 왼쪽 스와이프
+                            this.handleLeftSwipe();
+                        }
+                    }
+                });
+            }
+
+            performRefresh() {
+                const pullToRefresh = document.getElementById('pullToRefresh');
+                pullToRefresh.style.opacity = '1';
+                pullToRefresh.style.transform = 'translateY(0px)';
+
+                // 실제 데이터 새로고침 시뮬레이션
+                setTimeout(() => {
+                    this.renderMobilePortfolioSummary();
+                    this.renderMobileStockList();
+
+                    pullToRefresh.style.opacity = '0';
+                    pullToRefresh.style.transform = 'translateY(-50px)';
+
+                    // 피드백 진동
+                    if (navigator.vibrate) {
+                        navigator.vibrate(50);
+                    }
+                }, 1000);
+            }
+
+            handleRightSwipe() {
+                console.log('Right swipe detected');
+            }
+
+            handleLeftSwipe() {
+                console.log('Left swipe detected');
+            }
+
+            optimizeTouchEvents() {
+                // 터치 이벤트 최적화
+                document.addEventListener('touchstart', (e) => {
+                    // 터치 시작 시 피드백
+                    const target = e.target.closest('.mobile-action-btn, .mobile-stock-item, .mobile-nav-item');
+                    if (target) {
+                        target.style.transform = 'scale(0.95)';
+                        target.style.opacity = '0.8';
+                    }
+                });
+
+                document.addEventListener('touchend', (e) => {
+                    // 터치 종료 시 원상복구
+                    const target = e.target.closest('.mobile-action-btn, .mobile-stock-item, .mobile-nav-item');
+                    if (target) {
+                        setTimeout(() => {
+                            target.style.transform = 'scale(1)';
+                            target.style.opacity = '1';
+                        }, 100);
+                    }
+                });
+            }
+
+            formatCurrency(amount) {
+                if (amount >= 100000000) {
+                    return `${(amount / 100000000).toFixed(1)}억원`;
+                } else if (amount >= 10000) {
+                    return `${(amount / 10000).toFixed(0)}만원`;
+                } else {
+                    return `${amount.toLocaleString()}원`;
+                }
+            }
+
+            formatPrice(price) {
+                return price.toLocaleString() + '원';
+            }
+        }
+
+        // 모바일 앱 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            window.mobileApp = new MobileApp();
+        });
+
+        // 화면 회전 처리
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

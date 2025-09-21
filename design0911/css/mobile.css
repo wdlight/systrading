@@ -1,0 +1,471 @@
+/* 모바일 최적화 CSS */
+.mobile-body {
+    padding: 0;
+    margin: 0;
+    background: var(--rh-black);
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 모바일 헤더 */
+.mobile-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--rh-black);
+    border-bottom: 1px solid var(--rh-dark-gray);
+    z-index: 1000;
+    backdrop-filter: blur(20px);
+    padding: env(safe-area-inset-top, 0) var(--spacing-md) var(--spacing-md);
+}
+
+.mobile-header__content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm) 0;
+}
+
+.mobile-header__logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.mobile-header__icon {
+    font-size: 24px;
+}
+
+.mobile-header__title {
+    font-size: var(--font-lg);
+    font-weight: 700;
+    color: var(--rh-text-primary);
+}
+
+.mobile-header__actions {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.mobile-header__btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    background: var(--rh-dark-gray);
+    border: none;
+    color: var(--rh-text-primary);
+    font-size: var(--font-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mobile-header__btn:active {
+    transform: scale(0.9);
+    background: var(--rh-medium-gray);
+}
+
+/* 모바일 메인 콘텐츠 */
+.mobile-main {
+    padding-top: 80px; /* 헤더 높이 */
+    padding-bottom: 80px; /* 하단 네비게이션 높이 */
+    padding-left: var(--spacing-md);
+    padding-right: var(--spacing-md);
+    min-height: 100vh;
+}
+
+/* 포트폴리오 카드 */
+.mobile-portfolio-card {
+    background: var(--rh-dark-gray);
+    border-radius: 16px;
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid var(--rh-medium-gray);
+}
+
+.mobile-portfolio-summary {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+.mobile-portfolio-value {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--rh-text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.mobile-portfolio-gain {
+    font-size: var(--font-lg);
+    font-weight: 600;
+}
+
+.mobile-portfolio-gain--positive {
+    color: var(--rh-neon-green);
+}
+
+.mobile-portfolio-gain--negative {
+    color: var(--rh-danger-red);
+}
+
+.mobile-portfolio-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+}
+
+.mobile-action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-lg);
+    border-radius: 12px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mobile-action-btn--buy {
+    background: var(--rh-neon-yellow);
+    color: var(--rh-black);
+}
+
+.mobile-action-btn--sell {
+    background: transparent;
+    color: var(--rh-text-primary);
+    border: 1px solid var(--rh-light-gray);
+}
+
+.mobile-action-btn:active {
+    transform: scale(0.95);
+}
+
+.mobile-action-btn__icon {
+    font-size: 24px;
+}
+
+.mobile-action-btn__text {
+    font-size: var(--font-md);
+}
+
+/* 빠른 통계 */
+.mobile-quick-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.mobile-stat-card {
+    background: var(--rh-dark-gray);
+    border-radius: 12px;
+    padding: var(--spacing-md);
+    text-align: center;
+    border: 1px solid var(--rh-medium-gray);
+}
+
+.mobile-stat-card__label {
+    font-size: var(--font-xs);
+    color: var(--rh-text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.mobile-stat-card__value {
+    font-size: var(--font-sm);
+    font-weight: 600;
+    color: var(--rh-text-primary);
+}
+
+.mobile-stat-card__value--positive {
+    color: var(--rh-neon-green);
+}
+
+.mobile-stat-card__value--negative {
+    color: var(--rh-danger-red);
+}
+
+/* 모바일 섹션 */
+.mobile-stocks-section {
+    margin-bottom: var(--spacing-xl);
+}
+
+.mobile-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-md);
+}
+
+.mobile-section-title {
+    font-size: var(--font-lg);
+    font-weight: 600;
+    color: var(--rh-text-primary);
+}
+
+.mobile-view-all-btn {
+    background: none;
+    border: none;
+    color: var(--rh-neon-yellow);
+    font-size: var(--font-sm);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* 모바일 주식 리스트 */
+.mobile-stock-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.mobile-stock-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--rh-dark-gray);
+    border-radius: 12px;
+    padding: var(--spacing-md);
+    border: 1px solid var(--rh-medium-gray);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mobile-stock-item:active {
+    transform: scale(0.98);
+    background: var(--rh-medium-gray);
+}
+
+.mobile-stock-info {
+    flex: 1;
+}
+
+.mobile-stock-symbol {
+    font-size: var(--font-md);
+    font-weight: 700;
+    color: var(--rh-text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.mobile-stock-name {
+    font-size: var(--font-sm);
+    color: var(--rh-text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.mobile-stock-shares {
+    font-size: var(--font-xs);
+    color: var(--rh-text-muted);
+}
+
+.mobile-stock-price {
+    text-align: right;
+}
+
+.mobile-stock-current {
+    font-size: var(--font-lg);
+    font-weight: 700;
+    color: var(--rh-text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.mobile-stock-gain {
+    font-size: var(--font-sm);
+    font-weight: 600;
+}
+
+.mobile-stock-gain--positive {
+    color: var(--rh-neon-green);
+}
+
+.mobile-stock-gain--negative {
+    color: var(--rh-danger-red);
+}
+
+/* 모바일 하단 네비게이션 */
+.mobile-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--rh-black);
+    border-top: 1px solid var(--rh-dark-gray);
+    display: flex;
+    justify-content: space-around;
+    padding: var(--spacing-sm) 0;
+    padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom, 0));
+    z-index: 1000;
+    backdrop-filter: blur(20px);
+}
+
+.mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-xs);
+    background: none;
+    border: none;
+    color: var(--rh-text-secondary);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: 8px;
+    transition: all var(--transition-fast);
+    min-width: 60px;
+}
+
+.mobile-nav-item--active {
+    color: var(--rh-neon-yellow);
+}
+
+.mobile-nav-item:active {
+    transform: scale(0.9);
+}
+
+.mobile-nav-item__icon {
+    font-size: 20px;
+}
+
+.mobile-nav-item__label {
+    font-size: 10px;
+    font-weight: 500;
+}
+
+/* 풀 투 리프레시 */
+.pull-to-refresh {
+    position: fixed;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--rh-dark-gray);
+    border: 1px solid var(--rh-medium-gray);
+    border-radius: 25px;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    opacity: 0;
+    transition: all var(--transition-normal);
+    z-index: 999;
+}
+
+.pull-to-refresh__spinner {
+    width: 20px;
+    height: 20px;
+}
+
+.pull-to-refresh__text {
+    font-size: var(--font-sm);
+    color: var(--rh-text-secondary);
+    white-space: nowrap;
+}
+
+/* 모바일 관심종목 */
+.mobile-watchlist {
+    display: flex;
+    overflow-x: auto;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.mobile-watchlist::-webkit-scrollbar {
+    display: none;
+}
+
+.mobile-watchlist-item {
+    background: var(--rh-dark-gray);
+    border-radius: 12px;
+    padding: var(--spacing-md);
+    border: 1px solid var(--rh-medium-gray);
+    min-width: 120px;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mobile-watchlist-item:active {
+    transform: scale(0.95);
+}
+
+/* 터치 피드백 개선 */
+.mobile-action-btn,
+.mobile-stock-item,
+.mobile-nav-item,
+.mobile-header__btn {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* 안전 영역 지원 */
+@supports (padding: max(0px)) {
+    .mobile-header {
+        padding-top: max(var(--spacing-md), env(safe-area-inset-top));
+    }
+
+    .mobile-bottom-nav {
+        padding-bottom: max(var(--spacing-sm), env(safe-area-inset-bottom));
+    }
+
+    .mobile-main {
+        padding-top: calc(80px + env(safe-area-inset-top));
+        padding-bottom: calc(80px + env(safe-area-inset-bottom));
+    }
+}
+
+/* 다크 모드 전용 스타일 */
+@media (prefers-color-scheme: dark) {
+    .mobile-body {
+        background: var(--rh-black);
+    }
+}
+
+/* 작은 화면 최적화 */
+@media (max-width: 375px) {
+    .mobile-portfolio-value {
+        font-size: 28px;
+    }
+
+    .mobile-quick-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .mobile-action-btn {
+        padding: var(--spacing-md);
+    }
+
+    .mobile-action-btn__icon {
+        font-size: 20px;
+    }
+}
+
+/* 큰 화면에서의 모바일 뷰 (태블릿) */
+@media (min-width: 768px) {
+    .mobile-main {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .mobile-quick-stats {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+/* 가로 모드 최적화 */
+@media (orientation: landscape) and (max-height: 500px) {
+    .mobile-portfolio-card {
+        margin-bottom: var(--spacing-md);
+        padding: var(--spacing-md);
+    }
+
+    .mobile-portfolio-value {
+        font-size: 24px;
+    }
+
+    .mobile-quick-stats {
+        margin-bottom: var(--spacing-md);
+    }
+}

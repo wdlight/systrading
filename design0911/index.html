@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Trading - Robinhood Style</title>
+    <link rel="stylesheet" href="css/robinhood.css">
+    <meta name="description" content="한국투자증권 연동 스마트 트레이딩 시스템">
+    <meta name="theme-color" content="#110E08">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏛️</text></svg>">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Smart Trading Dashboard">
+    <meta property="og:description" content="Robinhood 스타일의 한국 주식 거래 시스템">
+    <meta property="og:type" content="website">
+
+    <!-- Preload critical resources -->
+    <link rel="preload" href="js/sample-data.js" as="script">
+    <link rel="preload" href="js/chart.js" as="script">
+    <link rel="preload" href="js/main.js" as="script">
+</head>
+<body>
+    <!-- 헤더 -->
+    <header class="header">
+        <div class="header__logo">
+            <div class="header__logo-icon">🏛️</div>
+            <div>
+                <div class="header__title">Smart Trading</div>
+                <div style="font-size: 11px; color: var(--rh-text-secondary);">한국투자증권 시스템트레이딩</div>
+            </div>
+        </div>
+
+        <nav class="header__nav">
+            <button class="header__nav-item active">대시보드</button>
+            <button class="header__nav-item">포트폴리오</button>
+            <button class="header__nav-item">거래내역</button>
+            <button class="header__nav-item">분석</button>
+            <button class="header__nav-item">설정</button>
+        </nav>
+    </header>
+
+    <!-- 메인 컨테이너 -->
+    <main class="main-container">
+        <!-- 포트폴리오 요약 -->
+        <section id="portfolio-summary" class="portfolio-summary">
+            <!-- JavaScript로 동적 생성 -->
+        </section>
+
+        <!-- 포트폴리오 차트 -->
+        <section class="portfolio-chart-section" style="margin-bottom: var(--spacing-xxl);">
+            <h2 style="color: var(--rh-text-primary); margin-bottom: var(--spacing-lg); font-size: var(--font-xl); font-weight: 600;">포트폴리오 성과</h2>
+            <div id="portfolio-chart" style="background: rgba(255,255,255,0.02); border-radius: 12px; padding: var(--spacing-lg); border: 1px solid var(--rh-dark-gray);">
+                <!-- 차트가 여기에 렌더링됩니다 -->
+            </div>
+        </section>
+
+        <!-- 액션 버튼 -->
+        <div class="action-buttons">
+            <button id="buy-button" class="btn btn--primary">
+                <span>💰</span>
+                매수하기
+            </button>
+            <button id="sell-button" class="btn btn--secondary">
+                <span>💸</span>
+                매도하기
+            </button>
+            <button class="btn btn--secondary">
+                <span>📊</span>
+                분석보기
+            </button>
+        </div>
+
+        <!-- 주식 목록 -->
+        <section style="margin-top: var(--spacing-xxl);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-lg);">
+                <h2 style="color: var(--rh-text-primary); font-size: var(--font-xl); font-weight: 600;">관심종목</h2>
+                <div style="display: flex; gap: var(--spacing-sm);">
+                    <button class="btn btn--small btn--secondary">전체</button>
+                    <button class="btn btn--small btn--secondary">보유</button>
+                    <button class="btn btn--small btn--secondary">관심</button>
+                </div>
+            </div>
+
+            <div id="stock-list" class="stock-list">
+                <!-- JavaScript로 동적 생성 -->
+            </div>
+        </section>
+
+        <!-- 실시간 업데이트 상태 -->
+        <div style="position: fixed; bottom: var(--spacing-lg); right: var(--spacing-lg); z-index: 1000;">
+            <div style="background: var(--rh-dark-gray); padding: var(--spacing-sm) var(--spacing-md); border-radius: 20px; border: 1px solid var(--rh-medium-gray); display: flex; align-items: center; gap: var(--spacing-sm);">
+                <div class="loading" style="width: 12px; height: 12px;"></div>
+                <span style="font-size: var(--font-xs); color: var(--rh-text-secondary);">실시간 업데이트</span>
+            </div>
+        </div>
+    </main>
+
+    <!-- 하단 네비게이션 (모바일) -->
+    <nav class="bottom-nav" style="display: none;">
+        <button class="bottom-nav__item active">
+            <span>📊</span>
+            <span>홈</span>
+        </button>
+        <button class="bottom-nav__item">
+            <span>💼</span>
+            <span>포트폴리오</span>
+        </button>
+        <button class="bottom-nav__item">
+            <span>📈</span>
+            <span>거래</span>
+        </button>
+        <button class="bottom-nav__item">
+            <span>🔍</span>
+            <span>검색</span>
+        </button>
+        <button class="bottom-nav__item">
+            <span>⚙️</span>
+            <span>설정</span>
+        </button>
+    </nav>
+
+    <!-- JavaScript 파일들 -->
+    <script src="js/sample-data.js"></script>
+    <script src="js/chart.js"></script>
+    <script src="js/main.js"></script>
+
+    <!-- 개발 도구 (프로덕션에서는 제거) -->
+    <script>
+        // 개발 모드에서만 실행
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('🚀 Robinhood Style Trading UI - Development Mode');
+            console.log('📊 Sample data generator active');
+            console.log('🎨 Real-time UI updates enabled');
+
+            // 성능 모니터링
+            window.addEventListener('load', () => {
+                setTimeout(() => {
+                    const loadTime = performance.now();
+                    console.log(`⚡ Page loaded in ${loadTime.toFixed(2)}ms`);
+                }, 100);
+            });
+        }
+    </script>
+
+    <!-- 모바일 하단 네비게이션 스타일 -->
+    <style>
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--rh-black);
+            border-top: 1px solid var(--rh-dark-gray);
+            display: flex;
+            justify-content: space-around;
+            padding: var(--spacing-sm) var(--spacing-md);
+            z-index: 1000;
+        }
+
+        .bottom-nav__item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--spacing-xs);
+            background: none;
+            border: none;
+            color: var(--rh-text-secondary);
+            font-size: var(--font-xs);
+            cursor: pointer;
+            padding: var(--spacing-xs);
+            border-radius: 8px;
+            transition: all var(--transition-fast);
+            min-width: 60px;
+        }
+
+        .bottom-nav__item.active {
+            color: var(--rh-neon-yellow);
+        }
+
+        .bottom-nav__item:hover {
+            color: var(--rh-text-primary);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* 선택된 주식 아이템 스타일 */
+        .stock-item.selected {
+            border-color: var(--rh-neon-yellow);
+            background: rgba(204, 255, 0, 0.05);
+        }
+
+        .stock-item.selected::before {
+            background: var(--rh-neon-yellow) !important;
+        }
+
+        /* 포지션 정보 스타일 */
+        .stock-item__position {
+            margin-top: var(--spacing-md);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--rh-dark-gray);
+        }
+
+        .position-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: var(--font-sm);
+        }
+
+        /* 모바일 반응형 */
+        @media (max-width: 768px) {
+            .bottom-nav {
+                display: flex;
+            }
+
+            .main-container {
+                padding-bottom: 80px; /* 하단 네비게이션 공간 확보 */
+            }
+
+            .header__nav {
+                display: none;
+            }
+
+            .action-buttons {
+                position: fixed;
+                bottom: 80px;
+                left: var(--spacing-md);
+                right: var(--spacing-md);
+                background: var(--rh-black);
+                padding: var(--spacing-md);
+                border-radius: 12px;
+                border: 1px solid var(--rh-dark-gray);
+                backdrop-filter: blur(20px);
+            }
+        }
+
+        /* 로딩 애니메이션 개선 */
+        .loading {
+            border-top-color: var(--rh-neon-yellow);
+        }
+
+        /* 업데이트 효과 개선 */
+        .updated {
+            animation: highlight 0.5s ease-in-out;
+        }
+
+        @keyframes highlight {
+            0% { background: transparent; }
+            50% { background: rgba(204, 255, 0, 0.2); }
+            100% { background: transparent; }
+        }
+    </style>
+</body>
+</html>
