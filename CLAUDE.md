@@ -94,14 +94,117 @@ NEXT_PUBLIC_WS_URL=ws://localhost:8000/ws
 
 ---
 
+## 🤖 Claude Code Agent 활용 가이드
+
+### 프로젝트별 전문 Agent 목록
+
+#### **Frontend 개발**
+- **`frontend-developer`**: React 컴포넌트, 반응형 레이아웃, 상태 관리
+- **`ui-ux-designer`**: 인터페이스 디자인, 와이어프레임, 디자인 시스템
+- **`ui-visual-validator`**: UI 수정 후 시각적 검증, 스크린샷 분석
+- **`typescript-pro`**: 고급 타입 시스템, 제네릭, 타입 안전성
+
+#### **Backend 개발**
+- **`backend-architect`**: RESTful API, 마이크로서비스, 데이터베이스 스키마
+- **`python-pro`**: FastAPI 최적화, 비동기 프로그래밍, 디자인 패턴
+- **`database-admin`**: 데이터베이스 운영, 백업, 복제, 모니터링
+
+#### **Trading 시스템 전문**
+- **`trading-engine-specialist`**: 자동매매 엔진, 주문 실행, 실시간 트레이딩
+- **`quantitative-analyst`**: RSI/MACD 최적화, 백테스팅, 매매 전략
+- **`market-data-engineer`**: 시장 데이터 수집, API 연동, 실시간 데이터 처리
+- **`risk-manager`**: 리스크 관리, 포지션 관리, 손실 제한
+- **`performance-monitor`**: 매매 성과 분석, 모니터링, 리포팅
+- **`korean-stock-api-debugger`**: 한국투자증권 API 연동 및 디버깅
+
+#### **개발 지원**
+- **`debugger`**: 에러 디버깅, 테스트 실패, 예상치 못한 동작
+- **`context-manager`**: 복잡한 멀티 에이전트 워크플로우, 대규모 프로젝트
+
+### Agent 활용 패턴
+
+#### **1. 단일 작업 위임**
+```bash
+# ❌ 직접 처리
+여러 파일 읽고 → 분석 → 수정 → 테스트
+
+# ✅ Agent 활용
+Task: frontend-developer
+"TradingConditions 컴포넌트를 다크 테마로 업데이트"
+```
+
+#### **2. 복합 작업 분할**
+```bash
+# 대규모 UI 리팩토링
+1. Task: ui-ux-designer → 디자인 시스템 분석
+2. Task: frontend-developer → 컴포넌트 구현
+3. Task: ui-visual-validator → 결과 검증
+```
+
+#### **3. 도메인별 전문가 활용**
+```bash
+# 매매 로직 개선
+1. Task: quantitative-analyst → RSI 전략 최적화
+2. Task: trading-engine-specialist → 실행 엔진 구현
+3. Task: risk-manager → 리스크 검증
+4. Task: performance-monitor → 성과 측정
+```
+
+#### **4. 문제 해결 워크플로우**
+```bash
+# API 연동 문제 발생 시
+1. Task: korean-stock-api-debugger → 문제 진단
+2. Task: backend-architect → 아키텍처 개선
+3. Task: debugger → 최종 검증
+```
+
+### Agent 사용 시기
+
+#### **⚡ 즉시 Agent 사용**
+- 3개 이상 파일 수정이 필요한 작업
+- 도메인 전문 지식이 필요한 작업 (매매 로직, API 연동)
+- 복잡한 UI/UX 작업
+- 성능 최적화 작업
+- 에러 디버깅
+
+#### **📝 직접 처리**
+- 단순 텍스트 수정
+- 1-2줄 코드 변경
+- 파일 읽기/검색
+- 문서 작성
+
+### 효율적 Agent 활용 팁
+
+#### **1. 구체적인 Task 작성**
+```bash
+# ❌ 모호한 요청
+"UI를 개선해줘"
+
+# ✅ 구체적 요청
+"TradingConditions 사이드바의 모든 Input과 Select 컴포넌트를
+다크 테마(bg-gray-800, border-gray-600)로 업데이트하고,
+호버/포커스 상태도 일관되게 적용해줘"
+```
+
+#### **2. 병렬 Agent 실행**
+```bash
+# 동시에 여러 Agent 실행으로 시간 단축
+Task: frontend-developer + Task: backend-architect
+```
+
+#### **3. 컨텍스트 효율성**
+- Agent에게 위임하면 토큰 사용량 50-75% 절약
+- 복잡한 작업일수록 더 큰 절약 효과
+
 ## 🚫 Over-Engineering 방지 원칙
 
 ### 전체 프로젝트 규칙
-1. **단순함 우선**: 가장 간단한 해결책부터 시작
-2. **점진적 개선**: 동작하는 코드 먼저, 최적화는 나중에
-3. **표준 패턴 사용**: 각 프레임워크의 Best Practice 준수
-4. **최소 의존성**: 꼭 필요한 라이브러리만 설치
-5. **문서화 우선**: 복잡한 코드보다 명확한 문서
+1. **Agent 우선 활용**: 복잡한 작업은 전문 Agent에게 위임
+2. **단순함 우선**: 가장 간단한 해결책부터 시작
+3. **점진적 개선**: 동작하는 코드 먼저, 최적화는 나중에
+4. **표준 패턴 사용**: 각 프레임워크의 Best Practice 준수
+5. **최소 의존성**: 꼭 필요한 라이브러리만 설치
+6. **문서화 우선**: 복잡한 코드보다 명확한 문서
 
 
 

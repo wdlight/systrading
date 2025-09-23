@@ -24,6 +24,55 @@ src/
 
 ---
 
+## 🤖 Claude Code Agent 활용 (Frontend)
+
+### 우선 사용 Agent
+
+#### **UI/UX 작업**
+```bash
+# UI 컴포넌트 작업
+Task: frontend-developer
+"새로운 차트 컴포넌트 생성하고 PortfolioPerformance에 통합"
+
+# 디자인 시스템 작업
+Task: ui-ux-designer
+"다크 테마 색상 팔레트 정의하고 일관성 검증"
+
+# 시각적 검증
+Task: ui-visual-validator
+"반응형 레이아웃이 모든 디바이스에서 올바르게 작동하는지 검증"
+```
+
+#### **TypeScript 최적화**
+```bash
+# 타입 안전성 강화
+Task: typescript-pro
+"trading 관련 타입 정의를 개선하고 제네릭으로 최적화"
+```
+
+#### **성능 및 품질**
+```bash
+# 에러 해결
+Task: debugger
+"WebSocket 연결 끊김 문제 진단 및 해결"
+
+# 컨텍스트 관리 (대규모 작업 시)
+Task: context-manager
+"전체 UI 리팩토링 프로젝트 관리"
+```
+
+### Frontend 작업별 Agent 매핑
+
+| 작업 유형 | 추천 Agent | 예시 |
+|----------|------------|------|
+| 컴포넌트 생성/수정 | `frontend-developer` | 새 Trading 컴포넌트 |
+| 반응형 디자인 | `ui-ux-designer` | 모바일 레이아웃 |
+| 타입 에러 해결 | `typescript-pro` | 복잡한 제네릭 타입 |
+| 시각적 검증 | `ui-visual-validator` | UI 변경 후 확인 |
+| 버그 디버깅 | `debugger` | 런타임 에러 해결 |
+
+---
+
 ## 🔧 개발 명령어
 
 ```bash

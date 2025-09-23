@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { Bell, Settings, User, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SimpleConnectionStatus } from '@/components/common/ConnectionStatus';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
@@ -13,7 +12,6 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick, className }: HeaderProps) {
-  const [notificationCount] = useState(3); // 실제로는 알림 시스템에서 가져옴
   const { connectionStatus } = useRealtimeData();
 
   return (
@@ -41,10 +39,10 @@ export function Header({ onMenuClick, className }: HeaderProps) {
           </div>
           <div>
             <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Smart Trading Dashboard
+              Portfolio Manager
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              한국투자증권 시스템트레이딩
+              Professional Trading Platform
             </p>
           </div>
         </div>
@@ -54,34 +52,12 @@ export function Header({ onMenuClick, className }: HeaderProps) {
         {/* 연결 상태 */}
         <SimpleConnectionStatus connectionState={connectionStatus} />
 
-        {/* 알림 */}
+        {/* Add Position 버튼 */}
         <Button
-          variant="ghost"
-          size="sm"
-          className="relative"
-        >
-          <Bell className="h-5 w-5" />
-          {notificationCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              {notificationCount > 9 ? '9+' : notificationCount}
-            </span>
-          )}
-        </Button>
-
-        {/* 설정 */}
-        <Button
-          variant="ghost"
+          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
           size="sm"
         >
-          <Settings className="h-5 w-5" />
-        </Button>
-
-        {/* 사용자 */}
-        <Button
-          variant="ghost"
-          size="sm"
-        >
-          <User className="h-5 w-5" />
+          Add Position
         </Button>
       </div>
     </header>

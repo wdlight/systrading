@@ -78,17 +78,17 @@ export function TradingConditions({ className }: TradingConditionsProps) {
 
   if (isLoading) {
     return (
-      <Card className={className}>
+      <Card className={cn(className, "bg-[#2a2a2a] border-gray-700")}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Target className="h-5 w-5 text-blue-400" />
             매매 조건
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-12 bg-gray-200 rounded-lg" />
+              <div key={i} className="h-12 bg-gray-700 rounded-lg" />
             ))}
           </div>
         </CardContent>
@@ -98,23 +98,23 @@ export function TradingConditions({ className }: TradingConditionsProps) {
 
   if (!localConditions) {
     return (
-      <Card className={className}>
+      <Card className={cn(className, "bg-[#2a2a2a] border-gray-700")}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Target className="h-5 w-5 text-blue-400" />
             매매 조건
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
-            <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 dark:text-gray-400">
+            <AlertTriangle className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+            <p className="text-gray-400">
               매매 조건을 불러올 수 없습니다.
             </p>
-            <Button 
-              onClick={resetConditions} 
-              variant="outline" 
-              className="mt-4"
+            <Button
+              onClick={resetConditions}
+              variant="outline"
+              className="mt-4 border-gray-600 text-gray-300 hover:bg-gray-700"
             >
               기본값으로 재설정
             </Button>
@@ -125,12 +125,12 @@ export function TradingConditions({ className }: TradingConditionsProps) {
   }
 
   return (
-    <Card className={className}>
+    <Card className={cn(className, "bg-[#2a2a2a] border-gray-700")}>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Target className="h-5 w-5" />
-            매매 조건
+            <Target className="h-5 w-5 text-blue-400" />
+            <span className="text-white">매매 조건</span>
           </div>
           
           {/* 자동매매 토글 */}
@@ -142,9 +142,9 @@ export function TradingConditions({ className }: TradingConditionsProps) {
             />
             <span className={cn(
               'text-sm font-medium',
-              localConditions.auto_trading_enabled 
-                ? 'text-green-600 dark:text-green-400'
-                : 'text-gray-500 dark:text-gray-400'
+              localConditions.auto_trading_enabled
+                ? 'text-green-400'
+                : 'text-gray-400'
             )}>
               {localConditions.auto_trading_enabled ? '자동매매 ON' : '자동매매 OFF'}
             </span>
@@ -155,8 +155,8 @@ export function TradingConditions({ className }: TradingConditionsProps) {
       <CardContent className="space-y-6">
         {/* 에러 표시 */}
         {error && (
-          <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
+          <div className="p-3 bg-red-900/20 border border-red-800 rounded-lg">
+            <div className="flex items-center gap-2 text-red-400">
               <AlertTriangle className="h-4 w-4" />
               <span className="text-sm">{error}</span>
             </div>
@@ -178,7 +178,7 @@ export function TradingConditions({ className }: TradingConditionsProps) {
         />
 
         {/* 제어 버튼 */}
-        <div className="flex gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex gap-2 pt-4 border-t border-gray-600">
           <Button
             onClick={() => handleAutoTradingToggle(!localConditions.auto_trading_enabled)}
             disabled={isLoading}
@@ -202,6 +202,7 @@ export function TradingConditions({ className }: TradingConditionsProps) {
             onClick={resetConditions}
             variant="outline"
             disabled={isLoading}
+            className="border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white"
           >
             <Settings className="h-4 w-4" />
           </Button>
@@ -209,8 +210,8 @@ export function TradingConditions({ className }: TradingConditionsProps) {
 
         {/* 상태 표시 */}
         {localConditions.auto_trading_enabled && (
-          <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-            <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+          <div className="p-3 bg-green-900/20 border border-green-800 rounded-lg">
+            <div className="flex items-center gap-2 text-green-400">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
               <span className="text-sm font-medium">
                 자동매매가 활성화되었습니다. 설정된 조건에 따라 자동으로 매매됩니다.
@@ -234,7 +235,7 @@ function BuyConditionsSection({
 }) {
   return (
     <div className="space-y-4">
-      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+      <h4 className="text-sm font-semibold text-white flex items-center gap-2">
         📈 매수 조건
         <Switch
           checked={conditions.enabled}
@@ -247,31 +248,31 @@ function BuyConditionsSection({
       <div className="grid gap-4">
         {/* 매수 금액 */}
         <div>
-          <Label className="text-xs">매수 금액</Label>
+          <Label className="text-xs text-gray-300">매수 금액</Label>
           <Input
             type="number"
             value={conditions.amount}
             onChange={(e) => onChange('amount', Number(e.target.value))}
             disabled={disabled}
-            className="h-8 text-xs"
+            className="h-8 text-xs bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400 focus:ring-blue-400"
             placeholder={formatCurrency(DEFAULTS.BUY_AMOUNT)}
           />
         </div>
 
         {/* MACD 조건 */}
         <div>
-          <Label className="text-xs">MACD Signal Line</Label>
+          <Label className="text-xs text-gray-300">MACD Signal Line</Label>
           <Select
             value={conditions.macd_type}
             onValueChange={(value) => onChange('macd_type', value)}
             disabled={disabled}
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs bg-gray-800 border-gray-600 text-white hover:bg-gray-700 focus:border-blue-400">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-gray-800 border-gray-600">
               {Object.entries(CONDITION_TYPES.MACD).map(([key, value]) => (
-                <SelectItem key={key} value={value}>
+                <SelectItem key={key} value={value} className="text-white hover:bg-gray-700 focus:bg-gray-700">
                   {value}
                 </SelectItem>
               ))}
@@ -281,14 +282,14 @@ function BuyConditionsSection({
 
         {/* RSI 조건 */}
         <div>
-          <Label className="text-xs">RSI 조건</Label>
+          <Label className="text-xs text-gray-300">RSI 조건</Label>
           <div className="flex gap-2">
             <Input
               type="number"
               value={conditions.rsi_value}
               onChange={(e) => onChange('rsi_value', Number(e.target.value))}
               disabled={disabled}
-              className="h-8 text-xs flex-1"
+              className="h-8 text-xs flex-1 bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400 focus:ring-blue-400"
               min="0"
               max="100"
             />
@@ -297,12 +298,12 @@ function BuyConditionsSection({
               onValueChange={(value) => onChange('rsi_type', value)}
               disabled={disabled}
             >
-              <SelectTrigger className="h-8 text-xs w-24">
+              <SelectTrigger className="h-8 text-xs w-24 bg-gray-800 border-gray-600 text-white hover:bg-gray-700 focus:border-blue-400">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-800 border-gray-600">
                 {Object.entries(CONDITION_TYPES.RSI).map(([key, value]) => (
-                  <SelectItem key={key} value={value}>
+                  <SelectItem key={key} value={value} className="text-white hover:bg-gray-700 focus:bg-gray-700">
                     {value}
                   </SelectItem>
                 ))}
@@ -326,7 +327,7 @@ function SellConditionsSection({
 }) {
   return (
     <div className="space-y-4">
-      <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+      <h4 className="text-sm font-semibold text-white flex items-center gap-2">
         📉 매도 조건
         <Switch
           checked={conditions.enabled}
@@ -339,18 +340,18 @@ function SellConditionsSection({
       <div className="grid gap-4">
         {/* MACD 조건 */}
         <div>
-          <Label className="text-xs">MACD Signal Line</Label>
+          <Label className="text-xs text-gray-300">MACD Signal Line</Label>
           <Select
             value={conditions.macd_type}
             onValueChange={(value) => onChange('macd_type', value)}
             disabled={disabled}
           >
-            <SelectTrigger className="h-8 text-xs">
+            <SelectTrigger className="h-8 text-xs bg-gray-800 border-gray-600 text-white hover:bg-gray-700 focus:border-blue-400">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-gray-800 border-gray-600">
               {Object.entries(CONDITION_TYPES.MACD).map(([key, value]) => (
-                <SelectItem key={key} value={value}>
+                <SelectItem key={key} value={value} className="text-white hover:bg-gray-700 focus:bg-gray-700">
                   {value}
                 </SelectItem>
               ))}
@@ -360,14 +361,14 @@ function SellConditionsSection({
 
         {/* RSI 조건 */}
         <div>
-          <Label className="text-xs">RSI 조건</Label>
+          <Label className="text-xs text-gray-300">RSI 조건</Label>
           <div className="flex gap-2">
             <Input
               type="number"
               value={conditions.rsi_value}
               onChange={(e) => onChange('rsi_value', Number(e.target.value))}
               disabled={disabled}
-              className="h-8 text-xs flex-1"
+              className="h-8 text-xs flex-1 bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400 focus:ring-blue-400"
               min="0"
               max="100"
             />
@@ -376,12 +377,12 @@ function SellConditionsSection({
               onValueChange={(value) => onChange('rsi_type', value)}
               disabled={disabled}
             >
-              <SelectTrigger className="h-8 text-xs w-24">
+              <SelectTrigger className="h-8 text-xs w-24 bg-gray-800 border-gray-600 text-white hover:bg-gray-700 focus:border-blue-400">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-gray-800 border-gray-600">
                 {Object.entries(CONDITION_TYPES.RSI).map(([key, value]) => (
-                  <SelectItem key={key} value={value}>
+                  <SelectItem key={key} value={value} className="text-white hover:bg-gray-700 focus:bg-gray-700">
                     {value}
                   </SelectItem>
                 ))}
@@ -393,26 +394,26 @@ function SellConditionsSection({
         {/* 손익 관리 */}
         <div className="space-y-3">
           <div>
-            <Label className="text-xs">손절매 (%)</Label>
+            <Label className="text-xs text-gray-300">손절매 (%)</Label>
             <Input
               type="number"
               value={conditions.stop_loss_rate || 5}
               onChange={(e) => onChange('stop_loss_rate', Number(e.target.value))}
               disabled={disabled}
-              className="h-8 text-xs"
+              className="h-8 text-xs bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400 focus:ring-blue-400"
               min="1"
               max="50"
             />
           </div>
 
           <div>
-            <Label className="text-xs">익절매 (%)</Label>
+            <Label className="text-xs text-gray-300">익절매 (%)</Label>
             <Input
               type="number"
               value={conditions.take_profit_rate || 10}
               onChange={(e) => onChange('take_profit_rate', Number(e.target.value))}
               disabled={disabled}
-              className="h-8 text-xs"
+              className="h-8 text-xs bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-blue-400 focus:ring-blue-400"
               min="1"
               max="100"
             />
@@ -425,7 +426,7 @@ function SellConditionsSection({
               disabled={disabled}
               size="sm"
             />
-            <Label className="text-xs">트레일링 스톱</Label>
+            <Label className="text-xs text-gray-300">트레일링 스톱</Label>
           </div>
         </div>
       </div>

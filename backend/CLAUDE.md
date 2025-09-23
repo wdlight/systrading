@@ -24,6 +24,78 @@ backend/
 
 ---
 
+## 🤖 Claude Code Agent 활용 (Backend)
+
+### 우선 사용 Agent
+
+#### **Backend 아키텍처**
+```bash
+# API 설계 및 구조
+Task: backend-architect
+"새로운 portfolio API 엔드포인트 설계하고 RESTful 패턴으로 구현"
+
+# Python 최적화
+Task: python-pro
+"비동기 처리를 활용한 FastAPI 성능 최적화"
+```
+
+#### **Trading 시스템 전문**
+```bash
+# 자동매매 엔진
+Task: trading-engine-specialist
+"RSI/MACD 기반 매매 신호 생성 및 주문 실행 로직 구현"
+
+# 데이터 분석
+Task: quantitative-analyst
+"백테스팅 시스템 구축 및 매매 전략 성과 분석"
+
+# 시장 데이터
+Task: market-data-engineer
+"한국투자증권 API 실시간 데이터 수집 및 WebSocket 스트리밍"
+
+# 리스크 관리
+Task: risk-manager
+"포지션 사이징 및 손실 제한 로직 구현"
+
+# 성과 모니터링
+Task: performance-monitor
+"매매 결과 분석 및 실시간 모니터링 대시보드"
+```
+
+#### **한국투자증권 API 전문**
+```bash
+# API 연동 및 디버깅
+Task: korean-stock-api-debugger
+"토큰 만료, 데이터 파싱 오류, 주문 실패 등 API 관련 문제 해결"
+```
+
+#### **인프라 및 데이터**
+```bash
+# 데이터베이스 관리
+Task: database-admin
+"거래 데이터 백업, 성능 최적화, 인덱스 관리"
+
+# 에러 디버깅
+Task: debugger
+"WebSocket 연결 문제, 비동기 처리 오류 해결"
+```
+
+### Backend 작업별 Agent 매핑
+
+| 작업 유형 | 추천 Agent | 예시 |
+|----------|------------|------|
+| API 엔드포인트 | `backend-architect` | REST API 설계 |
+| 매매 로직 | `trading-engine-specialist` | 자동매매 알고리즘 |
+| 데이터 분석 | `quantitative-analyst` | RSI/MACD 최적화 |
+| 한투 API 연동 | `korean-stock-api-debugger` | 토큰/주문 오류 |
+| 실시간 데이터 | `market-data-engineer` | WebSocket 스트리밍 |
+| 리스크 관리 | `risk-manager` | 손익 제한 로직 |
+| 성과 분석 | `performance-monitor` | 매매 결과 리포트 |
+| DB 운영 | `database-admin` | 데이터 관리 |
+| Python 최적화 | `python-pro` | 비동기 성능 개선 |
+
+---
+
 ## 🔧 개발 명령어
 
 ### ⚠️ 필수: vkis 가상환경 사용

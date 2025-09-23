@@ -5,6 +5,8 @@ import { Header } from '@/components/layout/Header';
 import { PortfolioSummary } from '@/components/trading/PortfolioSummary';
 import { TradingConditions } from '@/components/trading/TradingConditions';
 import { WatchlistPanel } from '@/components/trading/WatchlistPanel';
+import { PortfolioPerformance } from '@/components/trading/PortfolioPerformance';
+import { MarketOverview } from '@/components/trading/MarketOverview';
 import { DetailedConnectionStatus } from '@/components/common/ConnectionStatus';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { useAccountData } from '@/hooks/useAccountData';
@@ -18,7 +20,7 @@ export default function Home() {
   const isLoading = realtimeLoading || accountLoading;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-[#1a1a1a]">
       {/* 헤더 */}
       <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
 
@@ -40,7 +42,7 @@ export default function Home() {
 
         {/* 오버레이 (모바일) */}
         {sidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
             onClick={() => setSidebarOpen(false)}
           />
@@ -66,6 +68,12 @@ export default function Home() {
             {/* 메인: 워치리스트 */}
             <div className="grid grid-cols-1 gap-6">
               <WatchlistPanel />
+            </div>
+
+            {/* 하단: Portfolio Performance + Market Overview */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <PortfolioPerformance />
+              <MarketOverview />
             </div>
 
             {/* 로딩 상태 표시 */}
