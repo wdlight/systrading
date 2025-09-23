@@ -76,11 +76,20 @@ backend/config.yaml
 token_backup/
 *.token
 *.key
+*.tok
+access.tok
+backend/access.tok
 credentials.json
 access_token.txt
 refresh_token.txt
 api_key.txt
 secret_key.txt
+
+# MCP 서버 토큰 (Figma, GitHub 등)
+.mcp.json.secret
+.mcp_tokens/
+figma_token.txt
+github_token.txt
 
 # 거래 데이터 (민감 정보)
 data/
