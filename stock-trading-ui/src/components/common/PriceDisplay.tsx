@@ -130,8 +130,8 @@ export function CompactPriceDisplay({
   };
 
   const colorClasses = {
-    up: 'text-green-600 dark:text-green-400',
-    down: 'text-red-600 dark:text-red-400',
+    up: 'text-green-500 dark:text-green-400',
+    down: 'text-red-500 dark:text-red-400',
     neutral: 'text-gray-700 dark:text-gray-300',
   };
 
@@ -141,7 +141,7 @@ export function CompactPriceDisplay({
       <span className={cn(
         'font-mono font-medium',
         sizeClasses[size],
-        'text-gray-900 dark:text-gray-100'
+        'text-gray-100'
       )}>
         {formatCurrency(current, { currency: 'KRW', compact: false })}
       </span>

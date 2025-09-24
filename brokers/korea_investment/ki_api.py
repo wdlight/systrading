@@ -182,6 +182,135 @@ class KoreaInvestAPI(BrokerInterface):
         else:
             return pd.DataFrame(columns=output_columns)
 
+    def get_daily_price_chart(self, stock_code, start_date, end_date, period_code='D'):
+        """
+        일/주/월봉 차트 데이터 조회
+        https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice
+        """
+        url = '/uapi/domestic-stock/v1/quotations/inquire-daily-itemchartprice'
+        tr_id = 'FHKST03010100'
+
+        params = {
+            'FID_COND_MRKT_DIV_CODE': 'J',
+            'FID_INPUT_ISCD': stock_code,
+            'FID_INPUT_DATE_1': start_date,
+            'FID_INPUT_DATE_2': end_date,
+            'FID_PERIOD_DIV_CODE': period_code,
+            'FID_ORG_ADJ_PRC': '1',  # 수정주가 반영
+        }
+
+        t1 = self._url_fetch(url, tr_id, params)
+        output_columns = ['일자', '시가', '고가', '저가', '종가', '거래량']
+        if t1 is None:
+            return pd.DataFrame(columns=output_columns)
+        
+        try:
+            output2 = t1.get_body().output2
+        except Exception as e:
+            logger.info(f"Exception: {e}, t1: {t1}")
+            return pd.DataFrame(columns=output_columns)
+
+        if t1 is not None and t1.is_ok() and output2:
+            df = pd.DataFrame(output2)
+            target_columns = [
+                'stck_bsop_date',
+                'stck_oprc',
+                'stck_hgpr',
+                'stck_lwpr',
+                'stck_clpr',
+                'acml_vol',
+            ]
+            
+            df = df[target_columns]
+            df[target_columns[1:]] = df[target_columns[1:]].apply(pd.to_numeric)
+            column_name_map = dict(zip(target_columns, output_columns))
+            df.rename(columns=column_name_map, inplace=True)
+            return df[::-1].reset_index(drop=True)
+        else:
+            return pd.DataFrame(columns=output_columns)
+
+    def get_current_price(self, stock_code: str):
+        """
+        현재가 조회 (KIS-06)
+        https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/quotations/inquire-price
+        """
+        url = "/uapi/domestic-stock/v1/quotations/inquire-price"
+        tr_id = "FHKST01010100"
+        params = {
+            "FID_COND_MRKT_DIV_CODE": "J",
+            "FID_INPUT_ISCD": stock_code,
+        }
+        t1 = self._url_fetch(url, tr_id, params)
+        if t1 and t1.is_ok():
+            return t1.get_body().output
+        return None
+
+    def get_orderable_amount(self, stock_code: str, price: int):
+        """
+        매수 가능 조회 (KIS-07)
+        https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/trading/inquire-psbl-order
+        """
+        url = "/uapi/domestic-stock/v1/trading/inquire-psbl-order"
+        tr_id = "TTTC8908R"
+        params = {
+            "CANO": self.stock_account_number,
+            "ACNT_PRDT_CD": "01",
+            "PDNO": stock_code,
+            "ORD_UNPR": str(price),
+            "ORD_DVSN": "01", # 지정가
+            "CMA_EVLU_AMT_ICLD_YN": "N",
+            "OVRS_ICLD_YN": "N"
+        }
+        t1 = self._url_fetch(url, tr_id, params)
+        if t1 and t1.is_ok():
+            return t1.get_body().output
+        return None
+
+    def get_daily_ccld(self, start_date: str, end_date: str, stock_code: str = "", sll_buy_dvsn_cd: str = "00"):
+        """
+        일별 주문 체결 조회 (KIS-04)
+        https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/trading/inquire-daily-ccld
+        """
+        url = "/uapi/domestic-stock/v1/trading/inquire-daily-ccld"
+        tr_id = "TTTC8001R"
+        params = {
+            "CANO": self.stock_account_number,
+            "ACNT_PRDT_CD": "01",
+            "INQR_STRT_DT": start_date,
+            "INQR_END_DT": end_date,
+            "SLL_BUY_DVSN_CD": sll_buy_dvsn_cd, # 00:전체, 01:매도, 02:매수
+            "INQR_DVSN": "00", # 종목별
+            "PDNO": stock_code,
+            "CCLD_DVSN": "00", # 00:전체, 01:체결, 02:미체결
+            "ORD_GNO_BRNO": "",
+            "ODNO": "",
+            "INQR_DVSN_3": "00",
+            "INQR_DVSN_1": "",
+            "CTX_AREA_FK100": "",
+            "CTX_AREA_NK100": ""
+        }
+        t1 = self._url_fetch(url, tr_id, params)
+        output_columns = ['주문일자', '주문번호', '원주문번호', '매매구분', '종목코드', '종목명', '주문수량', '주문단가', '총체결수량', '평균체결가', '총체결금액']
+        if t1 is None:
+            return pd.DataFrame(columns=output_columns)
+
+        try:
+            output1 = t1.get_body().output1
+        except Exception as e:
+            logger.info(f"Exception: {e}, t1: {t1}")
+            return pd.DataFrame(columns=output_columns)
+
+        if t1.is_ok() and output1:
+            df = pd.DataFrame(output1)
+            target_columns = ['ord_dt', 'odno', 'orgn_odno', 'ord_dvsn_name', 'pdno', 'prdt_name', 'ord_qty', 'ord_unpr', 'tot_ccld_qty', 'avg_prvs', 'tot_ccld_amt']
+            df = df[target_columns]
+            df[target_columns[6:]] = df[target_columns[6:]].apply(pd.to_numeric)
+            column_name_map = dict(zip(target_columns, output_columns))
+            df.rename(columns=column_name_map, inplace=True)
+            return df
+        else:
+            return pd.DataFrame(columns=output_columns)
+
     def buy_order(self, stock_code, order_qty, order_price, order_type="00"):
         """매수 주문"""
         t1 = self.stock_order(stock_code, order_qty, order_price, buy_flag=True, order_type=order_type)
@@ -192,22 +321,44 @@ class KoreaInvestAPI(BrokerInterface):
         t1 = self.stock_order(stock_code, order_qty, order_price, buy_flag=False, order_type=order_type)
         return t1
 
-    def cancel_order(self, stock_code, order_qty, order_price, order_type="00"):
-        """주문 취소 (향후 구현)"""
-        # TODO: 주문 취소 구현
-        logger.warning("cancel_order 메서드는 아직 구현되지 않았습니다")
-        return None
+    def cancel_order(self, org_branch_code: str, org_order_no: str, order_qty: int):
+        """주문 취소 (KIS-03)"""
+        return self._revise_or_cancel(org_branch_code, org_order_no, "02", order_qty, 0)
 
-    def revise_order(self, stock_code, order_qty, order_price, order_type="00"):
-        """주문 정정 (향후 구현)"""
-        # TODO: 주문 정정 구현
-        logger.warning("revise_order 메서드는 아직 구현되지 않았습니다")
+    def revise_order(self, org_branch_code: str, org_order_no: str, order_qty: int, order_price: int):
+        """주문 정정 (KIS-03)"""
+        return self._revise_or_cancel(org_branch_code, org_order_no, "01", order_qty, order_price)
+
+    def _revise_or_cancel(self, org_branch_code: str, org_order_no: str, division_code: str, order_qty: int, order_price: int):
+        """주문 정정/취소 공통 로직"""
+        url = "/uapi/domestic-stock/v1/trading/order-rvsecncl"
+        # 취소: TTTC0801U, 정정: TTTC0803U
+        tr_id = "TTTC0801U" if division_code == "02" else "TTTC0803U"
+        
+        params = {
+            "CANO": self.stock_account_number,
+            "ACNT_PRDT_CD": "01",
+            "KRX_FWDG_ORD_ORGNO": org_branch_code,
+            "ORGN_ODNO": org_order_no,
+            "ORD_DVSN": "01", # 지정가
+            "RVSE_CNCL_DVSN_CD": division_code, # 01:정정, 02:취소
+            "ORD_QTY": str(order_qty),
+            "ORD_UNPR": str(order_price),
+            "QTY_ALL_ORD_YN": "Y" if order_qty > 0 else "N",
+        }
+
+        t1 = self._url_fetch(url, tr_id, params, is_post_request=True, use_hash=True)
+        
+        if t1 and t1.is_ok():
+            return t1
+        elif t1:
+            t1.print_error()
         return None
 
     def stock_order(self, stock_code, order_qty, order_price, prd_code="01", buy_flag=True, order_type="00"):
         """주식 실제 매매를 위한 주문"""
         url = "/uapi/domestic-stock/v1/trading/order-cash"
-        tr_id = "TTTC0012U" if buy_flag else "TTTC0011U"
+        tr_id = "TTTC0802U" if buy_flag else "TTTC0801U" # 정정: TTTC0802U는 매수, TTTC0801U는 매도
         params = {
             "CANO": self.stock_account_number ,  #종합계좌번호
             "ACNT_PRDT_CD": prd_code ,  #상품유형코드

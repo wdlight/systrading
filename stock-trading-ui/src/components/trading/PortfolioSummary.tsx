@@ -92,18 +92,22 @@ export function PortfolioSummary({ className }: PortfolioSummaryProps) {
   }
 
   return (
-    <Card className={cn(className, "bg-[#2a2a2a] border-gray-700")}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <DollarSign className="h-5 w-5 text-blue-400" />
-          포트폴리오 요약
+    <Card className={cn(className, "card-professional-elevated")}>
+      <CardHeader className="pb-5">
+        <CardTitle className="flex items-center gap-4 text-primary-pro">
+          <div className="icon-bg-blue">
+            <DollarSign className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-heading-md">포트폴리오 요약</h2>
+            <p className="text-caption-md text-secondary-pro">
+              현재 평가금액: <span className="text-financial-xs font-bold">{formatCurrency(accountBalance.total_evaluation_amount)}</span>
+            </p>
+          </div>
         </CardTitle>
-        <div className="text-sm text-gray-300">
-          현재 평가금액: {formatCurrency(accountBalance.total_evaluation_amount)}
-        </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <CardContent className="space-section">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {summaryCards.map((card, index) => (
             <SummaryCard
               key={index}
@@ -119,11 +123,11 @@ export function PortfolioSummary({ className }: PortfolioSummaryProps) {
 
         {/* 포트폴리오 통계 */}
         {portfolioStats && (
-          <div className="mt-6 pt-6 border-t border-gray-600">
-            <h4 className="text-sm font-medium text-white mb-3">
+          <div className="mt-8 pt-6 border-t border-professional">
+            <h4 className="text-heading-sm text-primary-pro mb-5">
               포트폴리오 지표
             </h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
               <StatItem
                 label="승률"
                 value={`${portfolioStats.win_rate}%`}
@@ -169,48 +173,61 @@ function SummaryCard({
 }) {
   const direction = change > 0 ? 'up' : change < 0 ? 'down' : 'neutral';
 
-  const colorClasses = {
-    up: 'text-green-400 bg-[#2a2a2a] border-green-500/30',
-    down: 'text-red-400 bg-[#2a2a2a] border-red-500/30',
-    neutral: 'text-gray-300 bg-[#2a2a2a] border-gray-600/30',
+  // Professional card styling based on type and direction
+  const getCardClasses = () => {
+    const baseClasses = 'card-professional-interactive p-4 rounded-xl transition-all duration-300';
+
+    if (title === '총 자산' || title === '가용 현금') {
+      return cn(baseClasses, 'metric-card-blue');
+    }
+    if (title === '일일 손익') {
+      return cn(baseClasses, direction === 'up' ? 'metric-card-green' : 'metric-card-red');
+    }
+    if (title === '총 손익') {
+      return cn(baseClasses, direction === 'up' ? 'metric-card-green' : direction === 'down' ? 'metric-card-red' : 'metric-card-purple');
+    }
+    return cn(baseClasses, 'metric-card-cyan');
   };
 
-  // 아이콘 색상 결정
-  const getIconColor = () => {
-    if (title === '총 자산' || title === '가용 현금') return 'text-blue-400';
-    if (title === '일일 손익') return direction === 'up' ? 'text-green-400' : 'text-red-400';
-    if (title === '총 손익') return 'text-purple-400';
-    return 'text-gray-400';
+  // Professional icon background styling
+  const getIconClasses = () => {
+    if (title === '총 자산' || title === '가용 현금') return 'icon-bg-blue';
+    if (title === '일일 손익') return direction === 'up' ? 'icon-bg-green' : 'icon-bg-red';
+    if (title === '총 손익') return direction === 'up' ? 'icon-bg-green' : direction === 'down' ? 'icon-bg-red' : 'icon-bg-purple';
+    return 'icon-bg-cyan';
+  };
+
+  // Professional text colors
+  const getChangeTextColor = () => {
+    if (direction === 'up') return 'text-green-400';
+    if (direction === 'down') return 'text-red-400';
+    return 'text-zinc-400';
   };
 
   return (
-    <div className={cn(
-      'p-3 rounded-lg border transition-all duration-300 hover:shadow-md',
-      colorClasses[direction]
-    )}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-sm font-medium text-gray-300">
+    <div className={getCardClasses()}>
+      <div className="flex items-center justify-between mb-5">
+        <span className="text-body-sm font-medium text-secondary-pro">
           {title}
         </span>
-        <Icon className={cn("h-4 w-4", getIconColor())} />
+        <div className={getIconClasses()}>
+          <Icon className="h-4 w-4" />
+        </div>
       </div>
 
-      <div className="space-y-1">
-        <div className="text-lg font-bold text-white">
+      <div className="space-y-3">
+        <div className="text-financial-md text-primary-pro">
           {formatCurrency(value)}
         </div>
 
         {(change !== 0 || changeRate !== 0) && (
-          <div className={cn('text-sm font-medium',
-            direction === 'up' ? 'text-green-400' :
-            direction === 'down' ? 'text-red-400' :
-            'text-gray-300'
-          )}>
-            {change > 0 ? '+' : ''}{formatCurrency(change)} ({formatPercentage(changeRate, { showSign: false })})
+          <div className={cn('text-body-sm font-semibold', getChangeTextColor())}>
+            {change > 0 ? '+' : ''}{formatCurrency(change)}
+            <span className="text-caption-md ml-2 opacity-90">({formatPercentage(changeRate, { showSign: false })})</span>
           </div>
         )}
 
-        <div className="text-xs text-gray-400">
+        <div className="text-caption-md text-muted-pro mt-2">
           {description}
         </div>
       </div>
@@ -229,16 +246,22 @@ function StatItem({
 }) {
   const colorClasses = {
     green: 'text-green-400',
-    yellow: 'text-yellow-400',
+    yellow: 'text-amber-400',
     red: 'text-red-400',
   };
 
+  const bgClasses = {
+    green: 'bg-green-500/10',
+    yellow: 'bg-amber-500/10',
+    red: 'bg-red-500/10',
+  };
+
   return (
-    <div className="text-center">
-      <div className="text-xs text-gray-400 mb-1">
+    <div className={cn('text-center p-4 rounded-lg border border-professional transition-all duration-300', bgClasses[color])}>
+      <div className="text-caption-md text-muted-pro mb-3">
         {label}
       </div>
-      <div className={cn('text-sm font-semibold', colorClasses[color])}>
+      <div className={cn('text-financial-sm', colorClasses[color])}>
         {value}
       </div>
     </div>

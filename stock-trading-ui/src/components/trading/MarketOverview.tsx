@@ -24,87 +24,108 @@ export function MarketOverview({ className }: MarketOverviewProps) {
   ];
 
   return (
-    <Card className={`${className} bg-[#2a2a2a] border-gray-700`}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <Globe className="h-5 w-5 text-blue-400" />
-          Market Overview
-        </CardTitle>
-        <div className="text-sm text-gray-400">
-          실시간 시장 현황
+    <Card className={`${className} bg-[#2a2a2a] border-gray-700 shadow-xl`}>
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+            <Globe className="h-4 w-4 text-blue-400" />
+          </div>
+          <div>
+            <CardTitle className="text-lg font-bold text-white">
+              Market Overview
+            </CardTitle>
+            <p className="text-xs text-gray-400">
+              Real-time market data and trends
+            </p>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {/* 주요 지수 */}
-          <div>
-            <h4 className="text-sm font-medium text-white mb-3">주요 지수</h4>
-            <div className="grid grid-cols-2 gap-3">
-              {marketData.map((market, index) => (
-                <div key={index} className="bg-gray-800 rounded-lg p-3 border border-gray-600">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-gray-300">{market.name}</span>
-                    {market.trend === 'up' ? (
-                      <TrendingUp className="h-3 w-3 text-green-400" />
-                    ) : (
-                      <TrendingDown className="h-3 w-3 text-red-400" />
-                    )}
-                  </div>
-                  <div className="text-sm font-bold text-white">{market.value}</div>
-                  <div className={`text-xs ${
-                    market.trend === 'up' ? 'text-green-400' : 'text-red-400'
-                  }`}>
-                    {market.change} ({market.changeRate})
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 인기 종목 */}
-          <div>
-            <h4 className="text-sm font-medium text-white mb-3">인기 종목</h4>
-            <div className="space-y-2">
-              {topStocks.map((stock, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-800 rounded border border-gray-600">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-shrink-0">
-                      {stock.trend === 'up' ? (
-                        <TrendingUp className="h-3 w-3 text-green-400" />
-                      ) : (
-                        <TrendingDown className="h-3 w-3 text-red-400" />
-                      )}
+          {/* 2-Column Layout: Major Indices and Top Movers */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Major Indices */}
+            <div>
+              <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wide">Major Indices</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                {marketData.map((market, index) => (
+                  <div key={index} className="bg-[#1a1a1a] rounded-lg p-4 border border-gray-600 hover:border-gray-500 transition-all duration-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-gray-300 uppercase tracking-wide">{market.name}</span>
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                        market.trend === 'up' ? 'bg-green-500/20' : 'bg-red-500/20'
+                      }`}>
+                        {market.trend === 'up' ? (
+                          <TrendingUp className="h-3 w-3 text-green-400" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-red-400" />
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <div className="text-xs font-medium text-white">{stock.name}</div>
-                      <div className="text-xs text-gray-400">{stock.symbol}</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs font-medium text-gray-300">{stock.price}</div>
-                    <div className={`text-xs ${
-                      stock.trend === 'up' ? 'text-green-400' : 'text-red-400'
+                    <div className="text-lg font-bold text-white mb-1">{market.value}</div>
+                    <div className={`text-xs font-semibold ${
+                      market.trend === 'up' ? 'text-green-400' : 'text-red-400'
                     }`}>
-                      {stock.change}
+                      {market.change} ({market.changeRate})
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            </div>
+
+            {/* Top Movers */}
+            <div>
+              <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wide">Top Movers</h4>
+              <div className="space-y-2">
+                {topStocks.map((stock, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-lg border border-gray-600 hover:border-gray-500 transition-all duration-200">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        stock.trend === 'up' ? 'bg-green-500/20' : 'bg-red-500/20'
+                      }`}>
+                        {stock.trend === 'up' ? (
+                          <TrendingUp className="h-3 w-3 text-green-400" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3 text-red-400" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-white">{stock.name}</div>
+                        <div className="text-xs text-gray-400 font-mono">{stock.symbol}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-gray-200">{stock.price}</div>
+                      <div className={`text-xs font-semibold ${
+                        stock.trend === 'up' ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {stock.change}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* 시장 뉴스 */}
-          <div>
-            <h4 className="text-sm font-medium text-white mb-3">시장 뉴스</h4>
-            <div className="space-y-2">
+          {/* Market News - Single Column Below */}
+          <div className="border-t border-gray-600 pt-6">
+            <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wide">Market News</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {[
-                { title: 'Fed 기준금리 동결 결정', time: '2시간 전' },
-                { title: '삼성전자 3분기 실적 발표', time: '4시간 전' },
-                { title: '원/달러 환율 급등', time: '6시간 전' },
+                { title: 'Federal Reserve holds interest rates steady', time: '2 hours ago' },
+                { title: 'Samsung Electronics Q3 earnings report', time: '4 hours ago' },
+                { title: 'USD/KRW exchange rate surge', time: '6 hours ago' },
+                { title: 'Tech stocks rally on AI optimism', time: '8 hours ago' },
+                { title: 'Korean automotive exports increase', time: '10 hours ago' },
+                { title: 'Crypto market shows volatility', time: '12 hours ago' },
               ].map((news, index) => (
-                <div key={index} className="p-2 bg-gray-800 rounded border border-gray-600">
-                  <div className="text-xs text-gray-300 leading-relaxed">{news.title}</div>
-                  <div className="text-xs text-gray-500 mt-1">{news.time}</div>
+                <div key={index} className="p-3 bg-[#1a1a1a] rounded-lg border border-gray-600 hover:border-gray-500 transition-all duration-200 cursor-pointer">
+                  <div className="text-sm text-gray-200 leading-relaxed font-medium line-clamp-2">{news.title}</div>
+                  <div className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                    <div className="w-1 h-1 bg-blue-400 rounded-full" />
+                    {news.time}
+                  </div>
                 </div>
               ))}
             </div>

@@ -21,13 +21,6 @@
         "mcp"
       ]
     },
-    "taskmaster": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@keruru-amuri/task-master"
-      ]
-    },
     "figma": {
       "command": "npx",
       "args": [

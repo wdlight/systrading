@@ -95,65 +95,88 @@ export function WatchlistPanel({ className }: WatchlistPanelProps) {
   }
 
   return (
-    <Card className={cn(className, "bg-[#2a2a2a] border-gray-700")}>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Eye className="h-5 w-5 text-blue-400" />
-            Your Holdings
-            <span className="text-sm font-normal text-gray-400">
-              ({filteredAndSortedWatchlist.length})
-            </span>
-          </CardTitle>
+    <Card className={cn(className, "bg-[#2a2a2a] border-gray-700 shadow-xl")}>
+      <CardHeader className="pb-5">
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="icon-bg-blue">
+                <Eye className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-heading-md text-white">Portfolio Holdings</h3>
+                <p className="text-caption-md text-gray-400">
+                  {filteredAndSortedWatchlist.length} position{filteredAndSortedWatchlist.length !== 1 ? 's' : ''} tracked
+                </p>
+              </div>
+            </div>
 
-          <Button size="sm" variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-700">
-            <Plus className="h-4 w-4 mr-1" />
-            종목 추가
-          </Button>
-        </div>
+            <Button
+              className="button-professional bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-professional hover:shadow-professional-lg hover:scale-105"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Stock
+            </Button>
+          </div>
 
-        {/* 검색바 */}
-        <div className="flex gap-2">
-          <Input
-            placeholder="종목 코드 또는 이름 검색..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="flex-1 h-8 text-xs bg-gray-800 border-gray-600 text-white placeholder-gray-400"
-          />
+          {/* Professional Search Bar */}
+          <div className="flex gap-3">
+            <Input
+              placeholder="Search by stock code or name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input-professional flex-1 focus:border-blue-400 focus:ring-blue-400"
+            />
+          </div>
         </div>
       </CardHeader>
 
       <CardContent>
         {error && (
-          <div className="p-3 mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
-              <AlertCircle className="h-4 w-4" />
-              <span className="text-sm">{error}</span>
+          <div className="p-5 mb-5 bg-red-500/10 border border-red-500/30 rounded-lg backdrop-blur-sm">
+            <div className="flex items-center gap-4">
+              <div className="icon-bg-red">
+                <AlertCircle className="h-5 w-5" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-body-md font-semibold text-red-400">Connection Error</p>
+                <p className="text-caption-md text-red-300">{error}</p>
+              </div>
             </div>
           </div>
         )}
 
         {filteredAndSortedWatchlist.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            {searchTerm ? '검색 결과가 없습니다.' : '워치리스트가 비어있습니다.'}
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Eye className="h-8 w-8 text-gray-500" />
+            </div>
+            <h4 className="text-heading-sm font-semibold text-gray-400 mb-2">
+              {searchTerm ? 'No Results Found' : 'No Holdings Yet'}
+            </h4>
+            <p className="text-body-md text-gray-500">
+              {searchTerm
+                ? 'Try adjusting your search terms'
+                : 'Add your first stock to start tracking'}
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="text-xs">
+                <TableRow className="text-xs border-gray-600">
                   <TableHead
-                    className="h-8 cursor-pointer hover:bg-gray-700 text-gray-300"
+                    className="h-11 cursor-pointer hover:bg-gray-700 text-gray-300 font-semibold uppercase tracking-wide transition-colors duration-200"
                     onClick={() => handleSort('code')}
                   >
-                    종목
+                    Stock
                     {sortBy === 'code' && (
                       <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </TableHead>
-                  <TableHead className="h-8 text-center text-gray-300">현재가</TableHead>
+                  <TableHead className="h-11 text-center text-gray-300 font-semibold uppercase tracking-wide">현재가</TableHead>
                   <TableHead
-                    className="h-8 cursor-pointer hover:bg-gray-700 text-gray-300"
+                    className="h-11 cursor-pointer hover:bg-gray-700 text-gray-300 font-semibold uppercase tracking-wide transition-colors duration-200"
                     onClick={() => handleSort('profit_rate')}
                   >
                     수익률
@@ -161,11 +184,11 @@ export function WatchlistPanel({ className }: WatchlistPanelProps) {
                       <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </TableHead>
-                  <TableHead className="h-8 text-gray-300">평균단가</TableHead>
-                  <TableHead className="h-8 text-gray-300">수량</TableHead>
-                  <TableHead className="h-8 text-gray-300">MACD</TableHead>
+                  <TableHead className="h-11 text-gray-300 font-semibold uppercase tracking-wide">평균단가</TableHead>
+                  <TableHead className="h-11 text-gray-300 font-semibold uppercase tracking-wide">수량</TableHead>
+                  <TableHead className="h-11 text-gray-300 font-semibold uppercase tracking-wide">MACD</TableHead>
                   <TableHead
-                    className="h-8 cursor-pointer hover:bg-gray-700 text-gray-300"
+                    className="h-11 cursor-pointer hover:bg-gray-700 text-gray-300 font-semibold uppercase tracking-wide transition-colors duration-200"
                     onClick={() => handleSort('rsi')}
                   >
                     RSI
@@ -254,7 +277,7 @@ function WatchlistRow({ item }: { item: WatchlistItem }) {
               )}
             </Button>
             <div>
-              <div className="font-mono text-xs text-white">{item.stock_code}</div>
+              <div className="font-mono text-xs text-gray-100">{item.stock_code}</div>
               {item.stock_name && (
                 <div className="text-xs text-gray-400 truncate max-w-20">
                   {item.stock_name}
@@ -276,8 +299,8 @@ function WatchlistRow({ item }: { item: WatchlistItem }) {
         <TableCell>
           <div className={cn(
             'text-xs font-medium',
-            item.profit_rate > 0 ? 'text-green-600 dark:text-green-400' :
-            item.profit_rate < 0 ? 'text-red-600 dark:text-red-400' :
+            item.profit_rate > 0 ? 'text-green-500 dark:text-green-400' :
+            item.profit_rate < 0 ? 'text-red-500 dark:text-red-400' :
             'text-gray-600 dark:text-gray-400'
           )}>
             {item.profit_rate > 0 ? '+' : ''}{item.profit_rate}%
@@ -286,14 +309,14 @@ function WatchlistRow({ item }: { item: WatchlistItem }) {
 
         {/* 평균단가 */}
         <TableCell>
-          <div className="text-xs font-mono text-gray-300">
+          <div className="text-xs font-mono text-gray-200">
             {item.avg_price ? formatNumber(item.avg_price) : '-'}
           </div>
         </TableCell>
 
         {/* 수량 */}
         <TableCell>
-          <div className="text-xs font-mono text-gray-300">
+          <div className="text-xs font-mono text-gray-200">
             {formatNumber(item.quantity)}
           </div>
         </TableCell>
@@ -301,7 +324,7 @@ function WatchlistRow({ item }: { item: WatchlistItem }) {
         {/* MACD */}
         <TableCell>
           <div className="flex flex-col gap-0.5">
-            <div className="text-xs font-mono text-gray-300">
+            <div className="text-xs font-mono text-gray-200">
               {item.macd}
             </div>
             <div className={cn(
@@ -318,7 +341,7 @@ function WatchlistRow({ item }: { item: WatchlistItem }) {
         {/* RSI */}
         <TableCell>
           <div className="flex flex-col gap-0.5">
-            <div className="text-xs font-mono text-gray-300">
+            <div className="text-xs font-mono text-gray-200">
               {item.rsi}
             </div>
             <div className={cn(
@@ -334,7 +357,7 @@ function WatchlistRow({ item }: { item: WatchlistItem }) {
 
         {/* 거래량 */}
         <TableCell>
-          <div className="text-xs font-mono text-gray-300">
+          <div className="text-xs font-mono text-gray-200">
             {formatNumber(item.volume, { compact: false })}
           </div>
         </TableCell>
@@ -428,14 +451,14 @@ function LogEntryComponent({ entry }: { entry: LogEntry }) {
       </div>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-        <div><span className="text-gray-400">현재가:</span> <span className="text-gray-300">₩{entry.data.current_price.toLocaleString()}</span></div>
+        <div><span className="text-gray-400">현재가:</span> <span className="text-gray-100">₩{entry.data.current_price.toLocaleString()}</span></div>
         <div><span className="text-gray-400">수익률:</span> <span className="text-gray-300">{entry.data.profit_rate}%</span></div>
-        <div><span className="text-gray-400">평균단가:</span> <span className="text-gray-300">₩{entry.data.avg_price?.toLocaleString() || '-'}</span></div>
-        <div><span className="text-gray-400">수량:</span> <span className="text-gray-300">{entry.data.quantity}</span></div>
-        <div><span className="text-gray-400">MACD:</span> <span className="text-gray-300">{entry.data.macd}</span></div>
-        <div><span className="text-gray-400">RSI:</span> <span className="text-gray-300">{entry.data.rsi}</span></div>
-        <div><span className="text-gray-400">거래량:</span> <span className="text-gray-300">{entry.data.volume.toLocaleString()}</span></div>
-        <div><span className="text-gray-400">변동률:</span> <span className="text-gray-300">{entry.data.change_rate}%</span></div>
+        <div><span className="text-gray-400">평균단가:</span> <span className="text-gray-200">₩{entry.data.avg_price?.toLocaleString() || '-'}</span></div>
+        <div><span className="text-gray-400">수량:</span> <span className="text-gray-200">{entry.data.quantity}</span></div>
+        <div><span className="text-gray-400">MACD:</span> <span className="text-gray-200">{entry.data.macd}</span></div>
+        <div><span className="text-gray-400">RSI:</span> <span className="text-gray-200">{entry.data.rsi}</span></div>
+        <div><span className="text-gray-400">거래량:</span> <span className="text-gray-200">{entry.data.volume.toLocaleString()}</span></div>
+        <div><span className="text-gray-400">변동률:</span> <span className="text-gray-200">{entry.data.change_rate}%</span></div>
       </div>
     </div>
   );
