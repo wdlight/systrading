@@ -126,32 +126,32 @@ export function TradingConditions({ className }: TradingConditionsProps) {
 
   return (
     <Card className={cn(className, "bg-[#2a2a2a] border-gray-700 shadow-xl")}>
-      <CardHeader className="pb-5">
-        <CardTitle className="flex flex-col gap-5">
-          <div className="flex items-center gap-4">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex flex-col gap-3">
+          <div className="flex items-center gap-3">
             <div className="icon-bg-blue">
-              <Target className="h-5 w-5" />
+              <Target className="h-4 w-4" />
             </div>
-            <div className="space-y-1">
-              <h3 className="text-heading-md text-white">Trading Conditions</h3>
-              <p className="text-caption-md text-gray-400">Configure automated trading parameters</p>
+            <div className="space-y-0.5">
+              <h3 className="text-base font-semibold text-white">Trading Conditions</h3>
+              <p className="text-xs text-gray-400">Configure automated trading parameters</p>
             </div>
           </div>
 
           {/* Professional Auto-Trading Toggle */}
-          <div className="flex items-center justify-between p-4 bg-[#1a1a1a] rounded-lg border border-gray-600">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-lg border border-gray-600">
+            <div className="flex items-center gap-3">
               <div className={cn(
-                'w-3.5 h-3.5 rounded-full animate-pulse',
+                'w-2.5 h-2.5 rounded-full animate-pulse',
                 localConditions.auto_trading_enabled
-                  ? 'bg-green-500'
+                  ? 'bg-profit'
                   : 'bg-gray-500'
               )} />
               <div className="space-y-0.5">
-                <p className="text-body-md font-semibold text-white">
+                <p className="text-sm font-semibold text-white">
                   Auto Trading
                 </p>
-                <p className="text-caption-md text-gray-400">
+                <p className="text-xs text-gray-400">
                   {localConditions.auto_trading_enabled ? 'System is active' : 'System is paused'}
                 </p>
               </div>
@@ -160,23 +160,23 @@ export function TradingConditions({ className }: TradingConditionsProps) {
               checked={localConditions.auto_trading_enabled}
               onCheckedChange={handleAutoTradingToggle}
               disabled={isLoading}
-              className="data-[state=checked]:bg-green-500"
+              className="data-[state=checked]:bg-profit"
             />
           </div>
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-section pt-3">
+      <CardContent className="space-y-4 pt-2">
         {/* Professional Error Display */}
         {error && (
-          <div className="p-5 bg-red-500/10 border border-red-500/30 rounded-lg backdrop-blur-sm">
-            <div className="flex items-center gap-4">
+          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg backdrop-blur-sm">
+            <div className="flex items-center gap-3">
               <div className="icon-bg-red">
-                <AlertTriangle className="h-5 w-5" />
+                <AlertTriangle className="h-4 w-4" />
               </div>
-              <div className="space-y-1">
-                <p className="text-body-md font-semibold text-red-400">System Error</p>
-                <p className="text-caption-md text-red-300">{error}</p>
+              <div className="space-y-0.5">
+                <p className="text-sm font-semibold text-red-400">System Error</p>
+                <p className="text-xs text-red-300">{error}</p>
               </div>
             </div>
           </div>
@@ -197,15 +197,15 @@ export function TradingConditions({ className }: TradingConditionsProps) {
         />
 
         {/* Professional Control Buttons */}
-        <div className="space-comfortable pt-5 border-t border-gray-600">
+        <div className="space-y-2 pt-3 border-t border-gray-600">
           <Button
             onClick={() => handleAutoTradingToggle(!localConditions.auto_trading_enabled)}
             disabled={isLoading}
             className={cn(
-              'button-professional-lg w-full',
+              'button-professional w-full py-2.5',
               localConditions.auto_trading_enabled
-                ? 'bg-red-500 hover:bg-red-600 text-white shadow-professional hover:shadow-red-500/25'
-                : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-professional hover:shadow-green-500/25'
+                ? 'bg-loss hover:bg-loss/90 text-white shadow-professional hover:shadow-loss/25'
+                : 'bg-gradient-to-r from-profit to-profit/90 hover:from-profit/90 hover:to-profit text-white shadow-professional hover:shadow-profit/25'
             )}
           >
             {localConditions.auto_trading_enabled ? (
@@ -225,7 +225,7 @@ export function TradingConditions({ className }: TradingConditionsProps) {
             onClick={resetConditions}
             variant="outline"
             disabled={isLoading}
-            className="button-professional w-full border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-gray-500"
+            className="button-professional w-full py-2.5 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white hover:border-gray-500"
           >
             <Settings className="h-4 w-4 mr-2" />
             Reset to Defaults
@@ -234,14 +234,14 @@ export function TradingConditions({ className }: TradingConditionsProps) {
 
         {/* Professional Status Display */}
         {localConditions.auto_trading_enabled && (
-          <div className="p-5 bg-green-500/10 border border-green-500/30 rounded-lg backdrop-blur-sm">
-            <div className="flex items-center gap-4">
-              <div className="icon-bg-green">
-                <div className="w-3.5 h-3.5 bg-green-500 rounded-full animate-pulse" />
+          <div className="p-3 bg-profit/10 border border-profit/30 rounded-lg backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <div className="icon-bg-profit">
+                <div className="w-2.5 h-2.5 bg-profit rounded-full animate-pulse" />
               </div>
-              <div className="space-y-1">
-                <p className="text-body-md font-semibold text-green-400">System Active</p>
-                <p className="text-caption-md text-green-300">Automated trading is running based on your configured conditions</p>
+              <div className="space-y-0.5">
+                <p className="text-sm font-semibold text-profit-foreground">System Active</p>
+                <p className="text-xs text-profit-foreground/80">Automated trading is running based on your configured conditions</p>
               </div>
             </div>
           </div>
@@ -261,48 +261,48 @@ function BuyConditionsSection({
   disabled: boolean;
 }) {
   return (
-    <div className="space-relaxed">
-      <div className="flex items-center justify-between p-4 bg-[#1a1a1a] rounded-lg border border-gray-600">
-        <div className="flex items-center gap-4">
-          <div className="icon-bg-green">
-            <span className="text-green-400 font-bold text-sm">↗️</span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-lg border border-gray-600">
+        <div className="flex items-center gap-3">
+          <div className="icon-bg-profit">
+            <span className="text-profit-foreground font-bold text-xs">↗️</span>
           </div>
           <div className="space-y-0.5">
-            <h4 className="text-body-md font-bold text-white">Buy Conditions</h4>
-            <p className="text-caption-md text-gray-400">Configure when to enter positions</p>
+            <h4 className="text-sm font-bold text-white">Buy Conditions</h4>
+            <p className="text-xs text-gray-400">Configure when to enter positions</p>
           </div>
         </div>
         <Switch
           checked={conditions.enabled}
           onCheckedChange={(enabled) => onChange('enabled', enabled)}
           disabled={disabled}
-          className="data-[state=checked]:bg-green-500"
+          className="data-[state=checked]:bg-profit"
         />
       </div>
 
-      <div className="space-comfortable">
+      <div className="space-y-3">
         {/* Buy Amount */}
-        <div className="space-y-2.5">
-          <Label className="text-label-md text-gray-300">Buy Amount</Label>
+        <div className="space-y-2">
+          <Label className="text-xs font-medium text-gray-300">Buy Amount</Label>
           <Input
             type="number"
             value={conditions.amount}
             onChange={(e) => onChange('amount', Number(e.target.value))}
             disabled={disabled}
-            className="input-professional focus:border-green-400 focus:ring-green-400"
+            className="input-professional focus:border-profit focus:ring-profit h-8 text-sm"
             placeholder={formatCurrency(DEFAULTS.BUY_AMOUNT)}
           />
         </div>
 
         {/* MACD Condition */}
-        <div className="space-y-2.5">
-          <Label className="text-label-md text-gray-300">MACD Signal</Label>
+        <div className="space-y-2">
+          <Label className="text-xs font-medium text-gray-300">MACD Signal</Label>
           <Select
             value={conditions.macd_type}
             onValueChange={(value) => onChange('macd_type', value)}
             disabled={disabled}
           >
-            <SelectTrigger className="select-professional focus:border-green-400">
+            <SelectTrigger className="select-professional focus:border-profit h-8 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-[#2a2a2a] border-gray-600">
@@ -316,15 +316,15 @@ function BuyConditionsSection({
         </div>
 
         {/* RSI Condition */}
-        <div className="space-y-2.5">
-          <Label className="text-label-md text-gray-300">RSI Condition</Label>
-          <div className="flex gap-3">
+        <div className="space-y-2">
+          <Label className="text-xs font-medium text-gray-300">RSI Condition</Label>
+          <div className="flex gap-2">
             <Input
               type="number"
               value={conditions.rsi_value}
               onChange={(e) => onChange('rsi_value', Number(e.target.value))}
               disabled={disabled}
-              className="input-professional flex-1 focus:border-green-400 focus:ring-green-400"
+              className="input-professional flex-1 focus:border-profit focus:ring-profit h-8 text-sm"
               min="0"
               max="100"
             />
@@ -333,7 +333,7 @@ function BuyConditionsSection({
               onValueChange={(value) => onChange('rsi_type', value)}
               disabled={disabled}
             >
-              <SelectTrigger className="select-professional w-28 focus:border-green-400">
+              <SelectTrigger className="select-professional w-20 focus:border-profit h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-[#2a2a2a] border-gray-600">
@@ -361,35 +361,35 @@ function SellConditionsSection({
   disabled: boolean;
 }) {
   return (
-    <div className="space-relaxed">
-      <div className="flex items-center justify-between p-4 bg-[#1a1a1a] rounded-lg border border-gray-600">
-        <div className="flex items-center gap-4">
-          <div className="icon-bg-red">
-            <span className="text-red-400 font-bold text-sm">↘️</span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-lg border border-gray-600">
+        <div className="flex items-center gap-3">
+          <div className="icon-bg-loss">
+            <span className="text-loss-foreground font-bold text-xs">↘️</span>
           </div>
           <div className="space-y-0.5">
-            <h4 className="text-body-md font-bold text-white">Sell Conditions</h4>
-            <p className="text-caption-md text-gray-400">Configure when to exit positions</p>
+            <h4 className="text-sm font-bold text-white">Sell Conditions</h4>
+            <p className="text-xs text-gray-400">Configure when to exit positions</p>
           </div>
         </div>
         <Switch
           checked={conditions.enabled}
           onCheckedChange={(enabled) => onChange('enabled', enabled)}
           disabled={disabled}
-          className="data-[state=checked]:bg-red-500"
+          className="data-[state=checked]:bg-loss"
         />
       </div>
 
-      <div className="space-comfortable">
+      <div className="space-y-3">
         {/* MACD Condition */}
-        <div className="space-y-2.5">
-          <Label className="text-label-md text-gray-300">MACD Signal</Label>
+        <div className="space-y-2">
+          <Label className="text-xs font-medium text-gray-300">MACD Signal</Label>
           <Select
             value={conditions.macd_type}
             onValueChange={(value) => onChange('macd_type', value)}
             disabled={disabled}
           >
-            <SelectTrigger className="select-professional focus:border-red-400">
+            <SelectTrigger className="select-professional focus:border-loss h-8 text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-[#2a2a2a] border-gray-600">
@@ -403,15 +403,15 @@ function SellConditionsSection({
         </div>
 
         {/* RSI Condition */}
-        <div className="space-y-2.5">
-          <Label className="text-label-md text-gray-300">RSI Condition</Label>
-          <div className="flex gap-3">
+        <div className="space-y-2">
+          <Label className="text-xs font-medium text-gray-300">RSI Condition</Label>
+          <div className="flex gap-2">
             <Input
               type="number"
               value={conditions.rsi_value}
               onChange={(e) => onChange('rsi_value', Number(e.target.value))}
               disabled={disabled}
-              className="input-professional flex-1 focus:border-red-400 focus:ring-red-400"
+              className="input-professional flex-1 focus:border-loss focus:ring-loss h-8 text-sm"
               min="0"
               max="100"
             />
@@ -420,7 +420,7 @@ function SellConditionsSection({
               onValueChange={(value) => onChange('rsi_type', value)}
               disabled={disabled}
             >
-              <SelectTrigger className="select-professional w-28 focus:border-red-400">
+              <SelectTrigger className="select-professional w-20 focus:border-loss h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="bg-[#2a2a2a] border-gray-600">
@@ -435,40 +435,40 @@ function SellConditionsSection({
         </div>
 
         {/* Risk Management */}
-        <div className="space-comfortable">
-          <div className="p-4 bg-[#1a1a1a] rounded-lg border border-gray-600">
-            <h5 className="text-label-md text-white mb-4">Risk Management</h5>
-            <div className="space-comfortable">
-              <div className="space-y-2.5">
-                <Label className="text-label-md text-red-300">Stop Loss (%)</Label>
+        <div className="space-y-3">
+          <div className="p-3 bg-[#1a1a1a] rounded-lg border border-gray-600">
+            <h5 className="text-xs font-medium text-white mb-3">Risk Management</h5>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-loss-foreground/80">Stop Loss (%)</Label>
                 <Input
                   type="number"
                   value={conditions.stop_loss_rate || 5}
                   onChange={(e) => onChange('stop_loss_rate', Number(e.target.value))}
                   disabled={disabled}
-                  className="input-professional bg-[#2a2a2a] focus:border-red-400 focus:ring-red-400"
+                  className="input-professional bg-[#2a2a2a] focus:border-loss focus:ring-loss h-8 text-sm"
                   min="1"
                   max="50"
                 />
               </div>
 
-              <div className="space-y-2.5">
-                <Label className="text-label-md text-green-300">Take Profit (%)</Label>
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-profit-foreground/80">Take Profit (%)</Label>
                 <Input
                   type="number"
                   value={conditions.take_profit_rate || 10}
                   onChange={(e) => onChange('take_profit_rate', Number(e.target.value))}
                   disabled={disabled}
-                  className="input-professional bg-[#2a2a2a] focus:border-green-400 focus:ring-green-400"
+                  className="input-professional bg-[#2a2a2a] focus:border-profit focus:ring-profit h-8 text-sm"
                   min="1"
                   max="100"
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-[#2a2a2a] rounded-lg">
+              <div className="flex items-center justify-between p-2.5 bg-[#2a2a2a] rounded-lg">
                 <div className="space-y-0.5">
-                  <p className="text-body-sm font-semibold text-white">Trailing Stop</p>
-                  <p className="text-caption-md text-gray-400">Dynamic stop loss adjustment</p>
+                  <p className="text-xs font-semibold text-white">Trailing Stop</p>
+                  <p className="text-xs text-gray-400">Dynamic stop loss adjustment</p>
                 </div>
                 <Switch
                   checked={conditions.trailing_stop_enabled || false}

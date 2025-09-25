@@ -299,8 +299,8 @@ function WatchlistRow({ item }: { item: WatchlistItem }) {
         <TableCell>
           <div className={cn(
             'text-xs font-medium',
-            item.profit_rate > 0 ? 'text-green-500 dark:text-green-400' :
-            item.profit_rate < 0 ? 'text-red-500 dark:text-red-400' :
+            item.profit_rate > 0 ? 'text-profit-foreground' :
+            item.profit_rate < 0 ? 'text-loss-foreground' :
             'text-gray-600 dark:text-gray-400'
           )}>
             {item.profit_rate > 0 ? '+' : ''}{item.profit_rate}%
@@ -329,8 +329,8 @@ function WatchlistRow({ item }: { item: WatchlistItem }) {
             </div>
             <div className={cn(
               'text-xs px-1 py-0.5 rounded text-center',
-              macdSignal.trend === 'bullish' ? 'bg-green-900/30 text-green-400' :
-              macdSignal.trend === 'bearish' ? 'bg-red-900/30 text-red-400' :
+              macdSignal.trend === 'bullish' ? 'bg-profit/30 text-profit-foreground' :
+              macdSignal.trend === 'bearish' ? 'bg-loss/30 text-loss-foreground' :
               'bg-gray-800 text-gray-400'
             )}>
               {macdSignal.trend === 'bullish' ? '▲' : macdSignal.trend === 'bearish' ? '▼' : '●'}

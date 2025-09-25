@@ -272,8 +272,8 @@ export function calculateDiversificationScore(positions: any[]): number {
 
 // 수익률 색상 클래스
 export function getProfitColorClass(rate: number): string {
-  if (rate > 0) return 'text-green-600 dark:text-green-400';
-  if (rate < 0) return 'text-red-600 dark:text-red-400';
+  if (rate > 0) return 'text-profit-foreground';
+  if (rate < 0) return 'text-loss-foreground';
   return 'text-gray-600 dark:text-gray-400';
 }
 

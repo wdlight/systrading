@@ -49,14 +49,14 @@ export function PriceDisplay({
   };
 
   const colorClasses = {
-    up: 'text-green-600 dark:text-green-400',
-    down: 'text-red-600 dark:text-red-400',
+    up: 'text-profit-foreground',
+    down: 'text-loss-foreground',
     neutral: 'text-gray-700 dark:text-gray-300',
   };
 
   const bgColorClasses = {
-    up: 'bg-green-50 dark:bg-green-900/20',
-    down: 'bg-red-50 dark:bg-red-900/20',
+    up: 'bg-profit/20',
+    down: 'bg-loss/20',
     neutral: 'bg-gray-50 dark:bg-gray-900/20',
   };
 
@@ -130,8 +130,8 @@ export function CompactPriceDisplay({
   };
 
   const colorClasses = {
-    up: 'text-green-500 dark:text-green-400',
-    down: 'text-red-500 dark:text-red-400',
+    up: 'text-profit-foreground',
+    down: 'text-loss-foreground',
     neutral: 'text-gray-700 dark:text-gray-300',
   };
 
@@ -182,14 +182,14 @@ export function LargePriceDisplay({
   const direction = change > 0 ? 'up' : change < 0 ? 'down' : 'neutral';
 
   const colorClasses = {
-    up: 'text-green-600 dark:text-green-400',
-    down: 'text-red-600 dark:text-red-400',
+    up: 'text-profit-foreground',
+    down: 'text-loss-foreground',
     neutral: 'text-gray-700 dark:text-gray-300',
   };
 
   const bgColorClasses = {
-    up: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800',
-    down: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800',
+    up: 'bg-profit/20 border-profit/30',
+    down: 'bg-loss/20 border-loss/30',
     neutral: 'bg-gray-50 dark:bg-gray-900/20 border-gray-200 dark:border-gray-800',
   };
 

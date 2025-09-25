@@ -5,8 +5,8 @@ export const TRADING_COLORS = {
   secondary: '#8B5CF6',
   
   // Trading Colors
-  bullish: '#10B981',      // 상승 (녹색)
-  bearish: '#EF4444',      // 하락 (빨간색)
+  bullish: '#EF4444',      // 상승 (빨간색)
+  bearish: '#3B82F6',      // 하락 (파란색)
   neutral: '#6B7280',      // 변화없음 (회색)
   warning: '#F59E0B',      // 경고 (주황색)
   

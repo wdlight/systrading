@@ -29,6 +29,10 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
     --radius: 0.5rem;
+    --profit: 0 72% 51%;
+    --profit-foreground: 0 72% 61%;
+    --loss: 217 91% 60%;
+    --loss-foreground: 217 91% 70%;
   }
 }
 
@@ -85,24 +89,32 @@
   }
 
   /* Icon Background Styles */
+  .icon-bg-profit {
+    @apply bg-profit/20 text-profit-foreground rounded-full p-1.5;
+  }
+
+  .icon-bg-loss {
+    @apply bg-loss/20 text-loss-foreground rounded-full p-1.5;
+  }
+
   .icon-bg-blue {
-    @apply bg-blue-500/20 text-blue-400 rounded-full p-2;
+    @apply bg-blue-500/20 text-blue-400 rounded-full p-1.5;
   }
 
   .icon-bg-green {
-    @apply bg-green-500/20 text-green-400 rounded-full p-2;
+    @apply bg-blue-500/20 text-blue-400 rounded-full p-1.5;
   }
 
   .icon-bg-red {
-    @apply bg-red-500/20 text-red-400 rounded-full p-2;
+    @apply bg-red-500/20 text-red-400 rounded-full p-1.5;
   }
 
   .icon-bg-purple {
-    @apply bg-purple-500/20 text-purple-400 rounded-full p-2;
+    @apply bg-purple-500/20 text-purple-400 rounded-full p-1.5;
   }
 
   .icon-bg-cyan {
-    @apply bg-cyan-500/20 text-cyan-400 rounded-full p-2;
+    @apply bg-cyan-500/20 text-cyan-400 rounded-full p-1.5;
   }
 
   /* Metric Card Styles */
@@ -113,7 +125,7 @@
 
   .metric-card-green {
     @apply card-professional-interactive;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(16, 185, 129, 0.02) 100%);
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05) 0%, rgba(59, 130, 246, 0.02) 100%);
   }
 
   .metric-card-red {
@@ -145,4 +157,232 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* === NEW TRADING UI STYLES === */
+
+  /* Layout */
+  .dashboard-grid {
+    @apply grid grid-rows-[auto_1fr_auto] h-full gap-6;
+  }
+
+  .quick-panel {
+    @apply w-80 bg-[#1a1a1b] border-l border-gray-700 h-full flex flex-col;
+  }
+
+  /* Navigation */
+  .tab-nav {
+    @apply flex border-b border-gray-700;
+  }
+
+  .tab-button {
+    @apply flex-1 flex items-center justify-center gap-2 p-3 text-sm font-medium transition-colors;
+  }
+
+  .tab-button-active {
+    @apply text-blue-400 bg-blue-500/10 border-b-2 border-blue-400;
+  }
+
+  .tab-button-inactive {
+    @apply text-gray-400 hover:text-gray-300 hover:bg-gray-800/50;
+  }
+
+  /* Trading Components */
+  .trading-card {
+    @apply bg-[#2a2a2a] border border-gray-700 rounded-lg p-6 shadow-xl;
+  }
+
+  .input-dark {
+    @apply bg-[#1a1a1a] border-gray-600 text-white placeholder:text-gray-500;
+  }
+
+  .input-professional {
+    @apply bg-[#1a1a1a] border-gray-600 text-white placeholder:text-gray-500 focus:ring-2 focus:border-transparent transition-all duration-200;
+  }
+
+  .select-professional {
+    @apply bg-[#1a1a1a] border-gray-600 text-white;
+  }
+
+  .button-professional {
+    @apply px-4 py-2 rounded-md font-medium transition-all duration-200 border;
+  }
+
+  .button-professional-lg {
+    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-300 border;
+  }
+
+  .buy-button {
+    @apply bg-red-600 hover:bg-red-700 text-white border-red-600;
+  }
+
+  .sell-button {
+    @apply bg-blue-600 hover:bg-blue-700 text-white border-blue-600;
+  }
+
+  .buy-button-primary {
+    @apply bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/20;
+  }
+
+  .sell-button-primary {
+    @apply bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20;
+  }
+
+  /* Status Indicators */
+  .status-positive {
+    @apply text-red-400 bg-red-500/10 border-red-500/30;
+  }
+
+  .status-negative {
+    @apply text-blue-400 bg-blue-500/10 border-blue-500/30;
+  }
+
+  .status-neutral {
+    @apply text-gray-400 bg-gray-500/10 border-gray-500/30;
+  }
+
+  /* Cards */
+  .card-professional {
+    @apply bg-[#2a2a2a] border border-gray-700 rounded-lg shadow-xl;
+  }
+
+  .card-professional-elevated {
+    @apply bg-[#2a2a2a] border border-gray-600 rounded-lg shadow-2xl shadow-black/20;
+  }
+
+  /* Typography */
+  .text-heading-lg {
+    @apply text-xl font-bold;
+  }
+
+  .text-heading-md {
+    @apply text-lg font-bold;
+  }
+
+  .text-heading-sm {
+    @apply text-base font-bold;
+  }
+
+  .text-body-lg {
+    @apply text-base;
+  }
+
+  .text-body-md {
+    @apply text-sm;
+  }
+
+  .text-body-sm {
+    @apply text-xs;
+  }
+
+  .text-caption-lg {
+    @apply text-sm;
+  }
+
+  .text-caption-md {
+    @apply text-xs;
+  }
+
+  .text-caption-sm {
+    @apply text-xs;
+  }
+
+  .text-label-lg {
+    @apply text-sm font-semibold;
+  }
+
+  .text-label-md {
+    @apply text-xs font-semibold;
+  }
+
+  .text-label-sm {
+    @apply text-xs font-medium;
+  }
+
+  /* Spacing */
+  .space-tight {
+    @apply space-y-2;
+  }
+
+  .space-comfortable {
+    @apply space-y-4;
+  }
+
+  .space-relaxed {
+    @apply space-y-6;
+  }
+
+  .space-section {
+    @apply space-y-8;
+  }
+
+  /* Shadows */
+  .shadow-professional {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  .shadow-professional-lg {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Scrollbar Utilities */
+  .scrollbar-hide {
+    /* Hide scrollbar for IE, Edge and Firefox */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    display: none;
+  }
+
+  .scrollbar-thin {
+    /* Thin custom scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.3);
+    border-radius: 2px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(156, 163, 175, 0.5);
+  }
+}
+
+/* Professional Trading Color Palette */
+:root {
+  /* Background Colors */
+  --bg-primary: #0a0a0b;
+  --bg-secondary: #1a1a1b;
+  --bg-tertiary: #2a2a2a;
+
+  /* Border Colors */
+  --border-primary: #374151;
+  --border-secondary: #4b5563;
+
+  /* Text Colors */
+  --text-primary: #ffffff;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+
+  /* Trading Colors */
+  --color-buy: #10b981;
+  --color-sell: #ef4444;
+  --color-neutral: #6b7280;
+
+  /* Accent Colors */
+  --color-blue: #3b82f6;
+  --color-purple: #8b5cf6;
+  --color-amber: #f59e0b;
 }

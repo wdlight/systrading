@@ -1,6 +1,8 @@
 'use client';
 
-import { Menu, Bell, Settings } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { Menu, Bell, Settings, Home, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SimpleConnectionStatus } from '@/components/common/ConnectionStatus';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
@@ -13,6 +15,12 @@ interface HeaderProps {
 
 export function Header({ onMenuClick, className }: HeaderProps) {
   const { connectionStatus } = useRealtimeData();
+  const pathname = usePathname();
+
+  const navItems = [
+    { href: '/', label: '대시보드', icon: Home },
+    { href: '/trading', label: '매매', icon: TrendingUp },
+  ];
 
   return (
     <header className={cn(
@@ -22,7 +30,7 @@ export function Header({ onMenuClick, className }: HeaderProps) {
       'shadow-professional',
       className
     )}>
-      <div className="flex items-center gap-5">
+      <div className="flex items-center gap-8">
         {/* 모바일 메뉴 버튼 */}
         <Button
           variant="ghost"
@@ -34,7 +42,7 @@ export function Header({ onMenuClick, className }: HeaderProps) {
         </Button>
 
         {/* Professional Logo & Title */}
-        <div className="flex items-center gap-5">
+        <Link href="/" className="flex items-center gap-5">
           <div className="relative">
             <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-professional">
               <span className="text-white font-bold text-lg">🏛️</span>
@@ -49,7 +57,31 @@ export function Header({ onMenuClick, className }: HeaderProps) {
               Professional Trading Platform
             </p>
           </div>
-        </div>
+        </Link>
+
+        {/* Navigation Menu */}
+        <nav className="hidden md:flex items-center gap-1">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200',
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+                )}
+              >
+                <Icon className="w-4 h-4" />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
 
       <div className="flex items-center gap-5">

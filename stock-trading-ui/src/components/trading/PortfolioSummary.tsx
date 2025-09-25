@@ -107,7 +107,7 @@ export function PortfolioSummary({ className }: PortfolioSummaryProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-section">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-3 lg:gap-4">
           {summaryCards.map((card, index) => (
             <SummaryCard
               key={index}
@@ -131,22 +131,22 @@ export function PortfolioSummary({ className }: PortfolioSummaryProps) {
               <StatItem
                 label="승률"
                 value={`${portfolioStats.win_rate}%`}
-                color={portfolioStats.win_rate >= 50 ? 'green' : 'red'}
+                color={portfolioStats.win_rate >= 50 ? 'profit' : 'loss'}
               />
               <StatItem
                 label="다각화 점수"
                 value={`${portfolioStats.diversification_score}/100`}
-                color={portfolioStats.diversification_score >= 70 ? 'green' : 'yellow'}
+                color={portfolioStats.diversification_score >= 70 ? 'profit' : 'yellow'}
               />
               <StatItem
                 label="위험 점수"
                 value={`${portfolioStats.risk_score}/100`}
-                color={portfolioStats.risk_score <= 30 ? 'green' : portfolioStats.risk_score <= 70 ? 'yellow' : 'red'}
+                color={portfolioStats.risk_score <= 30 ? 'profit' : portfolioStats.risk_score <= 70 ? 'yellow' : 'loss'}
               />
               <StatItem
                 label="최대 낙폭"
                 value={formatPercentage(portfolioStats.max_drawdown)}
-                color={portfolioStats.max_drawdown >= -10 ? 'green' : 'red'}
+                color={portfolioStats.max_drawdown >= -10 ? 'profit' : 'loss'}
               />
             </div>
           </div>
@@ -181,10 +181,10 @@ function SummaryCard({
       return cn(baseClasses, 'metric-card-blue');
     }
     if (title === '일일 손익') {
-      return cn(baseClasses, direction === 'up' ? 'metric-card-green' : 'metric-card-red');
+      return cn(baseClasses, direction === 'up' ? 'metric-card-red' : 'metric-card-green');
     }
     if (title === '총 손익') {
-      return cn(baseClasses, direction === 'up' ? 'metric-card-green' : direction === 'down' ? 'metric-card-red' : 'metric-card-purple');
+      return cn(baseClasses, direction === 'up' ? 'metric-card-red' : direction === 'down' ? 'metric-card-green' : 'metric-card-purple');
     }
     return cn(baseClasses, 'metric-card-cyan');
   };
@@ -192,42 +192,46 @@ function SummaryCard({
   // Professional icon background styling
   const getIconClasses = () => {
     if (title === '총 자산' || title === '가용 현금') return 'icon-bg-blue';
-    if (title === '일일 손익') return direction === 'up' ? 'icon-bg-green' : 'icon-bg-red';
-    if (title === '총 손익') return direction === 'up' ? 'icon-bg-green' : direction === 'down' ? 'icon-bg-red' : 'icon-bg-purple';
+    if (title === '일일 손익') return direction === 'up' ? 'icon-bg-red' : 'icon-bg-green';
+    if (title === '총 손익') return direction === 'up' ? 'icon-bg-red' : direction === 'down' ? 'icon-bg-green' : 'icon-bg-purple';
     return 'icon-bg-cyan';
   };
 
   // Professional text colors
   const getChangeTextColor = () => {
-    if (direction === 'up') return 'text-green-400';
-    if (direction === 'down') return 'text-red-400';
+    if (direction === 'up') return 'text-profit-foreground';
+    if (direction === 'down') return 'text-loss-foreground';
     return 'text-zinc-400';
   };
 
   return (
     <div className={getCardClasses()}>
-      <div className="flex items-center justify-between mb-5">
-        <span className="text-body-sm font-medium text-secondary-pro">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-medium text-secondary-pro truncate">
           {title}
         </span>
         <div className={getIconClasses()}>
-          <Icon className="h-4 w-4" />
+          <Icon className="h-3 w-3 flex-shrink-0" />
         </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="text-financial-md text-primary-pro">
+      <div className="space-y-2">
+        <div className="text-sm font-bold text-primary-pro truncate">
           {formatCurrency(value)}
         </div>
 
         {(change !== 0 || changeRate !== 0) && (
-          <div className={cn('text-body-sm font-semibold', getChangeTextColor())}>
-            {change > 0 ? '+' : ''}{formatCurrency(change)}
-            <span className="text-caption-md ml-2 opacity-90">({formatPercentage(changeRate, { showSign: false })})</span>
+          <div className={cn('text-xs font-medium', getChangeTextColor())}>
+            <div className="truncate">
+              {change > 0 ? '+' : ''}{formatCurrency(change)}
+            </div>
+            <div className="text-xs opacity-75">
+              ({formatPercentage(changeRate, { showSign: false })})
+            </div>
           </div>
         )}
 
-        <div className="text-caption-md text-muted-pro mt-2">
+        <div className="text-xs text-muted-pro opacity-80 truncate">
           {description}
         </div>
       </div>
@@ -242,18 +246,18 @@ function StatItem({
 }: {
   label: string;
   value: string;
-  color: 'green' | 'yellow' | 'red';
+  color: 'profit' | 'yellow' | 'loss';
 }) {
   const colorClasses = {
-    green: 'text-green-400',
+    profit: 'text-profit-foreground',
     yellow: 'text-amber-400',
-    red: 'text-red-400',
+    loss: 'text-loss-foreground',
   };
 
   const bgClasses = {
-    green: 'bg-green-500/10',
+    profit: 'bg-profit/10',
     yellow: 'bg-amber-500/10',
-    red: 'bg-red-500/10',
+    loss: 'bg-loss/10',
   };
 
   return (

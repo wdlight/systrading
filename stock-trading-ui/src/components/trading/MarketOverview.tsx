@@ -53,18 +53,18 @@ export function MarketOverview({ className }: MarketOverviewProps) {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-gray-300 uppercase tracking-wide">{market.name}</span>
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                        market.trend === 'up' ? 'bg-green-500/20' : 'bg-red-500/20'
+                        market.trend === 'up' ? 'bg-profit/20' : 'bg-loss/20'
                       }`}>
                         {market.trend === 'up' ? (
-                          <TrendingUp className="h-3 w-3 text-green-400" />
+                          <TrendingUp className="h-3 w-3 text-profit-foreground" />
                         ) : (
-                          <TrendingDown className="h-3 w-3 text-red-400" />
+                          <TrendingDown className="h-3 w-3 text-loss-foreground" />
                         )}
                       </div>
                     </div>
                     <div className="text-lg font-bold text-white mb-1">{market.value}</div>
                     <div className={`text-xs font-semibold ${
-                      market.trend === 'up' ? 'text-green-400' : 'text-red-400'
+                      market.trend === 'up' ? 'text-profit-foreground' : 'text-loss-foreground'
                     }`}>
                       {market.change} ({market.changeRate})
                     </div>
@@ -81,12 +81,12 @@ export function MarketOverview({ className }: MarketOverviewProps) {
                   <div key={index} className="flex items-center justify-between p-3 bg-[#1a1a1a] rounded-lg border border-gray-600 hover:border-gray-500 transition-all duration-200">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        stock.trend === 'up' ? 'bg-green-500/20' : 'bg-red-500/20'
+                        stock.trend === 'up' ? 'bg-profit/20' : 'bg-loss/20'
                       }`}>
                         {stock.trend === 'up' ? (
-                          <TrendingUp className="h-3 w-3 text-green-400" />
+                          <TrendingUp className="h-3 w-3 text-profit-foreground" />
                         ) : (
-                          <TrendingDown className="h-3 w-3 text-red-400" />
+                          <TrendingDown className="h-3 w-3 text-loss-foreground" />
                         )}
                       </div>
                       <div>
@@ -97,7 +97,7 @@ export function MarketOverview({ className }: MarketOverviewProps) {
                     <div className="text-right">
                       <div className="text-sm font-bold text-gray-200">{stock.price}</div>
                       <div className={`text-xs font-semibold ${
-                        stock.trend === 'up' ? 'text-green-400' : 'text-red-400'
+                        stock.trend === 'up' ? 'text-profit-foreground' : 'text-loss-foreground'
                       }`}>
                         {stock.change}
                       </div>

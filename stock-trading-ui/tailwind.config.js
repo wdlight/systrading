@@ -18,6 +18,10 @@ module.exports = {
     },
     extend: {
       colors: {
+        profit: "hsl(var(--profit))",
+        "profit-foreground": "hsl(var(--profit-foreground))",
+        loss: "hsl(var(--loss))",
+        "loss-foreground": "hsl(var(--loss-foreground))",
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
