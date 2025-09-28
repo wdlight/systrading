@@ -84,59 +84,112 @@ This project uses SPARC (Specification, Pseudocode, Architecture, Refinement, Co
 - **Clean Architecture**: Separate concerns
 - **Documentation**: Keep updated
 
-## 🚀 Available Agents (54 Total)
+## 🚀 Agent Autonomous Selection Framework
 
-### Core Development
-`coder`, `reviewer`, `tester`, `planner`, `researcher`
+### 🤖 Claude's Orchestration Role
+**Claude acts as orchestrator ONLY:**
+- High-level task analysis and decomposition
+- Initial agent spawning with autonomous selection criteria
+- Progress monitoring and coordination
+- Final integration and quality assurance
 
-### Swarm Coordination
-`hierarchical-coordinator`, `mesh-coordinator`, `adaptive-coordinator`, `collective-intelligence-coordinator`, `swarm-memory-manager`
+**Agents handle ALL implementation:**
+- Technology stack decisions
+- Detailed design and architecture
+- Code implementation and testing
+- Documentation and deployment
 
-### Consensus & Distributed
-`byzantine-coordinator`, `raft-manager`, `gossip-coordinator`, `consensus-builder`, `crdt-synchronizer`, `quorum-manager`, `security-manager`
+### 🎯 Intelligent Agent Selection System
 
-### Performance & Optimization
-`perf-analyzer`, `performance-benchmarker`, `task-orchestrator`, `memory-coordinator`, `smart-agent`
+**Auto-Selection Triggers:**
+```javascript
+// Claude spawns with selection criteria, not specific agents
+Task("Smart Agent Selection", "Analyze task requirements. Auto-select appropriate agents based on:
+- Technology stack keywords (Next.js → frontend-developer)
+- Task type (API → backend-dev, Testing → tester)
+- Project context (Trading system → quantitative-analyst)
+- Complexity level (Simple → coder, Complex → system-architect)
+Then execute the work autonomously.", "smart-agent")
+```
 
-### GitHub & Repository
-`github-modes`, `pr-manager`, `code-review-swarm`, `issue-tracker`, `release-manager`, `workflow-automation`, `project-board-sync`, `repo-architect`, `multi-repo-swarm`
+### 🗺️ Agent Capability Matrix
 
-### SPARC Methodology
-`sparc-coord`, `sparc-coder`, `specification`, `pseudocode`, `architecture`, `refinement`
+#### Frontend Technologies
+- **Next.js/React**: `frontend-developer`, `typescript-pro`
+- **Mobile**: `mobile-dev`, `react-native-specialist`
+- **UI/UX**: `trading-system-designer`, `ui-visual-validator`
 
-### Specialized Development
-`backend-dev`, `mobile-dev`, `ml-developer`, `cicd-engineer`, `api-docs`, `system-architect`, `code-analyzer`, `base-template-generator`
+#### Backend Technologies
+- **Node.js/Express**: `backend-architect`, `typescript-pro`
+- **Python/FastAPI**: `python-pro`, `korean-stock-api-debugger`
+- **Database**: `database-admin`, `performance-monitor`
 
-### Testing & Validation
-`tdd-london-swarm`, `production-validator`
+#### Trading & Finance
+- **Algorithm Trading**: `quantitative-analyst`, `trading-engine-specialist`
+- **Risk Management**: `risk-manager`, `performance-monitor`
+- **Market Data**: `market-data-engineer`, `korean-stock-api-debugger`
 
-### Migration & Planning
-`migration-planner`, `swarm-init`
+#### DevOps & Infrastructure
+- **CI/CD**: `cicd-engineer`, `debugger`
+- **Performance**: `performance-monitor`, `database-admin`
+- **Security**: `security-manager`, `code-analyzer`
 
-## 🎯 Claude Code vs MCP Tools
+#### Code Quality & Testing
+- **Testing**: `tester`, `debugger`, `production-validator`
+- **Code Review**: `reviewer`, `typescript-pro`, `python-pro`
+- **Architecture**: `system-architect`, `backend-architect`
 
-### Claude Code Handles ALL EXECUTION:
-- **Task tool**: Spawn and run agents concurrently for actual work
+### 🎛️ Autonomous Decision Framework
+
+**Level 1: Technology Detection**
+- File extensions (.tsx → frontend-developer)
+- Package.json dependencies (next → frontend-developer)
+- Import statements (fastapi → python-pro)
+
+**Level 2: Context Analysis**
+- Project type (trading → quantitative-analyst)
+- Task complexity (refactor → reviewer, new feature → coder)
+- Performance requirements (optimization → performance-monitor)
+
+**Level 3: Dynamic Coordination**
+- Agent collaboration (frontend + backend coordination)
+- Skill complementarity (typescript-pro + debugger)
+- Workload balancing (multiple agents for large tasks)
+
+## 🎯 Orchestration Hierarchy: Claude → Agents → Implementation
+
+### 🎼 Claude's Orchestration Role (HIGH-LEVEL ONLY):
+- **Task Analysis**: Break down user requests into contexts
+- **Agent Coordination**: Spawn smart-agents with autonomous selection criteria
+- **Progress Monitoring**: Track overall progress and integration
+- **Quality Assurance**: Final review and user communication
+- **Context Preservation**: Maintain project memory and continuity
+
+### 🤖 Autonomous Agents Handle ALL DECISIONS:
+- **Technology Selection**: Choose frameworks, libraries, tools
+- **Architecture Design**: Design patterns, structures, interfaces
+- **Implementation Strategy**: Coding approaches, testing methods
+- **Performance Optimization**: Efficiency improvements, scaling
+- **Integration Coordination**: Inter-agent communication and handoffs
+
+### 🛠️ Agent Implementation Powers:
 - File operations (Read, Write, Edit, MultiEdit, Glob, Grep)
 - Code generation and programming
 - Bash commands and system operations
-- Implementation work
-- Project navigation and analysis
-- TodoWrite and task management
-- Git operations
-- Package management
+- Package management and dependencies
 - Testing and debugging
+- Git operations and version control
+- Documentation and API design
 
-### MCP Tools ONLY COORDINATE:
+### 🔄 MCP Tools Support Coordination:
 - Swarm initialization (topology setup)
 - Agent type definitions (coordination patterns)
-- Task orchestration (high-level planning)
-- Memory management
-- Neural features
-- Performance tracking
-- GitHub integration
+- Memory management and persistence
+- Neural pattern learning
+- Performance tracking and metrics
+- GitHub integration and automation
 
-**KEY**: MCP coordinates the strategy, Claude Code's Task tool executes with real agents.
+**KEY**: Claude orchestrates → Agents decide → Tools execute
 
 ## 🚀 Quick Setup
 
@@ -190,48 +243,131 @@ Flow-Nexus extends MCP capabilities with 70+ cloud-based orchestration tools:
 3. **REQUIRED**: Each agent runs hooks for coordination
 4. **REQUIRED**: Batch all operations in single messages
 
-### Example Full-Stack Development:
+### Example Autonomous Agent Selection:
 
 ```javascript
-// Single message with all agent spawning via Claude Code's Task tool
-[Parallel Agent Execution]:
-  Task("Backend Developer", "Build REST API with Express. Use hooks for coordination.", "backend-dev")
-  Task("Frontend Developer", "Create React UI. Coordinate with backend via memory.", "coder")
-  Task("Database Architect", "Design PostgreSQL schema. Store schema in memory.", "code-analyzer")
-  Task("Test Engineer", "Write Jest tests. Check memory for API contracts.", "tester")
-  Task("DevOps Engineer", "Setup Docker and CI/CD. Document in memory.", "cicd-engineer")
-  Task("Security Auditor", "Review authentication. Report findings via hooks.", "reviewer")
-  
-  // All todos batched together
-  TodoWrite { todos: [...8-10 todos...] }
-  
-  // All file operations together
-  Write "backend/server.js"
-  Write "frontend/App.jsx"
-  Write "database/schema.sql"
+// ✅ NEW: Claude provides high-level context, agents self-select
+[Single Message - Autonomous Agent Orchestration]:
+  Task("Autonomous Full-Stack Coordinator", "
+    CONTEXT: Build trading dashboard with Next.js frontend and FastAPI backend
+
+    AUTO-SELECT AND EXECUTE:
+    1. Detect Next.js → spawn frontend-developer + typescript-pro
+    2. Detect FastAPI → spawn python-pro + backend-architect
+    3. Detect trading → spawn quantitative-analyst + risk-manager
+    4. Auto-coordinate between teams using hooks and memory
+    5. Self-organize testing with appropriate specialists
+
+    AUTONOMOUS DECISIONS:
+    - Technology choices (state management, database, etc.)
+    - Architecture patterns (microservices, monolith, etc.)
+    - Testing strategies (unit, integration, e2e)
+    - Deployment approach (Docker, serverless, etc.)
+
+    COORDINATION PROTOCOL:
+    - Use memory for cross-agent communication
+    - Implement hooks for real-time updates
+    - Self-healing if agents encounter blockers
+    - Progressive enhancement based on project needs
+  ", "smart-agent")
+
+  // Minimal todos - agents create their own detailed plans
+  TodoWrite { todos: [
+    {content: "Autonomous agent selection and coordination", status: "in_progress"},
+    {content: "Self-organized development execution", status: "pending"},
+    {content: "Cross-agent integration and testing", status: "pending"},
+    {content: "Autonomous quality assurance", status: "pending"}
+  ]}
 ```
 
-## 📋 Agent Coordination Protocol
+### 🔄 Agent Self-Organization Patterns:
 
-### Every Agent Spawned via Task Tool MUST:
+```javascript
+// Pattern 1: Technology-Based Auto-Selection
+Task("Smart Tech Agent", "
+  ANALYZE PROJECT:
+  - Scan package.json, imports, file extensions
+  - Detect: Next.js + TypeScript + Trading context
 
-**1️⃣ BEFORE Work:**
+  AUTO-SPAWN APPROPRIATE AGENTS:
+  - Frontend: frontend-developer (Next.js expert)
+  - Backend: python-pro (if FastAPI detected) OR typescript-pro (if Node.js)
+  - Trading: quantitative-analyst + trading-engine-specialist
+  - Quality: typescript-pro + debugger
+
+  COORDINATE AUTONOMOUSLY:
+  - Establish communication protocols
+  - Define interfaces and contracts
+  - Implement progressive development
+", "smart-agent")
+
+// Pattern 2: Task-Complexity Auto-Routing
+Task("Complexity-Aware Agent", "
+  ASSESS TASK COMPLEXITY:
+  - Simple UI changes → frontend-developer
+  - Complex algorithm → quantitative-analyst + system-architect
+  - Performance issues → performance-monitor + debugger
+  - New features → full team coordination
+
+  SELF-SCALE BASED ON NEEDS:
+  - Start with minimal agents
+  - Dynamically spawn specialists as needed
+  - Coordinate handoffs automatically
+", "smart-agent")
+```
+
+## 📋 Autonomous Agent Protocol
+
+### 🎯 Agent Self-Management Cycle:
+
+**1️⃣ AUTONOMOUS INITIALIZATION:**
 ```bash
-npx claude-flow@alpha hooks pre-task --description "[task]"
+# Agent analyzes context and self-configures
+npx claude-flow@alpha hooks pre-task --description "[auto-detected-task]"
 npx claude-flow@alpha hooks session-restore --session-id "swarm-[id]"
+npx claude-flow@alpha hooks auto-analyze --context "[project-type]" --tech-stack "[detected-stack]"
 ```
 
-**2️⃣ DURING Work:**
+**2️⃣ SMART DECISION MAKING:**
 ```bash
-npx claude-flow@alpha hooks post-edit --file "[file]" --memory-key "swarm/[agent]/[step]"
-npx claude-flow@alpha hooks notify --message "[what was done]"
+# Agent makes autonomous decisions
+npx claude-flow@alpha hooks decision-log --choice "[tech/approach]" --reasoning "[why]"
+npx claude-flow@alpha hooks coordinate --with-agents "[relevant-agents]" --protocol "[communication-method]"
+npx claude-flow@alpha hooks post-edit --file "[file]" --memory-key "swarm/[agent]/[decision]"
 ```
 
-**3️⃣ AFTER Work:**
+**3️⃣ CONTINUOUS COORDINATION:**
 ```bash
-npx claude-flow@alpha hooks post-task --task-id "[task]"
-npx claude-flow@alpha hooks session-end --export-metrics true
+# Agent coordinates with others automatically
+npx claude-flow@alpha hooks notify --message "[progress-update]" --broadcast-to "[related-agents]"
+npx claude-flow@alpha hooks conflict-resolve --issue "[technical-conflict]" --propose "[solution]"
+npx claude-flow@alpha hooks quality-check --self-assess "[code-quality]" --request-review "[if-needed]"
 ```
+
+**4️⃣ AUTONOMOUS COMPLETION:**
+```bash
+# Agent completes and hands off
+npx claude-flow@alpha hooks post-task --task-id "[completed-task]" --deliverables "[what-created]"
+npx claude-flow@alpha hooks handoff --to-agent "[next-agent]" --context "[integration-notes]"
+npx claude-flow@alpha hooks session-end --export-metrics true --learn-patterns true
+```
+
+### 🤝 Cross-Agent Coordination Patterns:
+
+**Frontend ↔ Backend Coordination:**
+- API contract negotiations
+- Type definition sharing
+- Integration testing coordination
+
+**Development ↔ Testing Coordination:**
+- Test case generation from requirements
+- Continuous testing during development
+- Quality feedback loops
+
+**Architecture ↔ Implementation Coordination:**
+- Design pattern enforcement
+- Code review for architectural compliance
+- Performance monitoring integration
 
 ## 🎯 Concurrent Execution Examples
 
@@ -274,13 +410,31 @@ npx claude-flow@alpha hooks session-end --export-metrics true
   Write "app/docs/API.md"
 ```
 
-### ❌ WRONG (Multiple Messages):
+### ❌ WRONG (Manual Agent Selection):
 ```javascript
+// Old way - Claude makes all decisions
 Message 1: mcp__claude-flow__swarm_init
-Message 2: Task("agent 1")
-Message 3: TodoWrite { todos: [single todo] }
-Message 4: Write "file.js"
-// This breaks parallel coordination!
+Message 2: Task("Frontend Dev", "Build React component", "frontend-developer")
+Message 3: Task("Backend Dev", "Create API endpoint", "backend-dev")
+// Claude is micromanaging!
+```
+
+### ✅ CORRECT (Autonomous Agent Selection):
+```javascript
+// New way - Agents make decisions
+[Single Message - Autonomous Orchestration]:
+Task("Smart Development Team", "
+  USER WANTS: Trading dashboard with Next.js and real-time data
+
+  AUTONOMOUS EXECUTION:
+  - Analyze: Next.js + trading + real-time requirements
+  - Auto-select: frontend-developer, quantitative-analyst, market-data-engineer
+  - Coordinate: Use hooks for API contracts, memory for shared state
+  - Implement: Complete solution with testing and integration
+  - Report: What was built and how it works
+", "smart-agent")
+
+TodoWrite { todos: ["Autonomous development execution", "Integration and testing", "Quality assurance"] }
 ```
 
 ## Performance Benefits
@@ -290,28 +444,35 @@ Message 4: Write "file.js"
 - **2.8-4.4x speed improvement**
 - **27+ neural models**
 
-## Hooks Integration
+## 🎪 Autonomous Agent Hooks Integration
 
-### Pre-Operation
-- Auto-assign agents by file type
-- Validate commands for safety
-- Prepare resources automatically
-- Optimize topology by complexity
-- Cache searches
+### 🔍 Pre-Operation Intelligence
+- **Smart Agent Selection**: Auto-detect optimal agents by project context
+- **Technology Stack Analysis**: Scan dependencies and choose specialists
+- **Complexity Assessment**: Scale agent team based on task difficulty
+- **Resource Optimization**: Prepare development environment automatically
+- **Context Loading**: Restore previous decisions and patterns
 
-### Post-Operation
-- Auto-format code
-- Train neural patterns
-- Update memory
-- Analyze performance
-- Track token usage
+### 🚀 Real-Time Coordination
+- **Cross-Agent Communication**: Seamless information sharing
+- **Conflict Resolution**: Automatic technical decision mediation
+- **Progress Synchronization**: Real-time status updates across agents
+- **Quality Assurance**: Continuous code review and improvement
+- **Pattern Learning**: Adaptive behavior based on project success
 
-### Session Management
-- Generate summaries
-- Persist state
-- Track metrics
-- Restore context
-- Export workflows
+### 📊 Post-Operation Enhancement
+- **Auto-Formatting**: Code style consistency across all agents
+- **Neural Pattern Training**: Learn from successful implementations
+- **Memory Persistence**: Store decisions for future reference
+- **Performance Analysis**: Track efficiency and optimize workflows
+- **Knowledge Export**: Share learnings across sessions
+
+### 🧠 Session Intelligence
+- **Context Restoration**: Automatically resume from previous sessions
+- **Decision History**: Track and learn from past choices
+- **Workflow Optimization**: Improve processes based on outcomes
+- **Agent Performance**: Monitor and enhance individual agent capabilities
+- **Project Evolution**: Adapt to changing requirements autonomously
 
 ## Advanced Features (v2.0.0)
 
@@ -342,11 +503,68 @@ Message 4: Write "file.js"
 
 ---
 
-Remember: **Claude Flow coordinates, Claude Code creates!**
+Remember: **Claude orchestrates → Agents autonomously decide → Tools execute!**
+
+## 🚀 Quick Start: Autonomous Development
+
+### Simple Command for Any Task:
+```javascript
+// Just describe what you want - agents will figure out how!
+Task("Autonomous Development Team", "
+  USER REQUEST: [your description here]
+
+  AUTONOMOUS AGENT INSTRUCTIONS:
+  1. Analyze the request and project context
+  2. Auto-select appropriate specialists based on technology stack
+  3. Coordinate among yourselves using hooks and memory
+  4. Make all technical decisions autonomously
+  5. Implement, test, and integrate the solution
+  6. Report back with what was accomplished
+
+  EXAMPLE AUTO-SELECTIONS:
+  - Next.js mentioned → frontend-developer + typescript-pro
+  - Trading/Finance → quantitative-analyst + risk-manager
+  - API/Backend → backend-architect + python-pro
+  - Performance → performance-monitor + debugger
+  - Testing → tester + production-validator
+", "smart-agent")
+```
+
+### Example Usage:
+```bash
+# Claude just says:
+"I need a trading dashboard with real-time data"
+
+# Agents automatically:
+# 1. Detect trading context → spawn quantitative-analyst, trading-engine-specialist
+# 2. Detect dashboard need → spawn frontend-developer, ui-visual-validator
+# 3. Detect real-time data → spawn market-data-engineer, performance-monitor
+# 4. Coordinate architecture, implement, test, and deliver
+```
+
+# 🎯 Autonomous Agent Guidelines
+
+## For Claude (Orchestrator):
+- **High-level coordination only** - no detailed implementation decisions
+- **Spawn smart-agents** with context, let them choose specialists
+- **Monitor progress** and integrate final results
+- **Maintain user communication** and project continuity
+
+## For Autonomous Agents:
+- **Make ALL technical decisions** independently
+- **Choose optimal technologies** based on project context
+- **Coordinate with peer agents** using hooks and memory
+- **Implement complete solutions** with testing and documentation
+- **Self-organize workflows** and handle complexity autonomously
+
+## File Management Rules:
+- **Never save to root folder** - use appropriate subdirectories
+- **Agents decide file structure** based on technology and patterns
+- **Prefer editing existing files** over creating new ones
+- **Create files only when necessary** for the solution
+- **Document decisions in memory** for other agents to reference
 
 # important-instruction-reminders
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
-Never save working files, text/mds and tests to the root folder.
+Claude: Orchestrate at high level, let agents decide implementation.
+Agents: Make all technical decisions autonomously, coordinate via hooks.
+Files: Organize properly, prefer editing, avoid unnecessary creation.
