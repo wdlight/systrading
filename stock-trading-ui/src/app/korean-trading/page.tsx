@@ -192,6 +192,8 @@ export default function KoreanTradingPage() {
                   stock={selectedStock}
                   height={500}
                   showIndicators={true}
+                  useRealData={true}
+                  autoRefresh={true}
                   className="h-full"
                 />
               </div>

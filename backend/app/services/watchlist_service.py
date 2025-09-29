@@ -4,7 +4,7 @@ PyQt5 rsimacd_trading.py의 워치리스트 관련 기능을 서비스로 분리
 """
 
 import asyncio
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Any
 from datetime import datetime
 import logging
 import pandas as pd

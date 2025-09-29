@@ -34,8 +34,8 @@ fi
 
 # Start development server on port 9000
 echo "🌐 Starting development server on http://localhost:9000"
-echo "📊 Trading Exchange: http://localhost:9000/exchange"
-echo "📈 Trading Dashboard: http://localhost:9000/trading"
+echo "📊 Test Chart Page: http://localhost:9000/test-chart"
+echo "📈 Korean Trading: http://localhost:9000/korean-trading"
 echo ""
 echo "Press Ctrl+C to stop the server"
 echo ""

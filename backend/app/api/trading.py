@@ -6,6 +6,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 
+from app.core.dependencies import get_trading_service
+from app.services.trading_service import TradingService
+from app.models.schemas import ApiResponse
+try:
+    from loguru import logger
+except ImportError:
+    import logging
+    logger = logging.getLogger(__name__)
+
 from app.models.watchlist_models import (
     TradingConditions,
     TradeExecutionResult,

@@ -11,6 +11,7 @@ import random
 import time
 import sys
 import os
+from datetime import datetime, timedelta
 
 # 프로젝트 루트 경로 추가
 project_root = os.path.join(os.path.dirname(__file__), '..')
@@ -329,7 +330,6 @@ async def refresh_account_info():
 
 def create_watchlist_item_debug(stock_code: str, account_row, chart_df):
     """계좌 데이터 + 차트 데이터로 워치리스트 아이템 생성 (Debug 강화)"""
-    from datetime import datetime
 
     print(f"[DEBUG] create_watchlist_item_debug() 시작 - {stock_code}")
 
@@ -655,6 +655,252 @@ async def get_market_overview():
     })
     
     return market_data
+
+@app.get("/api/stocks/{stock_code}/chart")
+async def get_stock_chart_data(
+    stock_code: str,
+    period: str = "D",
+    format: str = "frontend"
+):
+    """
+    삼성전자 등 종목의 차트 데이터 조회
+    """
+    try:
+        if not real_api:
+            return {"error": "Real API not available"}
+
+        # 차트 데이터 조회 - real_api의 get_daily_price_chart 메소드 사용
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=365)
+
+        formatted_start_date = start_date.strftime("%Y%m%d")
+        formatted_end_date = end_date.strftime("%Y%m%d")
+
+        # 차트 데이터 조회
+        chart_df = real_api.get_daily_price_chart(stock_code, formatted_start_date, formatted_end_date, period)
+
+        if chart_df is None or chart_df.empty:
+            return {"output1": {}, "output2": []}
+
+        # DataFrame을 API 응답 형식으로 변환
+        chart_data = chart_df.to_dict('records')
+
+        # KIS API 응답 형식에 맞춤
+        renamed_data = []
+        for item in chart_data:
+            renamed_data.append({
+                "stck_bsop_date": item.get("일자", ""),
+                "stck_oprc": str(item.get("시가", "0")),
+                "stck_hgpr": str(item.get("고가", "0")),
+                "stck_lwpr": str(item.get("저가", "0")),
+                "stck_clpr": str(item.get("종가", "0")),
+                "acml_vol": str(item.get("거래량", "0")),
+            })
+
+        base_response = {"output1": {}, "output2": renamed_data}
+
+        # format에 따른 응답 처리
+        if format == 'frontend':
+            return convert_to_frontend_format(stock_code, period, base_response)
+        else:
+            return base_response
+
+    except Exception as e:
+        print(f"Chart data API error: {e}")
+        return {"error": f"Chart data retrieval failed: {str(e)}"}
+
+def convert_to_frontend_format(stock_code: str, period: str, chart_data: dict) -> dict:
+    """
+    KIS API 응답을 프론트엔드 친화적 형식으로 변환
+    """
+    try:
+        output2 = chart_data.get("output2", [])
+        converted_data = []
+
+        for item in output2:
+            try:
+                # 기본 OHLCV 데이터 변환
+                open_price = int(item.get("stck_oprc", "0"))
+                high_price = int(item.get("stck_hgpr", "0"))
+                low_price = int(item.get("stck_lwpr", "0"))
+                close_price = int(item.get("stck_clpr", "0"))
+                volume = int(item.get("acml_vol", "0"))
+                date_str = item.get("stck_bsop_date", "")
+
+                # 날짜 형식 변환 (YYYYMMDD -> ISO format)
+                try:
+                    if len(date_str) == 8:
+                        date_obj = datetime.strptime(date_str, "%Y%m%d")
+                        timestamp = date_obj.isoformat()
+                    else:
+                        timestamp = date_str
+                except:
+                    timestamp = date_str
+
+                converted_item = {
+                    "timestamp": timestamp,
+                    "open": open_price,
+                    "high": high_price,
+                    "low": low_price,
+                    "close": close_price,
+                    "volume": volume,
+                    "tradingValue": close_price * volume,
+                    # 실제 외국인/기관 데이터는 별도 API 필요 (임시값)
+                    "foreignBuy": 0,
+                    "foreignSell": 0,
+                    "institutionalBuy": 0,
+                    "institutionalSell": 0,
+                    "individualBuy": volume,  # 임시로 개인투자자 매수량을 전체 거래량으로 설정
+                    "individualSell": 0
+                }
+
+                # 데이터 유효성 검증
+                if (low_price <= close_price <= high_price and
+                    low_price <= open_price <= high_price and
+                    all(price > 0 for price in [open_price, high_price, low_price, close_price]) and
+                    volume >= 0):
+                    converted_data.append(converted_item)
+
+            except (ValueError, TypeError) as e:
+                continue
+
+        # 날짜순 정렬 (오래된 데이터부터)
+        converted_data.sort(key=lambda x: x['timestamp'])
+
+        # 통계 정보 계산
+        total_volume = sum(item['volume'] for item in converted_data)
+        avg_price = sum(item['close'] for item in converted_data) / len(converted_data) if converted_data else 0
+
+        return {
+            "success": True,
+            "message": "차트 데이터 조회 성공",
+            "data": converted_data,
+            "metadata": {
+                "stock_code": stock_code,
+                "period": period,
+                "count": len(converted_data),
+                "total_volume": total_volume,
+                "average_price": round(avg_price, 2),
+                "date_range": {
+                    "start": converted_data[0]['timestamp'] if converted_data else None,
+                    "end": converted_data[-1]['timestamp'] if converted_data else None
+                },
+                "last_updated": datetime.now().isoformat()
+            }
+        }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"데이터 변환 실패: {str(e)}",
+            "data": [],
+            "metadata": {
+                "stock_code": stock_code,
+                "period": period,
+                "count": 0,
+                "last_updated": datetime.now().isoformat()
+            }
+        }
+
+@app.get("/api/stocks/{stock_code}/price")
+async def get_stock_current_price(stock_code: str):
+    """
+    종목의 실시간 현재가 정보 조회
+    """
+    try:
+        if not real_api:
+            return {"error": "Real API not available"}
+
+        # 현재가 조회
+        try:
+            current_price_data = real_api.get_current_price(stock_code)
+
+            if current_price_data is None:
+                return {"error": f"Failed to get current price for {stock_code}"}
+
+            # 응답 데이터 구조화
+            response_data = {
+                "success": True,
+                "stock_code": stock_code,
+                "current_price": int(current_price_data.get("stck_prpr", "0")),  # 현재가
+                "change_amount": int(current_price_data.get("prdy_vrss", "0")),  # 전일대비
+                "change_rate": float(current_price_data.get("prdy_ctrt", "0.0")),  # 등락률
+                "volume": int(current_price_data.get("acml_vol", "0")),  # 누적거래량
+                "trading_value": int(current_price_data.get("acml_tr_pbmn", "0")),  # 누적거래대금
+                "high_price": int(current_price_data.get("stck_hgpr", "0")),  # 최고가
+                "low_price": int(current_price_data.get("stck_lwpr", "0")),  # 최저가
+                "open_price": int(current_price_data.get("stck_oprc", "0")),  # 시가
+                "previous_close": int(current_price_data.get("stck_sdpr", "0")),  # 전일종가
+                "market_cap": int(current_price_data.get("mktm", "0")),  # 시가총액
+                "timestamp": datetime.now().isoformat(),
+                "market_status": current_price_data.get("mksc_shrn_iscd", ""),  # 시장구분
+            }
+
+            return response_data
+
+        except Exception as api_error:
+            print(f"Current price API error: {api_error}")
+            return {"error": f"API call failed: {str(api_error)}"}
+
+    except Exception as e:
+        print(f"Current price endpoint error: {e}")
+        return {"error": f"Current price retrieval failed: {str(e)}"}
+
+@app.get("/api/stocks/{stock_code}/quote")
+async def get_stock_quote_info(stock_code: str):
+    """
+    종목의 상세 시세 정보 조회 (현재가 + 추가 정보)
+    """
+    try:
+        if not real_api:
+            return {"error": "Real API not available"}
+
+        # 현재가와 차트 데이터를 결합해서 상세 정보 제공
+        current_price_result = await get_stock_current_price(stock_code)
+
+        if not current_price_result.get("success"):
+            return current_price_result
+
+        # 최근 차트 데이터도 함께 조회 (1일치)
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=5)  # 최근 5일
+
+        formatted_start_date = start_date.strftime("%Y%m%d")
+        formatted_end_date = end_date.strftime("%Y%m%d")
+
+        chart_df = real_api.get_daily_price_chart(stock_code, formatted_start_date, formatted_end_date, 'D')
+
+        recent_candles = []
+        if chart_df is not None and not chart_df.empty:
+            recent_data = chart_df.tail(5).to_dict('records')  # 최근 5일
+            for item in recent_data:
+                recent_candles.append({
+                    "date": item.get("일자", ""),
+                    "open": int(item.get("시가", "0")),
+                    "high": int(item.get("고가", "0")),
+                    "low": int(item.get("저가", "0")),
+                    "close": int(item.get("종가", "0")),
+                    "volume": int(item.get("거래량", "0")),
+                })
+
+        # 종합 정보 구성
+        quote_data = {
+            **current_price_result,
+            "recent_candles": recent_candles,
+            "volatility": 0.0,  # 변동성 (계산 필요시 추가)
+            "avg_volume_5d": sum(c["volume"] for c in recent_candles) / len(recent_candles) if recent_candles else 0,
+            "price_range_5d": {
+                "high": max(c["high"] for c in recent_candles) if recent_candles else 0,
+                "low": min(c["low"] for c in recent_candles) if recent_candles else 0,
+            },
+            "last_updated": datetime.now().isoformat()
+        }
+
+        return quote_data
+
+    except Exception as e:
+        print(f"Quote info error: {e}")
+        return {"error": f"Quote info retrieval failed: {str(e)}"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

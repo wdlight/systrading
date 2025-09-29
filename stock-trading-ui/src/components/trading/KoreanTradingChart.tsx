@@ -14,7 +14,11 @@ import {
   Volume2,
   Target,
   LineChart,
-  CandlestickChart
+  CandlestickChart,
+  RefreshCw,
+  Wifi,
+  WifiOff,
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -24,12 +28,15 @@ import {
   formatPriceChange,
   getStockColorClass
 } from '@/lib/types/korean-stocks';
+import { useRealChartData } from '@/hooks/useRealChartData';
 
 interface KoreanTradingChartProps {
   className?: string;
   stock?: KoreanStock | null;
   height?: number;
   showIndicators?: boolean;
+  useRealData?: boolean;
+  autoRefresh?: boolean;
 }
 
 type ChartTimeframe = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y';
@@ -161,16 +168,42 @@ export function KoreanTradingChart({
   className,
   stock,
   height = 400,
-  showIndicators = true
+  showIndicators = true,
+  useRealData = false,
+  autoRefresh = false
 }: KoreanTradingChartProps) {
   const [timeframe, setTimeframe] = useState<ChartTimeframe>('1D');
   const [chartType, setChartType] = useState<ChartType>('candlestick');
   const [showVolume, setShowVolume] = useState(true);
 
+  // 실제 차트 데이터 Hook (useRealData가 true이고 stock이 있을 때만 활성화)
+  const {
+    chartData: realChartData,
+    metadata,
+    isLoading,
+    error,
+    isConnected,
+    lastUpdated,
+    refetch
+  } = useRealChartData(
+    stock?.code || '',
+    timeframe === '1D' ? 'D' : timeframe === '1W' ? 'W' : 'M',
+    {
+      enabled: useRealData && !!stock?.code,
+      autoRefresh: autoRefresh,
+      refreshInterval: 30000 // 30초
+    }
+  );
+
+  // 차트 데이터 결정 (실제 데이터 또는 Mock 데이터)
   const chartData = useMemo(() => {
-    if (!stock) return [];
-    return generateMockChartData(stock, timeframe);
-  }, [stock, timeframe]);
+    if (useRealData && realChartData.length > 0) {
+      return realChartData;
+    } else if (stock) {
+      return generateMockChartData(stock, timeframe);
+    }
+    return [];
+  }, [useRealData, realChartData, stock, timeframe]);
 
   const technicalIndicators = useMemo(() => {
     if (chartData.length === 0) return null;
@@ -245,6 +278,42 @@ export function KoreanTradingChart({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* 실제 데이터 사용 시 상태 표시 */}
+            {useRealData && (
+              <>
+                {/* 연결 상태 */}
+                <div className="flex items-center gap-1 px-2 py-1 rounded text-xs">
+                  {isConnected ? (
+                    <Wifi className="w-3 h-3 text-green-400" />
+                  ) : (
+                    <WifiOff className="w-3 h-3 text-red-400" />
+                  )}
+                  <span className={isConnected ? 'text-green-400' : 'text-red-400'}>
+                    {isConnected ? 'Live' : 'Offline'}
+                  </span>
+                </div>
+
+                {/* 새로고침 버튼 */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={refetch}
+                  disabled={isLoading}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                </Button>
+
+                {/* 에러 표시 */}
+                {error && (
+                  <div className="flex items-center gap-1 px-2 py-1 rounded text-xs text-red-400">
+                    <AlertTriangle className="w-3 h-3" />
+                    <span>Error</span>
+                  </div>
+                )}
+              </>
+            )}
+
             <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
               <Settings className="w-4 h-4" />
             </Button>
@@ -359,11 +428,27 @@ export function KoreanTradingChart({
 
           {/* Trading Hours Indicator */}
           <div className="absolute top-2 left-2">
-            <Badge className="bg-green-500 text-white text-xs">
+            <Badge className={useRealData && isConnected ? "bg-green-500 text-white text-xs" : "bg-gray-500 text-white text-xs"}>
               <Activity className="w-3 h-3 mr-1" />
-              실시간
+              {useRealData ? (isConnected ? '실시간' : '오프라인') : '모의'}
             </Badge>
           </div>
+
+          {/* 실제 데이터 사용 시 추가 정보 */}
+          {useRealData && metadata && (
+            <div className="absolute top-2 right-2">
+              <div className="bg-black/50 p-2 rounded text-xs space-y-1">
+                <div className="text-gray-300">
+                  데이터: {metadata.count}개
+                </div>
+                {lastUpdated && (
+                  <div className="text-gray-400">
+                    {lastUpdated.toLocaleTimeString('ko-KR')}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Volume Chart */}

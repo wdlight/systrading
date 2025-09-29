@@ -13,21 +13,23 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- 로거 설정 ---
-# 프로젝트 루트 경로를 sys.path에 추가하여 utils.logger를 찾을 수 있도록 함
-# backend/app/main.py -> D:/stocktrading/0908.claude-init/
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, project_root)
-from utils.logger import logger
+try:
+    from loguru import logger
+except ImportError:
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 # --- 로거 설정 끝 ---
 
 from app.api.account import router as account_router
 from app.api.trading import router as trading_router
 from app.api.watchlist import router as watchlist_router
+from app.api.stocks import router as stocks_router
 from app.websocket.connection import ConnectionManager
 from app.services.realtime_service import RealtimeDataService
 from app.core.config import get_settings
 from app.core.korea_invest import KoreaInvestAPIService
-from domestic_websocket import run_websocket
+# from domestic_websocket import run_websocket
 
 # 전역 변수
 connection_manager = ConnectionManager()
@@ -109,6 +111,7 @@ app.add_middleware(
 app.include_router(account_router, prefix="/api", tags=["account"])
 app.include_router(trading_router, prefix="/api", tags=["trading"])
 app.include_router(watchlist_router, prefix="/api", tags=["watchlist"])
+app.include_router(stocks_router, prefix="/api/stocks", tags=["stocks"])
 
 @app.get("/")
 async def root():

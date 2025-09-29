@@ -5,7 +5,11 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
-from utils.logger import logger
+try:
+    from loguru import logger
+except ImportError:
+    import logging
+    logger = logging.getLogger(__name__)
 
 from app.models.schemas import (
     AccountBalance, 

@@ -14,6 +14,7 @@ _korea_invest_service = None
 _account_service = None
 _trading_service = None
 _watchlist_service = None
+_stock_service = None
 
 @lru_cache()
 def get_korea_invest_service() -> KoreaInvestAPIService:
@@ -51,13 +52,23 @@ def get_watchlist_service():
         _watchlist_service = WatchlistService(korea_invest_service)
     return _watchlist_service
 
+def get_stock_service():
+    """주식 정보 서비스 인스턴스 반환"""
+    global _stock_service
+    if _stock_service is None:
+        from app.services.stock_service import StockService
+        korea_invest_service = get_korea_invest_service()
+        _stock_service = StockService(korea_invest_service)
+    return _stock_service
+
 def reset_services():
     """모든 서비스 인스턴스 재설정 (테스트용)"""
-    global _korea_invest_service, _account_service, _trading_service, _watchlist_service
+    global _korea_invest_service, _account_service, _trading_service, _watchlist_service, _stock_service
     _korea_invest_service = None
     _account_service = None
     _trading_service = None
     _watchlist_service = None
+    _stock_service = None
     
     # 캐시 초기화
     get_korea_invest_service.cache_clear()

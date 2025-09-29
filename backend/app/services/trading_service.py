@@ -4,11 +4,16 @@
 """
 
 from typing import List, Dict, Any, Optional
-from utils.logger import logger
+try:
+    from loguru import logger
+except ImportError:
+    import logging
+    logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta
 import json
 import os
 
+from app.models.schemas import OrderHistory
 from app.models.watchlist_models import (
     TradingConditions, TradeExecutionResult, WatchlistItem, 
     BuyConditions, SellConditions, TechnicalIndicators

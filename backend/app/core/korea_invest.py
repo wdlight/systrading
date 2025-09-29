@@ -8,10 +8,19 @@ import os
 import pandas as pd
 import asyncio
 from typing import Dict, Any, Optional, Tuple, List
-from utils.logger import logger
 
 # 상위 디렉토리의 utils.py 임포트를 위한 경로 추가
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+try:
+    from loguru import logger
+except ImportError:
+    # Fallback logger if loguru is not available
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
 try:
     from brokers.korea_investment.ki_api import KoreaInvestAPI
@@ -207,6 +216,27 @@ class KoreaInvestAPIService:
         except Exception as e:
             self.last_error = str(e)
             logger.error(f"차트 데이터 조회 실패: {e}")
+            return None
+
+    async def get_daily_price_chart(self, stock_code: str, start_date: str, end_date: str, period_code: str = 'D') -> Optional[pd.DataFrame]:
+        """일/주/월봉 차트 데이터 조회 (비동기)"""
+        if not self.is_connected or not self.api_instance:
+            logger.error("API가 연결되지 않았습니다.")
+            return None
+        
+        try:
+            result = await self._run_in_executor(
+                self.api_instance.get_daily_price_chart,
+                stock_code,
+                start_date,
+                end_date,
+                period_code
+            )
+            return result
+            
+        except Exception as e:
+            self.last_error = str(e)
+            logger.error(f"일/주/월봉 차트 데이터 조회 실패: {e}")
             return None
     
     async def get_current_price(self, stock_code: str) -> Optional[Dict[str, Any]]:

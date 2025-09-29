@@ -4,7 +4,12 @@
 """
 
 from typing import List, Optional, Dict, Any
-from utils.logger import logger
+import logging
+try:
+    from loguru import logger
+except ImportError:
+    import logging
+    logger = logging.getLogger(__name__)
 from datetime import datetime
 
 from app.models.schemas import AccountBalance, AccountSummary, Position
