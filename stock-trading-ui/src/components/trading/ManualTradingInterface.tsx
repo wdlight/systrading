@@ -131,6 +131,8 @@ export function ManualTradingInterface({
                     <span className={cn("text-sm",
                       selectedStock.changeAmount > 0 ? "text-profit-foreground" : "text-loss-foreground"
                     )}>
+                      {selectedStock.changeAmount > 0 ? '+' : ''}{selectedStock.changeAmount?.toLocaleString() || '0'}
+                    </span>
                   </div>
                 </div>
               </div>

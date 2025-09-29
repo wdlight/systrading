@@ -73,14 +73,36 @@ Task: context-manager
 
 ---
 
-## 🔧 개발 명령어
+## 🔧 개발 서버 시작
 
+### 🚀 **권장 방법 (Port 9000 고정)**
 ```bash
-npm run dev     # 개발 서버 (localhost:3000)
-npm run build   # 프로덕션 빌드
-npm run lint    # ESLint 검사
-npm run type-check  # TypeScript 타입 검사
+# 스크립트를 통한 서버 시작 (권장)
+./scripts/start-server.sh
+
+# 또는 npm script 사용
+npm run server
+npm run serve
 ```
+
+### 📋 **기본 개발 명령어**
+```bash
+npm run dev     # 개발 서버 (localhost:9000)
+npm run build   # 프로덕션 빌드
+npm run start   # 프로덕션 서버 (localhost:9000)
+npm run lint    # ESLint 검사
+```
+
+### 🌐 **접근 URL**
+- **메인 대시보드**: http://localhost:9000
+- **매매 화면**: http://localhost:9000/exchange
+- **트레이딩 뷰**: http://localhost:9000/trading
+
+### 📝 **서버 시작 스크립트 기능**
+- 기존 서버 자동 종료 (포트 9000)
+- 의존성 자동 설치 확인
+- 명확한 접속 URL 안내
+- 오류 방지를 위한 안전한 시작
 
 ---
 

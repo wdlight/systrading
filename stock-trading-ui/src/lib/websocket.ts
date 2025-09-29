@@ -39,10 +39,21 @@ export class WebSocketManager {
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        // Check if we're in demo mode (no backend available)
+        if (this.url.includes('localhost:8000')) {
+          console.log('🚀 Demo mode: Skipping WebSocket connection to', this.url);
+          this.updateConnectionState({
+            status: 'disconnected',
+            error: 'Demo mode - WebSocket disabled'
+          });
+          resolve(); // Don't reject, just resolve with disconnected state
+          return;
+        }
+
         console.log('🚀 WebSocket 연결 시도:', this.url);
         this.isManualClose = false;
         this.updateConnectionState({ status: 'connecting' });
-        
+
         this.ws = new WebSocket(this.url);
         console.log('📡 WebSocket 객체 생성됨');
         

@@ -69,6 +69,8 @@ export function StockInfoCard({ stock, className }: StockInfoCardProps) {
                   <span className={cn("text-sm font-medium",
                     isPositive ? "text-profit-foreground" : isNeutral ? "text-gray-400" : "text-loss-foreground"
                   )}>
+                    {isPositive ? '+' : ''}{(stock.changeRate * 100).toFixed(2)}%
+                  </span>
                 </div>
               </div>
               <div className="text-right">
@@ -79,7 +81,8 @@ export function StockInfoCard({ stock, className }: StockInfoCardProps) {
                     isPositive && "bg-profit hover:bg-profit/90",
                     isNeutral && "bg-gray-600"
                   )}>
-
+                  ₩{stock.currentPrice.toLocaleString()}
+                </Badge>
               </div>
             </div>
           </div>

@@ -223,4 +223,5 @@ useEffect(() => {
 ### After Development
 - [ ] Ensure no linting errors (`npm run lint`).
 - [ ] Ensure no type errors (`npm run type-check`).
+- [ ] **JSX Syntax Check**: Verify all JSX tags are correctly nested and closed to prevent rendering errors.
 - [ ] Verify that core functionality works as expected.

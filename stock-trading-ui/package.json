@@ -6,7 +6,9 @@
     "dev": "next dev --port 9000",
     "build": "next build",
     "start": "next start --port 9000",
-    "lint": "eslint"
+    "lint": "eslint",
+    "serve": "./scripts/start-server.sh",
+    "server": "./scripts/start-server.sh"
   },
   "dependencies": {
     "@playwright/test": "^1.55.0",
@@ -17,13 +19,19 @@
     "@radix-ui/react-separator": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-switch": "^1.2.6",
+    "@tanstack/react-query": "^5.90.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.23.22",
+    "lightweight-charts": "^5.0.8",
     "lucide-react": "^0.542.0",
     "next": "15.5.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "tailwind-merge": "^3.3.1"
+    "react-hook-form": "^7.63.0",
+    "recharts": "^3.2.1",
+    "tailwind-merge": "^3.3.1",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
