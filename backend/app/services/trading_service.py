@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import json
 import os
 
-from app.models.schemas import OrderHistory
+from app.models.schemas import OrderHistory, ChartCandle
 from app.models.watchlist_models import (
     TradingConditions, TradeExecutionResult, WatchlistItem, 
     BuyConditions, SellConditions, TechnicalIndicators
@@ -41,6 +41,10 @@ class TradingService:
         # 설정 파일 경로
         self.settings_file = "trading_settings.json"
         self._load_settings()
+
+    async def get_minute_chart_data(self, stock_code: str) -> Optional[List[ChartCandle]]:
+        """분봉 차트 데이터를 조회합니다."""
+        return await self.korea_invest_service.get_minute_chart_data(stock_code)
     
     def _load_settings(self):
         """설정 파일에서 매매 조건 로드"""

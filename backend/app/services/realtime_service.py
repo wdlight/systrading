@@ -58,11 +58,30 @@ class RealtimeDataService:
         self.is_running = True
         logger.info("실시간 데이터 서비스를 시작합니다.")
         
+        # [2025-09-29 Gemini] IndentationError 수정 및 과도한 로그 발생시키는 _account_update_loop 주석 처리
+        # --- 기존 코드 시작 (주석 처리) ---
+        # try:
+        #     # 기존 타이머들을 async task로 변환
+        #             self.tasks = [
+        #                 # asyncio.create_task(self._account_update_loop()),     # 2초 주기 (timer2) - 너무 많은 로그를 발생시켜 임시 주석 처리
+        #                 asyncio.create_task(self._tr_result_loop()),          # 0.05초 주기 (timer3)                  asyncio.create_task(self._market_data_loop()),        # 2초 주기 (timer4)
+        #         asyncio.create_task(self._settings_save_loop()),      # 10초 주기 (timer1)
+        #         asyncio.create_task(self._heartbeat_loop())           # 30초 주기 (하트비트)
+        #     ]
+        #     
+        #     # 모든 태스크가 완료될 때까지 대기 (실제로는 무한 루프)
+        #     await asyncio.gather(*self.tasks, return_exceptions=True)
+        #     
+        # except Exception as e:
+        #     logger.error(f"실시간 서비스 실행 중 오류: {str(e)}")
+        #     await self.stop()
+        # --- 기존 코드 끝 ---
+
         try:
             # 기존 타이머들을 async task로 변환
             self.tasks = [
-                asyncio.create_task(self._account_update_loop()),     # 2초 주기 (timer2)
-                asyncio.create_task(self._tr_result_loop()),          # 0.05초 주기 (timer3)  
+                # asyncio.create_task(self._account_update_loop()),     # 2초 주기 (timer2) - 과도한 로그로 임시 주석 처리
+                asyncio.create_task(self._tr_result_loop()),          # 0.05초 주기 (timer3)
                 asyncio.create_task(self._market_data_loop()),        # 2초 주기 (timer4)
                 asyncio.create_task(self._settings_save_loop()),      # 10초 주기 (timer1)
                 asyncio.create_task(self._heartbeat_loop())           # 30초 주기 (하트비트)

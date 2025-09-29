@@ -3,14 +3,25 @@ FastAPI 메인 애플리케이션
 RSI/MACD 트레이딩 시스템의 백엔드 API 서버
 """
 
-import asyncio
-from contextlib import asynccontextmanager
-from multiprocessing import Process, Queue
 import sys
 import os
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+# 현재 파일의 부모 디렉토리(backend)를 Python 경로에 추가
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+import asyncio
+from contextlib import asynccontextmanager
+from multiprocessing import Process, Queue
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
+from app.websocket.connection import ConnectionManager
+from app.services.realtime_service import RealtimeDataService
+from app.core.config import get_settings
+from app.core.korea_invest import KoreaInvestAPIService
+from app.domestic_websocket import run_websocket
 
 # --- 로거 설정 ---
 try:
@@ -25,11 +36,7 @@ from app.api.account import router as account_router
 from app.api.trading import router as trading_router
 from app.api.watchlist import router as watchlist_router
 from app.api.stocks import router as stocks_router
-from app.websocket.connection import ConnectionManager
-from app.services.realtime_service import RealtimeDataService
-from app.core.config import get_settings
-from app.core.korea_invest import KoreaInvestAPIService
-# from domestic_websocket import run_websocket
+from app.api.chart import router as chart_router
 
 # 전역 변수
 connection_manager = ConnectionManager()
@@ -38,6 +45,23 @@ korea_invest_service = None
 websocket_process = None
 ws_result_queue = None
 ws_req_queue = None
+
+
+# 추가적인 CORS 헤더 설정을 위한 미들웨어
+class CustomCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.method == "OPTIONS":
+            response = Response()
+            response.headers["Access-Control-Allow-Origin"] = request.headers.get("origin", "*")
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            return response
+        
+        response = await call_next(request)
+        response.headers["Access-Control-Allow-Origin"] = request.headers.get("origin", "*")
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        return response
 
 
 @asynccontextmanager
@@ -56,7 +80,7 @@ async def lifespan(app: FastAPI):
     realtime_service = RealtimeDataService(korea_invest_service, connection_manager, ws_result_queue)
     
     if korea_invest_service.api_instance:
-        ws_url = korea_invest_service.api_instance.stock_api_url.replace("https", "ws") # ws url로 변경
+        ws_url = settings.KI_WEBSOCKET_URL
         websocket_process = Process(
             target=run_websocket,
             args=(korea_invest_service.api_instance, ws_url, ws_req_queue, ws_result_queue),
@@ -107,11 +131,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(CustomCORSMiddleware)
+
 # API 라우터 등록
 app.include_router(account_router, prefix="/api", tags=["account"])
 app.include_router(trading_router, prefix="/api", tags=["trading"])
 app.include_router(watchlist_router, prefix="/api", tags=["watchlist"])
 app.include_router(stocks_router, prefix="/api/stocks", tags=["stocks"])
+app.include_router(chart_router, prefix="/api/chart", tags=["chart"])
 
 @app.get("/")
 async def root():

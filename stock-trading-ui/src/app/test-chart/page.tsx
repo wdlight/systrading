@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +25,7 @@ import { POPULAR_KOREAN_STOCKS } from '@/lib/types/korean-stocks';
 export default function TestChartPage() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showRawData, setShowRawData] = useState(false);
+  const [timeframe, setTimeframe] = useState<'1m' | '1D' | '1W' | '1M' | '3M' | '6M' | '1Y'>('1m');
 
   // 삼성전자 차트 데이터 Hook
   const {
@@ -36,10 +37,9 @@ export default function TestChartPage() {
     lastUpdated,
     refetch,
     retry
-  } = useSamsungChartData('D', {
+  } = useSamsungChartData(timeframe, {
     enabled: true,
     autoRefresh: autoRefresh,
-    refreshInterval: 30000 // 30초
   });
 
   // API 테스트 Hook
@@ -70,8 +70,22 @@ export default function TestChartPage() {
   // 차트 데이터 검증
   const validation = chartData.length > 0 ? validateChartData(chartData) : null;
 
-  // 삼성전자 종목 정보
+  // 삼성전자 종목 정보 (실시간 가격 데이터와 결합)
   const samsungStock = POPULAR_KOREAN_STOCKS.find(stock => stock.code === '005930');
+
+  const displayStock = useMemo(() => {
+    if (!samsungStock) return null;
+    if (!priceData) return samsungStock;
+
+    return {
+      ...samsungStock,
+      currentPrice: priceData.current_price,
+      changeAmount: priceData.change_amount,
+      changeRate: priceData.change_rate,
+      volume: priceData.volume,
+      // 필요한 다른 실시간 데이터 필드 추가
+    };
+  }, [samsungStock, priceData]);
 
   useEffect(() => {
     // 페이지 로드 시 API 테스트 실행
@@ -127,6 +141,20 @@ export default function TestChartPage() {
               <RefreshCw className={`w-4 h-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
               Auto Refresh
             </Button>
+
+            <div className="flex items-center gap-1">
+              {[ '1m', '1D', '1W', '1M', '3M', '6M', '1Y' ].map((tf) => (
+                <Button
+                  key={tf}
+                  variant={timeframe === tf ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTimeframe(tf as any)}
+                  className="text-xs h-7"
+                >
+                  {tf === '1m' ? '1분' : tf === '1D' ? '1일' : tf === '1W' ? '1주' : tf === '1M' ? '1개월' : tf === '3M' ? '3개월' : tf === '6M' ? '6개월' : '1년'}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -448,12 +476,16 @@ export default function TestChartPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {samsungStock && (
+            {displayStock && (
               <KoreanTradingChart
-                stock={samsungStock}
+                stock={displayStock}
                 height={600}
                 showIndicators={true}
                 className="w-full"
+                useRealData={true}
+                autoRefresh={autoRefresh}
+                timeframe={timeframe}
+                setTimeframe={setTimeframe}
               />
             )}
 

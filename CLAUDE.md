@@ -28,12 +28,76 @@
   Task("Tester agent", "Create comprehensive tests...", "tester")
   Task("Reviewer agent", "Review code quality...", "reviewer")
   Task("Architect agent", "Design system architecture...", "system-architect")
+  Task("Code analysis agent", "Deep code analysis with Serena MCP...", "serena-code-analyst")
 ```
 
 **MCP tools are ONLY for coordination setup:**
 - `mcp__claude-flow__swarm_init` - Initialize coordination topology
 - `mcp__claude-flow__agent_spawn` - Define agent types for coordination
 - `mcp__claude-flow__task_orchestrate` - Orchestrate high-level workflows
+
+### 🔬 SERENA-CODE-ANALYST AGENT SPECIFICATION
+
+**Agent Type**: `serena-code-analyst`
+**Primary Role**: Deep semantic code analysis using Serena MCP integration
+**Activation Priority**: 🔥 **ALWAYS FIRST** for any code-related task
+
+**Core Capabilities with Serena MCP:**
+1. **Symbol-Level Analysis**: Use `find_symbol`, `get_symbols_overview` for precise code understanding
+2. **Cross-Reference Mapping**: Use `find_referencing_symbols` to understand dependencies
+3. **Safe Refactoring**: Analyze impact before changes using dependency mapping
+4. **Token-Efficient Reading**: Avoid reading entire files, use targeted symbol analysis
+5. **Memory-Based Learning**: Store insights using `write_memory` for future reference
+
+**Mandatory Workflow for serena-code-analyst:**
+```javascript
+// ✅ REQUIRED PATTERN for code analysis
+Task("Serena Code Analysis", "
+  STEP 1: PROJECT OVERVIEW
+  - Use list_dir to understand project structure
+  - Use find_file to locate relevant source files
+  - Use get_symbols_overview to map key components
+
+  STEP 2: SYMBOL-LEVEL ANALYSIS
+  - Use find_symbol for specific functions/classes/variables
+  - Analyze symbol relationships with find_referencing_symbols
+  - Build dependency graph for safe modification planning
+
+  STEP 3: IMPACT ASSESSMENT
+  - Identify all affected components before changes
+  - Use search_for_pattern for broader pattern analysis
+  - Document findings in memory for other agents
+
+  STEP 4: RECOMMENDATIONS
+  - Provide safe refactoring strategy
+  - Highlight critical dependencies to preserve
+  - Suggest implementation approach based on semantic analysis
+
+  DELIVERABLES:
+  - Complete symbol dependency map
+  - Safe modification recommendations
+  - Implementation guidance for other agents
+", "serena-code-analyst")
+```
+
+**Integration with Other Agents:**
+- **Before `frontend-developer`**: Analyze React components and hooks structure
+- **Before `backend-architect`**: Map API dependencies and database interactions
+- **Before `typescript-pro`**: Understand type dependencies and interface relationships
+- **Before `debugger`**: Trace error propagation through symbol references
+
+### 🔍 SERENA MCP INTEGRATION
+
+**MANDATORY: Use Serena MCP for ALL code analysis tasks:**
+- **Installation**: ✅ Serena MCP is installed and configured for this project
+- **Context**: `ide-assistant` mode with semantic code understanding
+- **Usage**: ALWAYS use Serena MCP tools before any code analysis, refactoring, or architectural decisions
+
+**Serena MCP Tools Available:**
+- Symbol-level code comprehension across the entire codebase
+- Multi-language support (Python, TypeScript, JavaScript, etc.)
+- Semantic code retrieval and intelligent editing
+- Project-wide analysis with language server integration
 
 ### 📁 File Organization Rules
 
@@ -138,6 +202,13 @@ Then execute the work autonomously.", "smart-agent")
 - **Testing**: `tester`, `debugger`, `production-validator`
 - **Code Review**: `reviewer`, `typescript-pro`, `python-pro`
 - **Architecture**: `system-architect`, `backend-architect`
+
+#### Code Analysis & Understanding (Serena MCP)
+- **Deep Code Analysis**: `serena-code-analyst` (🔥 PRIORITY: Use FIRST for any code analysis)
+- **Symbol Navigation**: `serena-code-analyst` (Function/class/variable level understanding)
+- **Codebase Exploration**: `serena-code-analyst` (Project-wide semantic search)
+- **Refactoring Planning**: `serena-code-analyst` (Safe refactoring with symbol awareness)
+- **Cross-Reference Analysis**: `serena-code-analyst` (Find usages, dependencies, impacts)
 
 ### 🎛️ Autonomous Decision Framework
 
@@ -568,3 +639,161 @@ Task("Autonomous Development Team", "
 Claude: Orchestrate at high level, let agents decide implementation.
 Agents: Make all technical decisions autonomously, coordinate via hooks.
 Files: Organize properly, prefer editing, avoid unnecessary creation.
+
+---
+
+# 🔍 SERENA MCP INTEGRATION GUIDE
+
+## 🚨 MANDATORY: Always Use Serena for Code Analysis
+
+**RULE**: Before ANY code analysis, refactoring, or architectural decision, FIRST spawn `serena-code-analyst` agent.
+
+### 🎯 Serena-Code-Analyst Agent
+
+**Description**: Specialized agent that leverages Serena MCP for deep semantic code understanding, symbol-level analysis, and intelligent codebase exploration.
+
+**Capabilities**:
+- Symbol-level code comprehension (functions, classes, variables)
+- Multi-language support (Python, TypeScript, JavaScript, etc.)
+- Project-wide semantic search and cross-reference analysis
+- Safe refactoring planning with dependency awareness
+- Language server integration for IDE-like intelligence
+
+**When to Use** (ALWAYS use FIRST):
+- Code analysis and understanding
+- Refactoring planning and impact assessment
+- Architectural decision making
+- Finding usage patterns and dependencies
+- Symbol navigation and documentation
+- Performance optimization analysis
+
+### 🔥 PRIORITY WORKFLOW
+
+**Step 1: Always Start with Serena Analysis**
+```javascript
+// ✅ CORRECT: Always start with Serena analysis
+[Single Message - Code Analysis First]:
+  Task("Serena Code Analyst", "
+    CONTEXT: Analyze the codebase for [specific task]
+
+    SERENA MCP ANALYSIS:
+    1. Use Serena MCP tools to understand current code structure
+    2. Identify all relevant symbols, functions, and dependencies
+    3. Analyze cross-references and usage patterns
+    4. Assess refactoring impact and safety
+    5. Provide semantic understanding for implementation decisions
+
+    DELIVERABLES:
+    - Complete symbol-level analysis
+    - Dependency mapping and impact assessment
+    - Safe refactoring recommendations
+    - Implementation guidance based on semantic understanding
+  ", "serena-code-analyst")
+
+  // Then spawn other agents based on Serena's analysis
+  Task("Implementation Agent", "Based on Serena analysis, implement...", "frontend-developer")
+  Task("Testing Agent", "Based on Serena findings, create tests...", "tester")
+```
+
+**Step 2: Implementation Based on Serena Insights**
+```javascript
+// After Serena analysis, other agents implement with confidence
+Task("Implementation Team", "
+  CONTEXT: Use Serena's semantic analysis to guide implementation
+
+  SERENA INSIGHTS INTEGRATION:
+  - Follow symbol dependencies identified by Serena
+  - Use safe refactoring patterns recommended by Serena
+  - Implement based on cross-reference analysis
+  - Maintain architectural consistency per Serena findings
+
+  AUTONOMOUS DECISIONS BASED ON SERENA:
+  - Technical stack decisions informed by codebase analysis
+  - Refactoring approach based on impact assessment
+  - Testing strategy covering identified dependencies
+", "smart-agent")
+```
+
+### 🛠️ Serena MCP Tools Integration
+
+**Available Serena MCP Tools (20 active tools):**
+- **Symbol Navigation**: `find_symbol`, `get_symbols_overview`, `find_referencing_symbols`
+- **File Operations**: `list_dir`, `find_file`, `search_for_pattern`
+- **Code Editing**: `replace_symbol_body`, `insert_after_symbol`, `insert_before_symbol`
+- **Memory System**: `write_memory`, `read_memory`, `list_memories`, `delete_memory`
+- **Project Management**: `activate_project`, `get_current_config`
+- **Analysis Tools**: `think_about_collected_information`, `think_about_task_adherence`
+
+**Language Server Integration:**
+- ✅ **Pyright 1.1.405** for Python analysis (64 source files scanned)
+- ✅ **IDE-assistant context** with project-wide semantic understanding
+- ✅ **Symbol-level intelligence** for functions, classes, variables
+- ✅ **Multi-language support** (Python/TypeScript/JavaScript)
+- ✅ **Web Dashboard**: http://127.0.0.1:24282/dashboard/index.html
+
+**Real-time Capabilities:**
+- Project-wide symbol indexing and cross-reference analysis
+- Safe refactoring with dependency awareness
+- Token-efficient code reading (avoids reading entire files)
+- Intelligent step-by-step code acquisition
+
+### 📋 Best Practices
+
+**1. Always Serena First:**
+```bash
+# ❌ WRONG: Direct implementation without analysis
+Task("Fix bug in trading module", ..., "debugger")
+
+# ✅ CORRECT: Serena analysis first
+Task("Analyze trading module with Serena", ..., "serena-code-analyst")
+```
+
+**2. Use Serena Insights for Decisions:**
+```bash
+# Serena provides symbol-level understanding for:
+- Safe refactoring (knows all usages)
+- Architectural decisions (understands dependencies)
+- Performance optimization (identifies bottlenecks)
+- Testing strategy (maps test coverage to symbols)
+```
+
+**3. Multi-Agent Coordination with Serena:**
+```bash
+# Serena coordinates with other agents:
+- Frontend: Symbol analysis for component refactoring
+- Backend: API dependency mapping and safe changes
+- Testing: Coverage analysis based on symbol usage
+- Architecture: System design informed by code structure
+```
+
+### 🎯 Example Workflows
+
+**Workflow 1: Code Refactoring**
+```javascript
+Task("Serena Analysis", "Use Serena MCP to analyze current useRealTimePrice hook. Map all dependencies, usages, and potential refactoring impacts.", "serena-code-analyst")
+Task("Safe Refactoring", "Based on Serena's analysis, implement the refactoring with awareness of all symbol dependencies.", "typescript-pro")
+```
+
+**Workflow 2: Feature Addition**
+```javascript
+Task("Codebase Understanding", "Use Serena to understand existing trading system architecture, identify integration points for new feature.", "serena-code-analyst")
+Task("Feature Implementation", "Implement new feature following architectural patterns identified by Serena.", "trading-engine-specialist")
+```
+
+**Workflow 3: Bug Investigation**
+```javascript
+Task("Bug Analysis", "Use Serena to trace bug through symbol dependencies, identify all affected components.", "serena-code-analyst")
+Task("Targeted Fix", "Fix bug with understanding of all impacted areas provided by Serena analysis.", "debugger")
+```
+
+---
+
+## 🏆 Benefits of Serena Integration
+
+- **Token Efficiency**: Semantic understanding reduces need for extensive code reading
+- **Code Quality**: Symbol-level awareness prevents breaking changes
+- **Development Speed**: IDE-like intelligence accelerates development
+- **Architecture Consistency**: Project-wide understanding maintains patterns
+- **Safe Refactoring**: Dependency analysis ensures safe code changes
+
+**Remember**: Serena MCP makes Claude Code both cheaper and more powerful by providing efficient code analysis that saves tokens and improves code quality!

@@ -63,6 +63,46 @@ class KoreaInvestAPI(BrokerInterface):
         self.balance_ctx_fk100 = ""
         self.balance_ctx_nk100 = ""
 
+    def get_send_data(self, cmd, stock_code=None):
+        """실시간 데이터 요청을 위한 데이터 생성"""
+        is_register = cmd in [1, 3, 5]
+        tr_type = "1" if is_register else "2"
+
+        tr_id = ""
+        tr_key = ""
+
+        if cmd in [1, 2]:  # 실시간호가
+            tr_id = "H0STASP0"
+            tr_key = stock_code
+        elif cmd in [3, 4]:  # 실시간체결
+            tr_id = "H0STCNT0"
+            tr_key = stock_code
+        elif cmd == 5:  # 주문/체결 통보
+            tr_id = "H0STCNI0"
+            tr_key = self.htsid  # HTS ID 사용
+        else:
+            raise ValueError(f"Unknown cmd for get_send_data: {cmd}")
+
+        if not tr_key:
+             if cmd != 5:
+                raise ValueError(f"stock_code is required for cmd {cmd}")
+
+        header = {
+            "approval_key": self.g_approval_key,
+            "custtype": self.custtype,
+            "tr_type": tr_type,
+            "content-type": "utf-8"
+        }
+
+        body = {
+            "input": {
+                "tr_id": tr_id,
+                "tr_key": tr_key
+            }
+        }
+
+        return json.dumps({"header": header, "body": body})
+
     def authenticate(self, credentials):
         """인증 처리 (이미 KoreaInvestEnv에서 처리됨)"""
         return True
@@ -154,7 +194,7 @@ class KoreaInvestAPI(BrokerInterface):
         }
 
         t1 = self._url_fetch( url, tr_id, params)
-        output_columns = ['일자', '시간', '시가', '고가', '저가', '종가']
+        output_columns = ['일자', '시간', '시가', '고가', '저가', '종가', '거래량']
         if t1 is None : 
             return pd.DataFrame( columns=output_columns)
         try:
@@ -172,6 +212,7 @@ class KoreaInvestAPI(BrokerInterface):
                 'stck_hgpr',
                 'stck_lwpr',
                 'stck_prpr',
+                'cntg_vol',
             ]
 
             df = df[target_columns ]

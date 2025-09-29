@@ -194,7 +194,7 @@ export function useSamsungRealTimePrice(
   return useRealTimePrice('005930', {
     ...options,
     autoRefresh: options.autoRefresh ?? true,
-    refreshInterval: options.refreshInterval ?? 5000, // 5초마다
+    refreshInterval: options.refreshInterval ?? 1000, // 1초마다
     includeQuoteData: options.includeQuoteData ?? true // 상세 정보 포함
   });
 }

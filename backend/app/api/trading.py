@@ -5,10 +5,11 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
+from datetime import datetime
 
 from app.core.dependencies import get_trading_service
 from app.services.trading_service import TradingService
-from app.models.schemas import ApiResponse
+from app.models.schemas import ApiResponse, ChartCandle
 try:
     from loguru import logger
 except ImportError:
@@ -21,7 +22,7 @@ from app.models.watchlist_models import (
     WatchlistItem
 )
 
-router = APIRouter(prefix="/trading")
+router = APIRouter()
 
 @router.get(
     "/conditions",

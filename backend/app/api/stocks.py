@@ -1,12 +1,96 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.core.dependencies import get_stock_service
 from app.services.stock_service import StockService
 from loguru import logger
+from app.models.schemas import ApiResponse
 
 router = APIRouter()
+
+@router.get("/{stock_code}/chart/test", response_model=ApiResponse,
+    summary="API 연결 테스트",
+    description="프론트엔드에서 백엔드 API 연결 상태를 테스트하기 위한 엔드포인트입니다."
+)
+async def test_api_connection(
+    stock_code: str
+) -> ApiResponse:
+    """API 연결 테스트"""
+    return ApiResponse(
+        success=True,
+        message=f"API 연결 테스트 성공: {stock_code}에 대한 차트 테스트 엔드포인트가 응답했습니다.",
+        data={
+            "stock_code": stock_code,
+            "status": "connected",
+            "timestamp": datetime.now().isoformat()
+        }
+    )
+
+@router.get("/{stock_code}/price")
+async def get_stock_current_price(
+    stock_code: str,
+    stock_service: StockService = Depends(get_stock_service)
+):
+    """
+    종목의 실시간 현재가 정보 조회
+    """
+    price_data = await stock_service.get_current_price(stock_code)
+    if price_data is None:
+        raise HTTPException(status_code=404, detail=f"Failed to get current price for {stock_code}")
+
+    response_data = {
+        "success": True,
+        "stock_code": stock_code,
+        "current_price": int(price_data.get("stck_prpr", "0")),
+        "change_amount": int(price_data.get("prdy_vrss", "0")),
+        "change_rate": float(price_data.get("prdy_ctrt", "0.0")),
+        "volume": int(price_data.get("acml_vol", "0")),
+        "trading_value": int(price_data.get("acml_tr_pbmn", "0")),
+        "high_price": int(price_data.get("stck_hgpr", "0")),
+        "low_price": int(price_data.get("stck_lwpr", "0")),
+        "open_price": int(price_data.get("stck_oprc", "0")),
+        "previous_close": int(price_data.get("stck_sdpr", "0")),
+        "market_cap": int(price_data.get("mktm", "0")),
+        "timestamp": datetime.now().isoformat(),
+        "market_status": price_data.get("mksc_shrn_iscd", ""),
+    }
+    return response_data
+
+@router.get("/{stock_code}/quote")
+async def get_stock_quote_info(
+    stock_code: str,
+    stock_service: StockService = Depends(get_stock_service)
+):
+    """
+    종목의 상세 시세 정보 조회 (현재가 + 추가 정보)
+    """
+    quote_data = await stock_service.get_quote_info(stock_code)
+    if quote_data is None:
+        raise HTTPException(status_code=404, detail=f"Failed to get quote info for {stock_code}")
+
+    response_data = {
+        "success": True,
+        "stock_code": stock_code,
+        "current_price": int(quote_data.get("stck_prpr", "0")),
+        "change_amount": int(quote_data.get("prdy_vrss", "0")),
+        "change_rate": float(quote_data.get("prdy_ctrt", "0.0")),
+        "volume": int(quote_data.get("acml_vol", "0")),
+        "trading_value": int(quote_data.get("acml_tr_pbmn", "0")),
+        "high_price": int(quote_data.get("stck_hgpr", "0")),
+        "low_price": int(quote_data.get("stck_lwpr", "0")),
+        "open_price": int(quote_data.get("stck_oprc", "0")),
+        "previous_close": int(quote_data.get("stck_sdpr", "0")),
+        "market_cap": int(quote_data.get("mktm", "0")),
+        "timestamp": datetime.now().isoformat(),
+        "market_status": quote_data.get("mksc_shrn_iscd", ""),
+        "recent_candles": quote_data.get("recent_candles", []),
+        "avg_volume_5d": quote_data.get("avg_volume_5d", 0),
+        "price_range_5d": quote_data.get("price_range_5d", {"high": 0, "low": 0}),
+        "last_updated": quote_data.get("last_updated")
+    }
+    return response_data
+
 
 @router.get("/{stock_code}/chart", response_model=Dict[str, Any])
 async def get_stock_chart_data(
@@ -156,67 +240,4 @@ async def _convert_to_frontend_format(stock_code: str, period: str, chart_data: 
                 "count": 0,
                 "last_updated": datetime.now().isoformat()
             }
-        }
-
-@router.get("/{stock_code}/chart/test", response_model=Dict[str, Any])
-async def test_stock_chart_data(
-    stock_code: str,
-    stock_service: StockService = Depends(get_stock_service)
-):
-    """
-    차트 데이터 테스트용 엔드포인트 (개발/디버깅용)
-    """
-    logger.info(f"{stock_code} 차트 데이터 테스트 요청")
-
-    try:
-        # API 연결 상태 확인
-        connection_status = stock_service.ki_client.get_connection_status()
-
-        # 차트 데이터 조회
-        chart_data = await stock_service.get_chart_data(stock_code, 'D')
-
-        # 테스트 결과 구성
-        test_result = {
-            "timestamp": datetime.now().isoformat(),
-            "stock_code": stock_code,
-            "api_connection": connection_status,
-            "chart_data_available": chart_data is not None,
-            "chart_data_count": len(chart_data.get("output2", [])) if chart_data else 0,
-            "sample_data": None,
-            "conversion_test": None
-        }
-
-        if chart_data and chart_data.get("output2"):
-            # 샘플 데이터 (첫 번째와 마지막)
-            output2 = chart_data["output2"]
-            test_result["sample_data"] = {
-                "first": output2[0] if output2 else None,
-                "last": output2[-1] if len(output2) > 1 else None,
-                "count": len(output2)
-            }
-
-            # 변환 테스트
-            try:
-                frontend_data = await _convert_to_frontend_format(stock_code, 'D', chart_data)
-                test_result["conversion_test"] = {
-                    "success": frontend_data.get("success", False),
-                    "converted_count": len(frontend_data.get("data", [])),
-                    "sample_converted": frontend_data.get("data", [])[:2]  # 첫 2개 샘플
-                }
-            except Exception as e:
-                test_result["conversion_test"] = {
-                    "success": False,
-                    "error": str(e)
-                }
-
-        return test_result
-
-    except Exception as e:
-        logger.error(f"차트 데이터 테스트 중 오류: {e}")
-        return {
-            "timestamp": datetime.now().isoformat(),
-            "stock_code": stock_code,
-            "error": str(e),
-            "api_connection": None,
-            "chart_data_available": False
         }

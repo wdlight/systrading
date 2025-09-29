@@ -141,14 +141,17 @@ export interface KoreanStockChart {
   low: number;
   close: number;
   volume: number;
-  tradingValue: number;
-  foreignBuy: number;
-  foreignSell: number;
-  institutionalBuy: number;
-  institutionalSell: number;
-  individualBuy: number;
-  individualSell: number;
+  tradingValue: number | null;
+  foreignBuy: number | null;
+  foreignSell: number | null;
+  institutionalBuy: number | null;
+  institutionalSell: number | null;
+  individualBuy: number | null;
+  individualSell: number | null;
 }
+
+// Chart data type alias for compatibility
+export type ChartCandle = KoreanStockChart;
 
 export interface KoreanPortfolioPosition {
   stockCode: string;

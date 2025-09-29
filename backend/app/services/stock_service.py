@@ -71,3 +71,77 @@ class StockService:
         except Exception as e:
             logger.error(f"차트 데이터 조회 중 오류 발생: {e}")
             return None
+
+    async def get_current_price(self, stock_code: str) -> Optional[Dict[str, Any]]:
+        """종목의 현재가 정보를 조회합니다."""
+        if not self.ki_client or not self.ki_client.is_connected:
+            logger.error("한국투자증권 API가 연결되지 않았습니다.")
+            return None
+        try:
+            price_data = await self.ki_client._run_in_executor(
+                self.ki_client.api_instance.get_current_price,
+                stock_code
+            )
+            return price_data
+        except Exception as e:
+            logger.error(f"현재가 조회 중 오류 발생: {e}")
+            return None
+
+    async def get_quote_info(self, stock_code: str) -> Optional[Dict[str, Any]]:
+        """종목의 상세 시세 정보 (현재가 + 최근 캔들)를 조회합니다."""
+        if not self.ki_client or not self.ki_client.is_connected:
+            logger.error("한국투자증권 API가 연결되지 않았습니다.")
+            return None
+        
+        try:
+            # 1. 현재가 정보 조회
+            current_price_data = await self.get_current_price(stock_code)
+            if not current_price_data:
+                return None
+
+            # 2. 최근 5일치 차트 데이터 조회
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=5)
+            chart_df = await self.ki_client._run_in_executor(
+                self.ki_client.api_instance.get_daily_price_chart,
+                stock_code,
+                start_date.strftime("%Y%m%d"),
+                end_date.strftime("%Y%m%d"),
+                'D'
+            )
+
+            recent_candles = []
+            if chart_df is not None and not chart_df.empty:
+                recent_data = chart_df.tail(5).to_dict('records')
+                for item in recent_data:
+                    recent_candles.append({
+                        "date": item.get("일자", ""),
+                        "open": int(item.get("시가", "0")),
+                        "high": int(item.get("고가", "0")),
+                        "low": int(item.get("저가", "0")),
+                        "close": int(item.get("종가", "0")),
+                        "volume": int(item.get("거래량", "0")),
+                    })
+            
+            # 3. 최종 데이터 조합
+            # get_current_price의 결과가 dict가 아닐 수 있으므로 확인
+            if not isinstance(current_price_data, dict):
+                logger.error(f"현재가 정보가 올바른 형식이 아닙니다: {current_price_data}")
+                # 현재가 정보가 없으면 상세 시세도 반환 불가
+                return None
+
+            quote_data = {
+                **current_price_data,
+                "recent_candles": recent_candles,
+                "avg_volume_5d": sum(c["volume"] for c in recent_candles) / len(recent_candles) if recent_candles else 0,
+                "price_range_5d": {
+                    "high": max(c["high"] for c in recent_candles) if recent_candles else 0,
+                    "low": min(c["low"] for c in recent_candles) if recent_candles else 0,
+                },
+                "last_updated": datetime.now().isoformat()
+            }
+            return quote_data
+
+        except Exception as e:
+            logger.error(f"상세 시세 조회 중 오류 발생: {e}")
+            return None

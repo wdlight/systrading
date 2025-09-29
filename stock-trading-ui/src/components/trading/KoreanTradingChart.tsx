@@ -29,6 +29,7 @@ import {
   getStockColorClass
 } from '@/lib/types/korean-stocks';
 import { useRealChartData } from '@/hooks/useRealChartData';
+import RealtimeCandlestickChart from './RealtimeCandlestickChart';
 
 interface KoreanTradingChartProps {
   className?: string;
@@ -37,50 +38,15 @@ interface KoreanTradingChartProps {
   showIndicators?: boolean;
   useRealData?: boolean;
   autoRefresh?: boolean;
+  timeframe: ChartTimeframe;
+  setTimeframe: (tf: ChartTimeframe) => void;
 }
 
-type ChartTimeframe = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y';
+type ChartTimeframe = '1m' | '1D' | '1W' | '1M' | '3M' | '6M' | '1Y';
 type ChartType = 'candlestick' | 'line' | 'area';
 
 // Generate mock chart data
-function generateMockChartData(stock: KoreanStock, timeframe: ChartTimeframe): KoreanStockChart[] {
-  const data: KoreanStockChart[] = [];
-  const points = timeframe === '1D' ? 390 : timeframe === '1W' ? 7 : timeframe === '1M' ? 30 : 90;
-  let currentPrice = stock.currentPrice;
-  const volatility = 0.02; // 2% volatility
 
-  for (let i = points; i >= 0; i--) {
-    const timestamp = new Date();
-    timestamp.setMinutes(timestamp.getMinutes() - i);
-
-    const change = (Math.random() - 0.5) * volatility * currentPrice;
-    const open = currentPrice;
-    const close = currentPrice + change;
-    const high = Math.max(open, close) + Math.random() * 0.01 * currentPrice;
-    const low = Math.min(open, close) - Math.random() * 0.01 * currentPrice;
-    const volume = Math.floor(Math.random() * 1000000) + 100000;
-
-    data.push({
-      timestamp: timestamp.toISOString(),
-      open,
-      high,
-      low,
-      close,
-      volume,
-      tradingValue: volume * close,
-      foreignBuy: Math.floor(volume * 0.3),
-      foreignSell: Math.floor(volume * 0.25),
-      institutionalBuy: Math.floor(volume * 0.4),
-      institutionalSell: Math.floor(volume * 0.35),
-      individualBuy: Math.floor(volume * 0.3),
-      individualSell: Math.floor(volume * 0.4)
-    });
-
-    currentPrice = close;
-  }
-
-  return data;
-}
 
 // Technical indicators calculations
 function calculateTechnicalIndicators(data: KoreanStockChart[]) {
@@ -170,9 +136,10 @@ export function KoreanTradingChart({
   height = 400,
   showIndicators = true,
   useRealData = false,
-  autoRefresh = false
+  autoRefresh = false,
+  timeframe,
+  setTimeframe
 }: KoreanTradingChartProps) {
-  const [timeframe, setTimeframe] = useState<ChartTimeframe>('1D');
   const [chartType, setChartType] = useState<ChartType>('candlestick');
   const [showVolume, setShowVolume] = useState(true);
 
@@ -187,30 +154,21 @@ export function KoreanTradingChart({
     refetch
   } = useRealChartData(
     stock?.code || '',
-    timeframe === '1D' ? 'D' : timeframe === '1W' ? 'W' : 'M',
+    timeframe,
     {
       enabled: useRealData && !!stock?.code,
       autoRefresh: autoRefresh,
-      refreshInterval: 30000 // 30초
+      // refreshInterval은 useRealChartData 내부에서 timeframe에 따라 결정됨
     }
   );
 
-  // 차트 데이터 결정 (실제 데이터 또는 Mock 데이터)
-  const chartData = useMemo(() => {
-    if (useRealData && realChartData.length > 0) {
-      return realChartData;
-    } else if (stock) {
-      return generateMockChartData(stock, timeframe);
-    }
-    return [];
-  }, [useRealData, realChartData, stock, timeframe]);
-
   const technicalIndicators = useMemo(() => {
-    if (chartData.length === 0) return null;
-    return calculateTechnicalIndicators(chartData);
-  }, [chartData]);
+    if (realChartData.length === 0) return null;
+    return calculateTechnicalIndicators(realChartData);
+  }, [realChartData]);
 
   const timeframes: { value: ChartTimeframe; label: string }[] = [
+    { value: '1m', label: '1분' },
     { value: '1D', label: '1일' },
     { value: '1W', label: '1주' },
     { value: '1M', label: '1개월' },
@@ -374,98 +332,18 @@ export function KoreanTradingChart({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Mock Chart Area */}
-        <div
-          className="bg-[#0a0a0b] border border-gray-700 rounded-lg relative overflow-hidden"
-          style={{ height: height - 200 }}
-        >
-          {/* Chart Grid */}
-          <div className="absolute inset-0 opacity-10">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-full border-t border-gray-600"
-                style={{ top: `${(i + 1) * 16.67}%` }}
-              />
-            ))}
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div
-                key={i}
-                className="absolute h-full border-l border-gray-600"
-                style={{ left: `${(i + 1) * 10}%` }}
-              />
-            ))}
-          </div>
-
-          {/* Price Line Chart Simulation */}
-          <svg className="absolute inset-0 w-full h-full">
-            <defs>
-              <linearGradient id="priceGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" style={{ stopColor: stock.changeRate >= 0 ? '#ef4444' : '#3b82f6', stopOpacity: 0.3 }} />
-                <stop offset="100%" style={{ stopColor: stock.changeRate >= 0 ? '#ef4444' : '#3b82f6', stopOpacity: 0 }} />
-              </linearGradient>
-            </defs>
-            <path
-              d={`M 0 ${height - 250} ${chartData.map((_, i) =>
-                `L ${(i / chartData.length) * 100}% ${Math.random() * (height - 300) + 50}`
-              ).join(' ')}`}
-              fill="url(#priceGradient)"
-              stroke={stock.changeRate >= 0 ? '#ef4444' : '#3b82f6'}
-              strokeWidth="2"
-              fillOpacity="0.1"
-            />
-          </svg>
-
-          {/* Current Price Indicator */}
-          <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
-            <div className={cn(
-              'px-2 py-1 text-xs font-medium rounded-l',
-              stock.changeRate >= 0 ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'
-            )}>
-              {formatStockPrice(stock.currentPrice)}
-            </div>
-          </div>
-
-          {/* Trading Hours Indicator */}
-          <div className="absolute top-2 left-2">
-            <Badge className={useRealData && isConnected ? "bg-green-500 text-white text-xs" : "bg-gray-500 text-white text-xs"}>
-              <Activity className="w-3 h-3 mr-1" />
-              {useRealData ? (isConnected ? '실시간' : '오프라인') : '모의'}
-            </Badge>
-          </div>
-
-          {/* 실제 데이터 사용 시 추가 정보 */}
-          {useRealData && metadata && (
-            <div className="absolute top-2 right-2">
-              <div className="bg-black/50 p-2 rounded text-xs space-y-1">
-                <div className="text-gray-300">
-                  데이터: {metadata.count}개
-                </div>
-                {lastUpdated && (
-                  <div className="text-gray-400">
-                    {lastUpdated.toLocaleTimeString('ko-KR')}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Volume Chart */}
-        {showVolume && (
-          <div className="h-20 bg-[#0a0a0b] border border-gray-700 rounded-lg relative">
-            <div className="absolute inset-2 flex items-end gap-px">
-              {Array.from({ length: 50 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex-1 bg-gray-600 opacity-50"
-                  style={{ height: `${Math.random() * 100}%` }}
-                />
-              ))}
-            </div>
-            <div className="absolute top-1 left-2 text-xs text-gray-400">
-              거래량: {(stock.volume / 1000000).toFixed(1)}M
-            </div>
+        {useRealData && timeframe === '1m' ? (
+          <RealtimeCandlestickChart chartData={realChartData} height={height - 100} />
+        ) : (
+          <div
+            className="bg-[#0a0a0b] border border-gray-700 rounded-lg relative overflow-hidden flex items-center justify-center text-gray-400"
+            style={{ height: height - 100 }}
+          >
+            {useRealData ? (
+              <p>실시간 차트 데이터 준비 중...</p>
+            ) : (
+              <p>실시간 데이터가 아닙니다.</p>
+            )}
           </div>
         )}
 
@@ -527,11 +405,8 @@ export function KoreanTradingChart({
             <div className="space-y-1">
               {[0, 1, 2].map((i) => (
                 <div key={i} className="flex justify-between text-xs">
-                  <span className="text-red-400 font-medium">
-                    {(stock.currentPrice + (i + 1) * 100).toLocaleString()}원
-                  </span>
                   <span className="text-gray-300">
-                    {Math.floor(Math.random() * 1000 + 100)}
+                    100
                   </span>
                 </div>
               ))}
@@ -550,7 +425,7 @@ export function KoreanTradingChart({
                     {(stock.currentPrice - (i + 1) * 100).toLocaleString()}원
                   </span>
                   <span className="text-gray-300">
-                    {Math.floor(Math.random() * 1000 + 100)}
+                    0
                   </span>
                 </div>
               ))}

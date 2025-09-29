@@ -8,8 +8,9 @@ import os
 import pandas as pd
 import asyncio
 from typing import Dict, Any, Optional, Tuple, List
+from datetime import datetime, timedelta
 
-# 상위 디렉토리의 utils.py 임포트를 위한 경로 추가
+from app.models.schemas import ChartCandle
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
@@ -200,18 +201,51 @@ class KoreaInvestAPIService:
             logger.error(f"매도 주문 실패: {e}")
             return {"success": False, "message": f"매도 주문 실패: {str(e)}"}
     
-    async def get_minute_chart_data(self, stock_code: str) -> Optional[pd.DataFrame]:
+    async def get_minute_chart_data(self, stock_code: str) -> Optional[List[ChartCandle]]:
         """1분봉 차트 데이터 조회 (비동기)"""
         if not self.is_connected or not self.api_instance:
             logger.error("API가 연결되지 않았습니다.")
             return None
         
         try:
-            result = await self._run_in_executor(
+            logger.debug(f"Calling ki_api method: {self.api_instance.get_minute_chart_data.__name__}")
+            df = await self._run_in_executor(
                 self.api_instance.get_minute_chart_data,
                 stock_code
             )
-            return result
+
+            if df is None or df.empty:
+                return []
+
+            chart_candles: List[ChartCandle] = []
+            for _, row in df.iterrows():
+                try:
+                    # '일자' (YYYYMMDD)와 '시간' (HHMMSS)을 결합하여 ISO 형식의 타임스탬프 생성
+                    date_str = str(row['일자'])
+                    time_str = str(row['시간']).zfill(6) # HHMMSS 형식으로 6자리 채우기
+                    # KIS API의 시간은 000000 ~ 235959 이므로, 240000은 다음 날 000000으로 처리
+                    if time_str == "240000":
+                        # 다음 날 00시 00분 00초로 처리 (날짜도 하루 증가)
+                        dt_object = datetime.strptime(date_str, "%Y%m%d") + timedelta(days=1)
+                        timestamp_iso = dt_object.strftime("%Y-%m-%dT00:00:00")
+                    else:
+                        dt_object = datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
+                        timestamp_iso = dt_object.isoformat()
+
+                    candle = ChartCandle(
+                        timestamp=timestamp_iso,
+                        open=float(row['시가']),
+                        high=float(row['고가']),
+                        low=float(row['저가']),
+                        close=float(row['종가']),
+                        volume=int(row['거래량'])
+                    )
+                    chart_candles.append(candle)
+                except Exception as e:
+                    logger.warning(f"분봉 데이터 변환 중 오류 발생: {e}, 데이터: {row}")
+                    continue
+            
+            return chart_candles
             
         except Exception as e:
             self.last_error = str(e)

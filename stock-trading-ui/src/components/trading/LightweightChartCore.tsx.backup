@@ -1,0 +1,250 @@
+'use client';
+
+import React, { useEffect, useRef, memo } from 'react';
+import { ChartCandle } from '@/lib/types/korean-stocks';
+
+interface LightweightChartCoreProps {
+  chartData: ChartCandle[];
+  height?: number;
+  onError?: (error: string) => void;
+}
+
+const LightweightChartCore: React.FC<LightweightChartCoreProps> = memo(({
+  chartData,
+  height = 400,
+  onError
+}) => {
+  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<any>(null);
+  const candlestickSeriesRef = useRef<any>(null);
+  const [isLibraryLoaded, setIsLibraryLoaded] = React.useState(false);
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [createChart, setCreateChart] = React.useState<any>(null);
+
+  // Load lightweight-charts only on client-side
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadChartLibrary = async () => {
+      try {
+        // Check if we're in browser environment
+        if (typeof window === 'undefined') {
+          console.log('Skipping chart load - not in browser');
+          return;
+        }
+
+        console.log('Loading lightweight-charts...');
+        const module = await import('lightweight-charts');
+        console.log('Lightweight-charts loaded:', module);
+
+        if (isMounted) {
+          setCreateChart(() => module.createChart);
+          setIsLibraryLoaded(true);
+          setLoadError(null);
+          console.log('Chart library ready');
+        }
+      } catch (error) {
+        console.error('Failed to load lightweight-charts:', error);
+        const errorMessage = `Chart library load error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+
+        if (isMounted) {
+          setLoadError(errorMessage);
+          onError?.(errorMessage);
+        }
+      }
+    };
+
+    // Delay loading slightly to ensure DOM is ready
+    const timer = setTimeout(loadChartLibrary, 100);
+
+    return () => {
+      clearTimeout(timer);
+      isMounted = false;
+    };
+  }, [onError]);
+
+  // Initialize and manage chart
+  useEffect(() => {
+    if (!isLibraryLoaded || !createChart || !chartContainerRef.current) {
+      console.log('Chart init skipped:', { isLibraryLoaded, createChart: !!createChart, container: !!chartContainerRef.current });
+      return;
+    }
+
+    let chart: any = null;
+
+    try {
+      console.log('Creating chart with createChart function:', typeof createChart);
+      chart = createChart(chartContainerRef.current, {
+        width: chartContainerRef.current.clientWidth,
+        height: height,
+        layout: {
+          background: { type: 'solid', color: '#1a1a1b' },
+          textColor: '#D1D4DC',
+        },
+        grid: {
+          vertLines: { color: '#2B2B43' },
+          horzLines: { color: '#2B2B43' },
+        },
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: true,
+          borderVisible: false,
+        },
+        rightPriceScale: {
+          borderVisible: false,
+        },
+        handleScroll: {
+          mouseWheel: true,
+          pressedMouseMove: true,
+        },
+        handleScale: {
+          axisPressedMouseMove: true,
+          mouseWheel: true,
+          pinch: true,
+        },
+      });
+
+      console.log('Chart created:', chart);
+      console.log('Chart methods:', Object.getOwnPropertyNames(chart));
+      console.log('Chart prototype:', Object.getOwnPropertyNames(Object.getPrototypeOf(chart)));
+      console.log('addCandlestickSeries type:', typeof chart.addCandlestickSeries);
+
+      // Try different methods to create candlestick series
+      let candlestickSeries;
+
+      if (typeof chart.addCandlestickSeries === 'function') {
+        console.log('Using addCandlestickSeries method');
+        candlestickSeries = chart.addCandlestickSeries({
+          upColor: '#EF5350',
+          downColor: '#26A69A',
+          borderVisible: false,
+          wickUpColor: '#EF5350',
+          wickDownColor: '#26A69A',
+        });
+      } else if (typeof chart.addSeries === 'function') {
+        console.log('Using addSeries method instead');
+        // In v5.0.8, the correct syntax is different
+        candlestickSeries = chart.addSeries({
+          type: 'Candlestick',
+          upColor: '#EF5350',
+          downColor: '#26A69A',
+          borderVisible: false,
+          wickUpColor: '#EF5350',
+          wickDownColor: '#26A69A',
+        });
+      } else {
+        throw new Error('No method available to add candlestick series');
+      }
+
+      chartRef.current = chart;
+      candlestickSeriesRef.current = candlestickSeries;
+
+      // Set initial data
+      if (chartData.length > 0) {
+        updateChartData();
+      }
+
+      // Handle window resize
+      const handleResize = () => {
+        if (chartContainerRef.current && chart) {
+          chart.applyOptions({
+            width: chartContainerRef.current.clientWidth
+          });
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        if (chart) {
+          chart.remove();
+        }
+      };
+
+    } catch (error) {
+      console.error('Failed to initialize chart:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to initialize chart';
+      onError?.(errorMessage);
+    }
+  }, [isLibraryLoaded, height]);
+
+  // Update chart data when chartData changes
+  const updateChartData = React.useCallback(() => {
+    if (!candlestickSeriesRef.current || !chartData.length) {
+      return;
+    }
+
+    try {
+      const formattedData = chartData.map(candle => ({
+        time: (new Date(candle.timestamp).getTime() / 1000),
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+      }));
+
+      // Sort data by time to ensure proper chart display
+      formattedData.sort((a, b) => a.time - b.time);
+
+      candlestickSeriesRef.current.setData(formattedData);
+
+      // Auto-fit the chart to show all data
+      if (chartRef.current) {
+        chartRef.current.timeScale().fitContent();
+      }
+    } catch (error) {
+      console.error('Failed to update chart data:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update chart data';
+      onError?.(errorMessage);
+    }
+  }, [chartData, onError]);
+
+  useEffect(() => {
+    if (isLibraryLoaded && candlestickSeriesRef.current) {
+      updateChartData();
+    }
+  }, [chartData, isLibraryLoaded, updateChartData]);
+
+  // Show loading state
+  if (!isLibraryLoaded && !loadError) {
+    return (
+      <div
+        className="bg-[#0a0a0b] border border-gray-700 rounded-lg flex items-center justify-center"
+        style={{ height }}
+      >
+        <div className="flex items-center gap-2 text-gray-400">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+          <span>차트 라이브러리 로딩 중...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (loadError) {
+    return (
+      <div
+        className="bg-[#0a0a0b] border border-gray-700 rounded-lg flex items-center justify-center"
+        style={{ height }}
+      >
+        <div className="text-center text-gray-400">
+          <div className="text-red-400 mb-2">⚠️ 차트 로딩 실패</div>
+          <div className="text-xs">{loadError}</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={chartContainerRef}
+      style={{ height }}
+      className="bg-[#0a0a0b] border border-gray-700 rounded-lg overflow-hidden"
+    />
+  );
+});
+
+LightweightChartCore.displayName = 'LightweightChartCore';
+
+export default LightweightChartCore;

@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     
     # CORS 설정
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:9000"]
     
     # 한국투자증권 API 설정
     KI_API_KEY: str = ""
@@ -197,7 +197,7 @@ def get_settings() -> Settings:
         _settings = Settings()
         
         # 기존 config.yaml에서 설정 로드 시도
-        config_path = os.path.join(os.path.dirname(__file__), '../../../config.yaml')
+        config_path = os.path.join(os.path.dirname(__file__), '../../config.yaml')
         if os.path.exists(config_path):
             _settings.load_from_yaml(config_path)
             

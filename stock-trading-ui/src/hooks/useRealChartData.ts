@@ -48,7 +48,7 @@ export function useRealChartData(
   const {
     enabled = true,
     autoRefresh = false,
-    refreshInterval = 60000 // 1분
+    refreshInterval = timeframe === '1m' ? 5000 : 60000 // 1분봉은 5초마다, 그 외는 1분마다
   } = options;
 
   const [chartData, setChartData] = useState<KoreanStockChart[]>([]);
@@ -69,7 +69,13 @@ export function useRealChartData(
     try {
       console.log(`🔍 Fetching chart data for ${stockCode} (${timeframe})`);
 
-      const url = `${API_BASE_URL}/api/stocks/${stockCode}/chart?period=${timeframe}&format=frontend`;
+      let url = '';
+      if (timeframe === '1m') {
+        // 백엔드의 분봉 API 엔드포인트
+        url = `${API_BASE_URL}/api/chart/${stockCode}/minute`;
+      } else {
+        url = `${API_BASE_URL}/api/stocks/${stockCode}/chart?period=${timeframe}&format=frontend`;
+      }
       const response = await fetch(url, {
         method: 'GET',
         headers: {
@@ -83,18 +89,64 @@ export function useRealChartData(
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const result: ChartApiResponse = await response.json();
+      const responseData = await response.json();
+      let chartData: KoreanStockChart[] = [];
 
-      if (result.success) {
-        console.log(`✅ Chart data loaded: ${result.data.length} candles`);
-        setChartData(result.data);
-        setMetadata(result.metadata);
+      if (timeframe === '1m') {
+        // 분봉 API는 직접 배열 반환 - 이미 KoreanStockChart 형식
+        if (Array.isArray(responseData)) {
+          chartData = responseData;
+          console.log(`📊 분봉 데이터 수신: ${chartData.length}개`);
+        } else {
+          console.error('❌ 분봉 API 응답이 배열이 아닙니다:', responseData);
+        }
+      } else {
+        // 일봉 API는 {output1, output2} 구조 반환
+        const result = responseData as any;
+        if (result.output2 && Array.isArray(result.output2)) {
+          // 한국투자증권 API 형식을 KoreanStockChart로 변환
+          chartData = result.output2.map((item: any) => ({
+            timestamp: `${item.stck_bsop_date.substring(0, 4)}-${item.stck_bsop_date.substring(4, 6)}-${item.stck_bsop_date.substring(6, 8)}T00:00:00`,
+            open: parseFloat(item.stck_oprc),
+            high: parseFloat(item.stck_hgpr),
+            low: parseFloat(item.stck_lwpr),
+            close: parseFloat(item.stck_clpr),
+            volume: parseInt(item.acml_vol),
+            tradingValue: null,
+            foreignBuy: null,
+            foreignSell: null,
+            institutionalBuy: null,
+            institutionalSell: null,
+            individualBuy: null,
+            individualSell: null,
+          }));
+          console.log(`📊 일봉 데이터 수신: ${chartData.length}개`);
+        }
+      }
+
+      if (chartData && chartData.length > 0) {
+        console.log(`✅ Chart data loaded: ${chartData.length} candles`);
+        console.log(`📊 First candle:`, chartData[0]);
+        console.log(`📊 Last candle:`, chartData[chartData.length - 1]);
+        setChartData(chartData);
+        setMetadata({
+          stock_code: stockCode,
+          period: timeframe,
+          count: chartData.length,
+          total_volume: chartData.reduce((sum, candle) => sum + (candle.volume || 0), 0),
+          average_price: chartData.reduce((sum, candle) => sum + candle.close, 0) / chartData.length,
+          date_range: {
+            start: chartData[0]?.timestamp || null,
+            end: chartData[chartData.length - 1]?.timestamp || null,
+          },
+          last_updated: new Date().toISOString(),
+        });
         setIsConnected(true);
         setLastUpdated(new Date());
         setError(null);
       } else {
-        console.warn(`⚠️ API returned error: ${result.message}`);
-        setError(result.message);
+        console.warn(`⚠️ API returned empty or invalid data`);
+        setError('No chart data available');
         setChartData([]);
         setMetadata(null);
         setIsConnected(false);
@@ -172,7 +224,6 @@ export function useSamsungChartData(
   return useRealChartData('005930', timeframe, {
     ...options,
     autoRefresh: options.autoRefresh ?? true,
-    refreshInterval: options.refreshInterval ?? 30000 // 30초마다 새로고침
   });
 }
 

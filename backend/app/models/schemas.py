@@ -136,6 +136,22 @@ class OrderHistory(BaseModel):
     status: str = Field(..., description="주문상태")
     order_time: datetime = Field(..., description="주문시간")
 
+class ChartCandle(BaseModel):
+    """차트 캔들 데이터 (분봉, 일봉 등)"""
+    timestamp: str = Field(..., description="ISO 형식의 타임스탬프 (YYYY-MM-DDTHH:MM:SS)")
+    open: float = Field(..., description="시가")
+    high: float = Field(..., description="고가")
+    low: float = Field(..., description="저가")
+    close: float = Field(..., description="종가")
+    volume: int = Field(..., description="거래량")
+    tradingValue: Optional[float] = Field(None, description="거래대금")
+    foreignBuy: Optional[int] = Field(None, description="외국인 순매수")
+    foreignSell: Optional[int] = Field(None, description="외국인 순매도")
+    institutionalBuy: Optional[int] = Field(None, description="기관 순매수")
+    institutionalSell: Optional[int] = Field(None, description="기관 순매도")
+    individualBuy: Optional[int] = Field(None, description="개인 순매수")
+    individualSell: Optional[int] = Field(None, description="개인 순매도")
+
 # ===== 실시간 메시지 모델 =====
 
 MessageType = Literal["price_update", "watchlist_update", "account_update", "order_update", "connection_status"]
