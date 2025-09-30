@@ -217,6 +217,10 @@ class KoreaInvestAPIService:
             if df is None or df.empty:
                 return []
 
+            # 중복 제거: 일자와 시간이 같은 데이터는 첫 번째만 유지
+            df = df.drop_duplicates(subset=['일자', '시간'], keep='first')
+            logger.info(f"분봉 데이터 중복 제거 완료: {len(df)}개")
+
             chart_candles: List[ChartCandle] = []
             for _, row in df.iterrows():
                 try:

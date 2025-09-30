@@ -140,6 +140,8 @@ app.include_router(watchlist_router, prefix="/api", tags=["watchlist"])
 app.include_router(stocks_router, prefix="/api/stocks", tags=["stocks"])
 app.include_router(chart_router, prefix="/api/chart", tags=["chart"])
 
+print(f"DEBUG: chart_router routes: {chart_router.routes}") # 이 줄을 추가해주세요.
+
 @app.get("/")
 async def root():
     """헬스체크 엔드포인트"""

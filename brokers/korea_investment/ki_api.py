@@ -3,9 +3,10 @@
 
 import json
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import os
+import time
 from loguru import logger
 from core.interfaces.broker_interface import BrokerInterface
 from .ki_env import KoreaInvestEnv
@@ -175,36 +176,68 @@ class KoreaInvestAPI(BrokerInterface):
                 return tot_evlu_amt, pd.DataFrame(columns=out_columns)
             return 0, pd.DataFrame(columns=out_columns)
 
-    def get_minute_chart_data(self, stock_code):
+    def get_minute_chart_data(self, stock_code, start_time=None, max_count=None):
         """
-        1분봉 차트 데이터 조회
+        1분봉 차트 데이터 조회 (개선: 여러 번 호출로 전체 데이터 수집)
         https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice
+
+        Args:
+            stock_code: 종목 코드
+            start_time: 시작 시간 (HHMMSS 형식, 기본값: 090000)
+            max_count: 최대 조회 개수 (기본값: 무제한, 9:00~현재까지 전체)
+
+        Returns:
+            DataFrame: 분봉 데이터 (과거 -> 최신 순서)
         """
         url = '/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice'
         tr_id='FHKST03010230'
 
-        params = {
-            'FID_ETC_CLS_CODE': "",
-            'FID_COND_MRKT_DIV_CODE': 'J',
-            'FID_INPUT_ISCD': stock_code,
-            'FID_INPUT_DATE_1': datetime.now().strftime("%Y%m%d"),
-            'FID_INPUT_HOUR_1': datetime.now().strftime("%H%M%S"),
-            'FID_PW_DATA_INCU_YN': 'Y',
-            'FID_FAKE_TICK_INCU_YN': 'N'
-        }
-
-        t1 = self._url_fetch( url, tr_id, params)
         output_columns = ['일자', '시간', '시가', '고가', '저가', '종가', '거래량']
-        if t1 is None : 
-            return pd.DataFrame( columns=output_columns)
-        try:
-            output2 = t1.get_body().output2
-        except Exception as e:
-            logger.info(f"Exception: {e}, t1: {t1}")
-            return pd.DataFrame(columns=output_columns)
 
-        if t1 is not None and t1.is_ok() and output2:
-            df = pd.DataFrame(output2)
+        # 시작 시간 기본값: 09:00:00 (장 시작)
+        if start_time is None:
+            start_time = "090000"
+
+        # 현재 시간
+        current_date = datetime.now().strftime("%Y%m%d")
+        current_time = datetime.now().strftime("%H%M%S")
+
+        all_data = []
+        end_time = current_time
+        iteration = 0
+        max_iterations = 10  # 무한 루프 방지 (최대 1200분 = 20시간)
+
+        logger.info(f"📊 분봉 데이터 수집 시작: {stock_code}, {start_time} ~ {end_time}")
+
+        while iteration < max_iterations:
+            params = {
+                'FID_ETC_CLS_CODE': "",
+                'FID_COND_MRKT_DIV_CODE': 'J',
+                'FID_INPUT_ISCD': stock_code,
+                'FID_INPUT_DATE_1': current_date,
+                'FID_INPUT_HOUR_1': end_time,
+                'FID_PW_DATA_INCU_YN': 'Y',  # 가격 데이터 포함
+                'FID_FAKE_TICK_INCU_YN': 'N'  # 가짜 틱 제외
+            }
+
+            t1 = self._url_fetch(url, tr_id, params)
+
+            if t1 is None:
+                logger.warning(f"⚠️ API 응답 없음 (iteration {iteration})")
+                break
+
+            try:
+                output2 = t1.get_body().output2
+            except Exception as e:
+                logger.info(f"Exception: {e}, t1: {t1}")
+                break
+
+            if not (t1.is_ok() and output2):
+                logger.warning(f"⚠️ 유효하지 않은 응답 (iteration {iteration})")
+                break
+
+            # 데이터 변환
+            df_batch = pd.DataFrame(output2)
             target_columns = [
                 'stck_bsop_date',
                 'stck_cntg_hour',
@@ -215,12 +248,64 @@ class KoreaInvestAPI(BrokerInterface):
                 'cntg_vol',
             ]
 
-            df = df[target_columns ]
-            df[target_columns[2:]] = df[target_columns[2:]].apply(pd.to_numeric)
+            df_batch = df_batch[target_columns]
+            df_batch[target_columns[2:]] = df_batch[target_columns[2:]].apply(pd.to_numeric)
             column_name_map = dict(zip(target_columns, output_columns))
-            df.rename( columns=column_name_map, inplace=True)
-            return df[::-1].reset_index(drop=True)
+            df_batch.rename(columns=column_name_map, inplace=True)
+
+            # 역순으로 정렬 (최신 -> 과거)
+            df_batch = df_batch[::-1].reset_index(drop=True)
+
+            batch_count = len(df_batch)
+            logger.info(f"📦 Batch {iteration + 1}: {batch_count}개 수집 (마지막 시간: {df_batch.iloc[-1]['시간'] if batch_count > 0 else 'N/A'})")
+
+            if batch_count == 0:
+                logger.info("✅ 더 이상 데이터 없음")
+                break
+
+            all_data.append(df_batch)
+
+            # 시작 시간에 도달했는지 확인
+            oldest_time = df_batch.iloc[-1]['시간']
+            if oldest_time <= start_time:
+                logger.info(f"✅ 시작 시간 {start_time}에 도달")
+                break
+
+            # 다음 배치를 위한 종료 시간 업데이트
+            # 가장 오래된 데이터의 1분 전
+            oldest_datetime = datetime.strptime(oldest_time, "%H%M%S")
+            next_end_datetime = oldest_datetime - timedelta(minutes=1)
+            end_time = next_end_datetime.strftime("%H%M%S")
+
+            # 최대 개수 체크
+            if max_count and sum(len(df) for df in all_data) >= max_count:
+                logger.info(f"✅ 최대 개수 {max_count}에 도달")
+                break
+
+            iteration += 1
+
+            # API 호출 간격 (초당 최대 20건 제한)
+            import time
+            time.sleep(0.05)  # 50ms 대기
+
+        # 모든 배치 합치기
+        if all_data:
+            final_df = pd.concat(all_data, ignore_index=True)
+
+            # 시작 시간 이후 데이터만 필터링
+            final_df = final_df[final_df['시간'] >= start_time]
+
+            # 최대 개수 제한
+            if max_count:
+                final_df = final_df.head(max_count)
+
+            # 과거 -> 최신 순서로 정렬 (시간 기준 오름차순)
+            final_df = final_df.sort_values(by='시간', ascending=True).reset_index(drop=True)
+
+            logger.info(f"✅ 총 {len(final_df)}개 분봉 데이터 수집 완료")
+            return final_df
         else:
+            logger.warning("❌ 수집된 데이터 없음")
             return pd.DataFrame(columns=output_columns)
 
     def get_daily_price_chart(self, stock_code, start_date, end_date, period_code='D'):

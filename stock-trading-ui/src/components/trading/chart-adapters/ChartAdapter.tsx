@@ -6,6 +6,7 @@ import { ChartCandle } from '@/lib/types/korean-stocks';
 export interface ChartAdapterProps {
   chartData: ChartCandle[];
   height?: number;
+  timeframe: string;
   onError?: (error: string) => void;
 }
 

@@ -333,7 +333,7 @@ export function KoreanTradingChart({
 
       <CardContent className="space-y-4">
         {useRealData && timeframe === '1m' ? (
-          <RealtimeCandlestickChart chartData={realChartData} height={height - 100} />
+          <RealtimeCandlestickChart chartData={realChartData} height={height - 100} timeframe={timeframe} />
         ) : (
           <div
             className="bg-[#0a0a0b] border border-gray-700 rounded-lg relative overflow-hidden flex items-center justify-center text-gray-400"

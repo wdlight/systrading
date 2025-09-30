@@ -21,13 +21,20 @@ import { useSamsungChartData, useChartApiTest, validateChartData } from '@/hooks
 import { useSamsungRealTimePrice, getPriceDirection, getPriceColor, formatPrice, formatVolume, formatMarketCap } from '@/hooks/useRealTimePrice';
 import { KoreanTradingChart } from '@/components/trading/KoreanTradingChart';
 import { POPULAR_KOREAN_STOCKS } from '@/lib/types/korean-stocks';
+import { useTradingHours } from '@/hooks/useTradingHours';
+import { TradingSession } from '@/lib/utils/tradingHours';
 
 export default function TestChartPage() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showRawData, setShowRawData] = useState(false);
   const [timeframe, setTimeframe] = useState<'1m' | '1D' | '1W' | '1M' | '3M' | '6M' | '1Y'>('1m');
+  const [includeExtendedHours, setIncludeExtendedHours] = useState(false);
+  const [regularHoursOnly, setRegularHoursOnly] = useState(true);
 
-  // 삼성전자 차트 데이터 Hook
+  // 거래시간 Hook
+  const { currentSession, isMarketOpen, formatTimeUntilReset, sessionDisplayName } = useTradingHours();
+
+  // 삼성전자 차트 데이터 Hook (시간 필터링 옵션 추가)
   const {
     chartData,
     metadata,
@@ -39,7 +46,9 @@ export default function TestChartPage() {
     retry
   } = useSamsungChartData(timeframe, {
     enabled: true,
-    autoRefresh: autoRefresh,
+    autoRefresh: autoRefresh && (timeframe === '1m' ? isMarketOpen : true), // 분봉일 때만 장 시간에 자동 새로고침
+    includeExtendedHours,
+    regularHoursOnly
   });
 
   // API 테스트 Hook
@@ -92,6 +101,36 @@ export default function TestChartPage() {
     runTest();
   }, [runTest]);
 
+  // 자동 리셋 메커니즘 (매일 0시)
+  useEffect(() => {
+    const setupAutoReset = () => {
+      const now = new Date();
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+      const msUntilMidnight = tomorrow.getTime() - now.getTime();
+
+      // 자정에 한 번 실행
+      const midnightTimeout = setTimeout(() => {
+        console.log('🔄 자동 리셋: 새로운 거래일 시작');
+        refetch(); // 차트 데이터 다시 가져오기
+
+        // 그 다음부터는 24시간마다 반복
+        const dailyInterval = setInterval(() => {
+          console.log('🔄 일일 자동 리셋');
+          refetch();
+        }, 24 * 60 * 60 * 1000);
+
+        return () => clearInterval(dailyInterval);
+      }, msUntilMidnight);
+
+      return () => clearTimeout(midnightTimeout);
+    };
+
+    const cleanup = setupAutoReset();
+    return cleanup;
+  }, [refetch]);
+
   const formatDateTime = (date: Date | null): string => {
     if (!date) return 'Never';
     return date.toLocaleString('ko-KR', {
@@ -124,24 +163,38 @@ export default function TestChartPage() {
             <p className="text-gray-400 mt-2">실제 한국투자증권 API 데이터 연동 확인</p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${getStatusColor(isConnected, !!error, isLoading)}`} />
-              <span className="text-gray-300 text-sm">
-                {isLoading ? 'Loading...' : isConnected ? 'Connected' : 'Disconnected'}
-              </span>
+          <div className="flex flex-col gap-3">
+            {/* 상태 및 컨트롤 */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${getStatusColor(isConnected, !!error, isLoading)}`} />
+                <span className="text-gray-300 text-sm">
+                  {isLoading ? 'Loading...' : isConnected ? 'Connected' : 'Disconnected'}
+                </span>
+              </div>
+
+              {/* 거래시간 상태 표시 */}
+              <Badge variant={isMarketOpen ? "default" : "outline"} className={isMarketOpen ? "bg-green-600" : ""}>
+                {isMarketOpen ? "장 진행 중" : "장 마감"}
+              </Badge>
+              <span className="text-sm text-gray-400">{sessionDisplayName}</span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAutoRefresh(!autoRefresh)}
+                className={autoRefresh ? 'border-green-500 text-green-400' : ''}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
+                Auto Refresh
+              </Button>
+
+              <div className="ml-auto text-sm text-gray-400">
+                다음 리셋: {formatTimeUntilReset()}
+              </div>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAutoRefresh(!autoRefresh)}
-              className={autoRefresh ? 'border-green-500 text-green-400' : ''}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${autoRefresh ? 'animate-spin' : ''}`} />
-              Auto Refresh
-            </Button>
-
+            {/* 타임프레임 선택 */}
             <div className="flex items-center gap-1">
               {[ '1m', '1D', '1W', '1M', '3M', '6M', '1Y' ].map((tf) => (
                 <Button
@@ -157,6 +210,53 @@ export default function TestChartPage() {
             </div>
           </div>
         </div>
+
+        {/* 시간 필터링 옵션 (분봉일 때만 표시) */}
+        {timeframe === '1m' && (
+          <Card className="bg-[#1a1a1b] border-gray-700">
+            <CardHeader>
+              <CardTitle className="text-white text-sm flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                거래시간 설정
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={regularHoursOnly}
+                    onChange={(e) => {
+                      setRegularHoursOnly(e.target.checked);
+                      if (e.target.checked) setIncludeExtendedHours(false);
+                    }}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-white text-sm">정규장만 (9:00~15:30)</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeExtendedHours}
+                    onChange={(e) => {
+                      setIncludeExtendedHours(e.target.checked);
+                      if (e.target.checked) setRegularHoursOnly(false);
+                    }}
+                    className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-white text-sm">시간외 포함 (8:30~16:00)</span>
+                </label>
+
+                <div className="ml-auto">
+                  <Badge variant="outline" className="text-gray-400">
+                    {regularHoursOnly ? "정규장만" : includeExtendedHours ? "시간외 포함" : "전체"}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 상태 카드들 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

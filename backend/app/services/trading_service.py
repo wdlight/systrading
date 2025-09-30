@@ -15,11 +15,12 @@ import os
 
 from app.models.schemas import OrderHistory, ChartCandle
 from app.models.watchlist_models import (
-    TradingConditions, TradeExecutionResult, WatchlistItem, 
+    TradingConditions, TradeExecutionResult, WatchlistItem,
     BuyConditions, SellConditions, TechnicalIndicators
 )
 from app.services.technical_analysis_service import TechnicalAnalysisService
 from app.core.korea_invest import KoreaInvestAPIService
+from app.utils.trading_hours import TradingHoursManager
 
 
 class TradingService:
@@ -42,9 +43,70 @@ class TradingService:
         self.settings_file = "trading_settings.json"
         self._load_settings()
 
-    async def get_minute_chart_data(self, stock_code: str) -> Optional[List[ChartCandle]]:
-        """분봉 차트 데이터를 조회합니다."""
-        return await self.korea_invest_service.get_minute_chart_data(stock_code)
+    async def get_minute_chart_data(
+        self,
+        stock_code: str,
+        target_date: Optional[datetime] = None,
+        include_extended_hours: bool = False,
+        regular_hours_only: bool = True
+    ) -> Optional[List[ChartCandle]]:
+        """
+        분봉 차트 데이터를 조회합니다 (거래시간 필터링 포함)
+
+        Args:
+            stock_code: 종목 코드
+            target_date: 조회할 날짜 (None이면 오늘)
+            include_extended_hours: 시간외 거래 포함 여부 (8:30~16:00)
+            regular_hours_only: 정규 장만 (9:00~15:30)
+
+        Returns:
+            필터링된 분봉 데이터 리스트
+        """
+        # 원본 데이터 조회
+        raw_data = await self.korea_invest_service.get_minute_chart_data(stock_code)
+
+        if not raw_data:
+            return None
+
+        # 필터링 로직
+        filtered_data = []
+
+        for candle in raw_data:
+            try:
+                # 타임스탬프 파싱
+                candle_time = datetime.fromisoformat(candle.timestamp)
+            except ValueError:
+                logger.warning(f"잘못된 타임스탬프 형식: {candle.timestamp}")
+                continue
+
+            # 날짜 필터링
+            if target_date:
+                # 특정 날짜 지정된 경우
+                if candle_time.date() != target_date.date():
+                    continue
+            else:
+                # 날짜 미지정 시 오늘 데이터만
+                if not TradingHoursManager.is_today(candle_time):
+                    continue
+
+            # 거래시간 필터링
+            if regular_hours_only:
+                # 정규 장만 (9:00 ~ 15:30)
+                if not TradingHoursManager.is_regular_hours(candle_time):
+                    continue
+            elif not include_extended_hours:
+                # 시간외 미포함, 정규장만
+                if not TradingHoursManager.is_regular_hours(candle_time):
+                    continue
+            else:
+                # 시간외 포함 (8:30 ~ 16:00)
+                if not TradingHoursManager.is_trading_hours(candle_time, include_extended=True):
+                    continue
+
+            filtered_data.append(candle)
+
+        logger.info(f"분봉 데이터 필터링: {len(raw_data)}개 → {len(filtered_data)}개 (정규장: {regular_hours_only}, 시간외: {include_extended_hours})")
+        return filtered_data
     
     def _load_settings(self):
         """설정 파일에서 매매 조건 로드"""

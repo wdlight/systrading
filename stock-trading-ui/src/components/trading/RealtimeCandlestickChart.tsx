@@ -7,14 +7,16 @@ import { UniversalChart } from './chart-adapters';
 interface RealtimeCandlestickChartProps {
   chartData: ChartCandle[];
   height?: number;
+  timeframe: string;
 }
 
-const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = memo(({ chartData, height = 400 }) => {
+const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = memo(({ chartData, height = 400, timeframe }) => {
   return (
     <UniversalChart
       library="recharts" // 현재는 Recharts 사용, 향후 'tradingview', 'echarts' 등으로 쉽게 교체 가능
       chartData={chartData}
       height={height}
+      timeframe={timeframe}
       onError={(error) => {
         console.error('차트 렌더링 오류:', error);
       }}

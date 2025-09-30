@@ -25,6 +25,9 @@ interface UseRealChartDataOptions {
   enabled?: boolean;
   autoRefresh?: boolean;
   refreshInterval?: number; // milliseconds
+  includeExtendedHours?: boolean;  // 🆕 시간외 거래 포함 (8:30~16:00)
+  regularHoursOnly?: boolean;      // 🆕 정규장만 (9:00~15:30)
+  targetDate?: string;             // 🆕 대상 날짜 (YYYY-MM-DD)
 }
 
 interface UseRealChartDataReturn {
@@ -48,7 +51,10 @@ export function useRealChartData(
   const {
     enabled = true,
     autoRefresh = false,
-    refreshInterval = timeframe === '1m' ? 5000 : 60000 // 1분봉은 5초마다, 그 외는 1분마다
+    refreshInterval = timeframe === '1m' ? 5000 : 60000, // 1분봉은 5초마다, 그 외는 1분마다
+    includeExtendedHours = false,    // 기본값: 시간외 미포함
+    regularHoursOnly = true,          // 기본값: 정규장만
+    targetDate = undefined            // 기본값: 오늘
   } = options;
 
   const [chartData, setChartData] = useState<KoreanStockChart[]>([]);
@@ -71,8 +77,13 @@ export function useRealChartData(
 
       let url = '';
       if (timeframe === '1m') {
-        // 백엔드의 분봉 API 엔드포인트
-        url = `${API_BASE_URL}/api/chart/${stockCode}/minute`;
+        // 백엔드의 분봉 API 엔드포인트 (쿼리 파라미터 추가)
+        const params = new URLSearchParams();
+        if (targetDate) params.append('date', targetDate);
+        params.append('include_extended_hours', String(includeExtendedHours));
+        params.append('regular_hours_only', String(regularHoursOnly));
+
+        url = `${API_BASE_URL}/api/chart/${stockCode}/minute?${params.toString()}`;
       } else {
         url = `${API_BASE_URL}/api/stocks/${stockCode}/chart?period=${timeframe}&format=frontend`;
       }
@@ -174,7 +185,7 @@ export function useRealChartData(
     } finally {
       setIsLoading(false);
     }
-  }, [stockCode, timeframe, enabled]);
+  }, [stockCode, timeframe, enabled, includeExtendedHours, regularHoursOnly, targetDate]);
 
   const retry = useCallback(async (): Promise<void> => {
     console.log(`🔄 Retrying chart data fetch for ${stockCode}`);
