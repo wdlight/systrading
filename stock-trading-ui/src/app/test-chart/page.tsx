@@ -25,7 +25,7 @@ import { useTradingHours } from '@/hooks/useTradingHours';
 import { TradingSession } from '@/lib/utils/tradingHours';
 
 export default function TestChartPage() {
-  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);  // ✅ 초기값 true로 변경 (자동 polling 시작)
   const [showRawData, setShowRawData] = useState(false);
   const [timeframe, setTimeframe] = useState<'1m' | '1D' | '1W' | '1M' | '3M' | '6M' | '1Y'>('1m');
   const [includeExtendedHours, setIncludeExtendedHours] = useState(false);

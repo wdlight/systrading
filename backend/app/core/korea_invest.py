@@ -7,6 +7,7 @@ import sys
 import os
 import pandas as pd
 import asyncio
+from functools import partial
 from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime, timedelta
 
@@ -254,6 +255,84 @@ class KoreaInvestAPIService:
         except Exception as e:
             self.last_error = str(e)
             logger.error(f"차트 데이터 조회 실패: {e}")
+            return None
+
+    async def get_minute_chart_data_from(
+        self,
+        stock_code: str,
+        start_time: str  # HHMMSS 형식
+    ) -> Optional[List[ChartCandle]]:
+        """
+        특정 시간부터 현재까지 분봉 데이터 조회 (Gap-fill 최적화)
+
+        Args:
+            stock_code: 종목 코드 (예: "005930")
+            start_time: 시작 시간 HHMMSS 형식 (예: "113000" = 11:30:00)
+
+        Returns:
+            start_time 이후 분봉 데이터만 반환
+
+        Example:
+            # 11:30부터 현재까지만 조회 (Gap-fill 최적화)
+            candles = await service.get_minute_chart_data_from("005930", "113000")
+        """
+        if not self.is_connected or not self.api_instance:
+            logger.error("API가 연결되지 않았습니다.")
+            return None
+
+        try:
+            logger.info(f"Gap 구간 조회: {stock_code}, {start_time}~현재")
+
+            # API 호출 (start_time 지정) - functools.partial 사용
+            func = partial(
+                self.api_instance.get_minute_chart_data,
+                stock_code,
+                start_time=start_time,  # 🔑 Gap 시작 시간
+                max_count=None
+            )
+            df = await self._run_in_executor(func)
+
+            if df is None or df.empty:
+                logger.info(f"Gap 구간 데이터 없음: {stock_code}, {start_time}~")
+                return []
+
+            # 중복 제거: 일자와 시간이 같은 데이터는 첫 번째만 유지
+            df = df.drop_duplicates(subset=['일자', '시간'], keep='first')
+            logger.info(f"Gap 데이터 수집 완료: {len(df)}개 ({start_time}~현재)")
+
+            # DataFrame → ChartCandle 변환
+            chart_candles: List[ChartCandle] = []
+            for _, row in df.iterrows():
+                try:
+                    date_str = str(row['일자'])
+                    time_str = str(row['시간']).zfill(6)  # HHMMSS 형식으로 6자리 채우기
+
+                    # KIS API의 시간은 000000 ~ 235959 이므로, 240000은 다음 날 000000으로 처리
+                    if time_str == "240000":
+                        dt_object = datetime.strptime(date_str, "%Y%m%d") + timedelta(days=1)
+                        timestamp_iso = dt_object.strftime("%Y-%m-%dT00:00:00")
+                    else:
+                        dt_object = datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
+                        timestamp_iso = dt_object.isoformat()
+
+                    candle = ChartCandle(
+                        timestamp=timestamp_iso,
+                        open=float(row['시가']),
+                        high=float(row['고가']),
+                        low=float(row['저가']),
+                        close=float(row['종가']),
+                        volume=int(row['거래량'])
+                    )
+                    chart_candles.append(candle)
+                except Exception as e:
+                    logger.warning(f"Gap 데이터 변환 중 오류 발생: {e}, 데이터: {row}")
+                    continue
+
+            return chart_candles
+
+        except Exception as e:
+            self.last_error = str(e)
+            logger.error(f"Gap 구간 조회 실패: {stock_code}, {start_time}~, 오류: {e}")
             return None
 
     async def get_daily_price_chart(self, stock_code: str, start_date: str, end_date: str, period_code: str = 'D') -> Optional[pd.DataFrame]:

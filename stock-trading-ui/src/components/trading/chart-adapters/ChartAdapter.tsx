@@ -8,6 +8,7 @@ export interface ChartAdapterProps {
   height?: number;
   timeframe: string;
   onError?: (error: string) => void;
+  onBrushChange?: (indices: { startIndex: number; endIndex: number }) => void;
 }
 
 export interface ChartTheme {

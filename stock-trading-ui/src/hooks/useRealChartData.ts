@@ -77,13 +77,13 @@ export function useRealChartData(
 
       let url = '';
       if (timeframe === '1m') {
-        // 백엔드의 분봉 API 엔드포인트 (쿼리 파라미터 추가)
+        // ✅ 백엔드의 Full Day 분봉 API 엔드포인트 사용 (Gap-fill 지원)
         const params = new URLSearchParams();
         if (targetDate) params.append('date', targetDate);
-        params.append('include_extended_hours', String(includeExtendedHours));
-        params.append('regular_hours_only', String(regularHoursOnly));
 
-        url = `${API_BASE_URL}/api/chart/${stockCode}/minute?${params.toString()}`;
+        // Full Day 엔드포인트는 항상 9:00~15:30 전체 데이터 반환
+        url = `${API_BASE_URL}/api/chart/${stockCode}/minute/full?${params.toString()}`;
+        console.log(`🔍 Using Full Day API: ${url}`);
       } else {
         url = `${API_BASE_URL}/api/stocks/${stockCode}/chart?period=${timeframe}&format=frontend`;
       }

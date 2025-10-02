@@ -68,7 +68,8 @@ echo "🐍 Python version: $(python --version)"
 echo "🐍 Python path: $(which python)"
 
 # Check if simple_server.py exists
-SERVER_FILE="./simple_server.py"
+#SERVER_FILE="./simple_server.py"
+SERVER_FILE="./app/main.py"
 echo "📄 Server file: $SERVER_FILE"
 
 if [ ! -f "$SERVER_FILE" ]; then

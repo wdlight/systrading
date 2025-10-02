@@ -19,6 +19,7 @@ from app.models.watchlist_models import (
     BuyConditions, SellConditions, TechnicalIndicators
 )
 from app.services.technical_analysis_service import TechnicalAnalysisService
+from app.services.chart_cache_service import ChartCacheService
 from app.core.korea_invest import KoreaInvestAPIService
 from app.utils.trading_hours import TradingHoursManager
 
@@ -38,7 +39,10 @@ class TradingService:
             "loss_trades": 0,
             "total_profit_loss": 0.0
         }
-        
+
+        # 차트 데이터 캐시 서비스 초기화
+        self.chart_cache_service = ChartCacheService(cache_dir="kordata")
+
         # 설정 파일 경로
         self.settings_file = "trading_settings.json"
         self._load_settings()
@@ -51,7 +55,7 @@ class TradingService:
         regular_hours_only: bool = True
     ) -> Optional[List[ChartCandle]]:
         """
-        분봉 차트 데이터를 조회합니다 (거래시간 필터링 포함)
+        분봉 차트 데이터를 조회합니다 (캐시 우선, 거래시간 필터링 포함)
 
         Args:
             stock_code: 종목 코드
@@ -62,10 +66,18 @@ class TradingService:
         Returns:
             필터링된 분봉 데이터 리스트
         """
-        # 원본 데이터 조회
-        raw_data = await self.korea_invest_service.get_minute_chart_data(stock_code)
+        # 날짜 설정 (None이면 오늘)
+        query_date = target_date if target_date else datetime.now()
+
+        # 캐시 서비스를 통한 데이터 조회 (캐시 우선, gap-fill 최적화)
+        raw_data = await self.chart_cache_service.get_minute_candles(
+            stock_code=stock_code,
+            target_date=query_date,
+            korea_invest_service=self.korea_invest_service  # ✅ 직접 service 전달
+        )
 
         if not raw_data:
+            logger.warning(f"차트 데이터 없음: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
             return None
 
         # 필터링 로직
@@ -107,7 +119,243 @@ class TradingService:
 
         logger.info(f"분봉 데이터 필터링: {len(raw_data)}개 → {len(filtered_data)}개 (정규장: {regular_hours_only}, 시간외: {include_extended_hours})")
         return filtered_data
-    
+
+    async def get_full_day_candles(
+        self,
+        stock_code: str,
+        target_date: Optional[datetime] = None
+    ) -> Optional[List[ChartCandle]]:
+        """
+        당일 전체 거래시간(9:00~15:30) 분봉 데이터 반환
+        
+        - 실제 거래된 시간: 실제 OHLCV 데이터
+        - 미래 시간 또는 거래 없는 시간: 직전 종가로 채움 (volume=0)
+        - 총 391개 캔들 (9:00~15:30, 1분 간격)
+        
+        Args:
+            stock_code: 종목 코드
+            target_date: 조회할 날짜 (None이면 오늘)
+            
+        Returns:
+            9:00~15:30 전체 분봉 데이터 (391개)
+        """
+        from datetime import timedelta
+        
+        # 날짜 설정
+        query_date = target_date if target_date else datetime.now()
+        
+        # 캐시를 통해 실제 데이터 조회 (skip_cache_save=True로 중간 저장 방지)
+        raw_data = await self.chart_cache_service.get_minute_candles(
+            stock_code=stock_code,
+            target_date=query_date,
+            korea_invest_service=self.korea_invest_service,  # ✅ 수정: api_fallback → korea_invest_service
+            skip_cache_save=True  # Full-day 데이터만 캐시에 저장
+        )
+        
+        if not raw_data:
+            logger.warning(f"차트 데이터 없음: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
+            return None
+        
+        # 전체 거래시간 타임라인 생성
+        # - 당일: 9:00 ~ 현재 시간
+        # - 과거: 9:00 ~ 15:30 (전체)
+        trading_start = query_date.replace(hour=9, minute=0, second=0, microsecond=0)
+
+        now = datetime.now()
+        is_today = query_date.date() == now.date()
+
+        if is_today:
+            # 당일: 현재 시간까지만 (초/마이크로초 제거)
+            trading_end = now.replace(second=0, microsecond=0)
+            # 거래시간 이후면 15:30으로 제한
+            market_close = query_date.replace(hour=15, minute=30, second=0, microsecond=0)
+            if trading_end > market_close:
+                trading_end = market_close
+            logger.info(f"당일 타임라인 생성: 9:00 ~ {trading_end.strftime('%H:%M')}")
+        else:
+            # 과거: 전체 거래시간
+            trading_end = query_date.replace(hour=15, minute=30, second=0, microsecond=0)
+            logger.info(f"과거 타임라인 생성: 9:00 ~ 15:30")
+
+        # 1분 간격 타임스탬프 생성
+        timeline = []
+        current_time = trading_start
+        while current_time <= trading_end:
+            timeline.append(current_time)
+            current_time += timedelta(minutes=1)
+
+        logger.info(f"타임라인 생성 완료: {len(timeline)}개 캔들")
+        
+        # 실제 데이터를 딕셔너리로 변환 (빠른 검색)
+        data_dict = {}
+        for candle in raw_data:
+            try:
+                candle_time = datetime.fromisoformat(candle.timestamp)
+                # 시간만 비교 (초/마이크로초 제거)
+                key_time = candle_time.replace(second=0, microsecond=0)
+                data_dict[key_time] = candle
+            except ValueError:
+                logger.warning(f"잘못된 타임스탬프 형식: {candle.timestamp}")
+                continue
+        
+        logger.info(f"실제 데이터: {len(data_dict)}개")
+        
+        # 전체 타임라인에 데이터 채우기
+        full_candles = []
+        last_close = None
+
+        # 첫 번째 실제 데이터 시간 확인
+        first_data_time = None
+        if data_dict:
+            first_data_time = min(data_dict.keys())
+            logger.info(f"첫 실제 데이터 시각: {first_data_time.strftime('%H:%M')}")
+
+        for ts in timeline:
+            if ts in data_dict:
+                # 실제 데이터 존재
+                candle = data_dict[ts]
+                last_close = candle.close
+                full_candles.append(candle)
+            else:
+                # 데이터 없음 → 채우기 여부 판단
+                # ✅ 수정: 첫 실제 데이터 이전 시간은 skip (더미 데이터 생성 방지)
+                if first_data_time and ts < first_data_time:
+                    # 실제 거래 데이터 이전 시간대는 채우지 않음
+                    continue
+
+                # 미래 시간(현재 분 이후)만 last_close로 채우기
+                if last_close is not None:
+                    full_candles.append(ChartCandle(
+                        timestamp=ts.isoformat(),
+                        open=last_close,
+                        high=last_close,
+                        low=last_close,
+                        close=last_close,
+                        volume=0  # volume=0으로 미래/거래없음 표시
+                    ))
+                # else: 데이터가 전혀 없는 경우 skip
+        
+        logger.info(f"Full day candles 생성 완료: {len(full_candles)}개 (실제: {len(data_dict)}, 채움: {len(full_candles) - len(data_dict)})")
+
+        # 데이터 검증 로깅
+        expected_count = len(timeline)  # 당일/과거 구분에 따른 예상 개수
+        if len(full_candles) != expected_count:
+            logger.warning(
+                f"⚠️ VALIDATION: Expected {expected_count} candles, got {len(full_candles)} "
+                f"({'당일 9:00~현재' if is_today else '과거 9:00~15:30'})"
+            )
+
+        volume_zero_count = sum(1 for c in full_candles if c.volume == 0)
+        logger.info(
+            f"✅ VALIDATION: {len(full_candles)} candles total | "
+            f"{volume_zero_count} filled | {len(full_candles) - volume_zero_count} actual | "
+            f"기간: {trading_start.strftime('%H:%M')}~{trading_end.strftime('%H:%M')} "
+            f"({'당일' if is_today else '과거'})"
+        )
+
+        # Full Day 데이터를 캐시에 저장 (기존 부분 데이터 덮어쓰기)
+        if full_candles:
+            self.chart_cache_service._save_to_cache(stock_code, query_date, full_candles)
+            logger.info(f"Full day candles 캐시 저장 완료: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
+
+        return full_candles
+
+    async def get_current_minute_candle(
+        self,
+        stock_code: str
+    ) -> Optional[ChartCandle]:
+        """
+        현재 분(minute)의 최신 캔들 데이터 조회
+
+        - 한투 API에서 최신 분봉 데이터 fetch
+        - 매 분마다 호출 가능
+        - 실시간 업데이트용
+
+        Args:
+            stock_code: 종목 코드
+
+        Returns:
+            현재 분의 ChartCandle 또는 None
+        """
+        try:
+            # API에서 전체 분봉 데이터 조회 (최신 포함)
+            raw_data = await self.korea_invest_service.get_minute_chart_data(stock_code)
+
+            if not raw_data or len(raw_data) == 0:
+                logger.warning(f"현재 분봉 데이터 없음: {stock_code}")
+                return None
+
+            # 가장 최신 캔들 찾기 (timestamp 기준 정렬)
+            # timestamp를 datetime으로 변환하여 비교
+            latest_candle = max(raw_data, key=lambda c: datetime.fromisoformat(c.timestamp))
+
+            logger.info(f"최신 분봉 조회 완료: {stock_code}, timestamp={latest_candle.timestamp}, volume={latest_candle.volume}")
+
+            return latest_candle
+
+        except Exception as e:
+            logger.error(f"현재 분봉 조회 실패: {stock_code}, 오류: {e}")
+            return None
+
+    async def update_minute_candle(
+        self,
+        stock_code: str,
+        target_date: datetime,
+        candle_data: ChartCandle
+    ) -> bool:
+        """
+        특정 분봉 데이터만 업데이트 (Cache 파일 부분 갱신)
+
+        - 기존 391개 candle 로드
+        - 해당 timestamp 찾아서 교체
+        - Cache 파일 저장
+
+        Args:
+            stock_code: 종목 코드
+            target_date: 날짜
+            candle_data: 업데이트할 캔들 데이터
+
+        Returns:
+            업데이트 성공 여부
+        """
+        try:
+            # 1. 기존 391개 candle 로드
+            cached_candles = self.chart_cache_service._load_from_cache(stock_code, target_date)
+
+            if not cached_candles:
+                logger.warning(f"Cache 파일 없음: {stock_code}, {target_date.strftime('%Y-%m-%d')}")
+                return False
+
+            # 2. 해당 timestamp 찾아서 업데이트 또는 추가
+            updated = False
+            candle_timestamp = candle_data.timestamp
+
+            for i, candle in enumerate(cached_candles):
+                if candle.timestamp == candle_timestamp:
+                    cached_candles[i] = candle_data
+                    updated = True
+                    logger.info(f"분봉 업데이트: {stock_code}, {candle_timestamp}, volume={candle_data.volume}")
+                    break
+
+            if not updated:
+                # timestamp가 없으면 새로 추가 (실시간 데이터)
+                cached_candles.append(candle_data)
+                logger.info(f"분봉 추가: {stock_code}, {candle_timestamp}, volume={candle_data.volume}")
+
+                # 시간순 정렬
+                cached_candles.sort(key=lambda c: datetime.fromisoformat(c.timestamp))
+
+            # 3. Cache 파일 저장
+            self.chart_cache_service._save_to_cache(stock_code, target_date, cached_candles)
+
+            logger.info(f"Cache 업데이트 완료: {stock_code}, {target_date.strftime('%Y-%m-%d')}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"분봉 업데이트 실패: {stock_code}, 오류: {e}")
+            return False
+
     def _load_settings(self):
         """설정 파일에서 매매 조건 로드"""
         try:

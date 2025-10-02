@@ -220,6 +220,9 @@ class KoreaInvestAPI(BrokerInterface):
                 'FID_FAKE_TICK_INCU_YN': 'N'  # 가짜 틱 제외
             }
 
+            # ✅ API 요청 파라미터 로그
+            logger.info(f"🌐 API 요청 [{iteration + 1}]: end_time={end_time}, target=09:00부터 {end_time}까지 역순 조회")
+
             t1 = self._url_fetch(url, tr_id, params)
 
             if t1 is None:
@@ -253,11 +256,18 @@ class KoreaInvestAPI(BrokerInterface):
             column_name_map = dict(zip(target_columns, output_columns))
             df_batch.rename(columns=column_name_map, inplace=True)
 
-            # 역순으로 정렬 (최신 -> 과거)
+            # 역순으로 정렬 (최신 -> 과거 → 과거 -> 최신)
             df_batch = df_batch[::-1].reset_index(drop=True)
 
             batch_count = len(df_batch)
-            logger.info(f"📦 Batch {iteration + 1}: {batch_count}개 수집 (마지막 시간: {df_batch.iloc[-1]['시간'] if batch_count > 0 else 'N/A'})")
+
+            # ✅ 배치 데이터 범위 로그 (역순 정렬 후: 첫번째=가장 오래된 시간, 마지막=최신 시간)
+            if batch_count > 0:
+                oldest_in_batch = df_batch.iloc[0]['시간']   # 과거 (가장 오래된)
+                newest_in_batch = df_batch.iloc[-1]['시간']  # 최신 (가장 최근)
+                logger.info(f"📦 Batch {iteration + 1}: {batch_count}개 수집 | 범위: {oldest_in_batch}(oldest) ~ {newest_in_batch}(newest)")
+            else:
+                logger.info(f"📦 Batch {iteration + 1}: 0개")
 
             if batch_count == 0:
                 logger.info("✅ 더 이상 데이터 없음")
@@ -266,16 +276,20 @@ class KoreaInvestAPI(BrokerInterface):
             all_data.append(df_batch)
 
             # 시작 시간에 도달했는지 확인
-            oldest_time = df_batch.iloc[-1]['시간']
+            # ✅ 수정: 역순 정렬 후 첫 번째가 가장 오래된 시간
+            oldest_time = df_batch.iloc[0]['시간']
             if oldest_time <= start_time:
                 logger.info(f"✅ 시작 시간 {start_time}에 도달")
                 break
 
             # 다음 배치를 위한 종료 시간 업데이트
-            # 가장 오래된 데이터의 1분 전
+            # ✅ 수정: 가장 오래된 데이터(배치의 첫 번째)의 1분 전으로 설정
+            # (API는 end_time부터 역순으로 반환하므로, 다음 배치는 이전 배치의 oldest - 1분부터 시작)
             oldest_datetime = datetime.strptime(oldest_time, "%H%M%S")
             next_end_datetime = oldest_datetime - timedelta(minutes=1)
+            prev_end_time = end_time
             end_time = next_end_datetime.strftime("%H%M%S")
+            logger.info(f"🔄 다음 end_time: {prev_end_time} → {end_time} (oldest {oldest_time} - 1분)")
 
             # 최대 개수 체크
             if max_count and sum(len(df) for df in all_data) >= max_count:
