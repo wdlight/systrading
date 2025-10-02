@@ -18,6 +18,7 @@ import { getTickUnitByPrice } from '@/lib/utils';
 import { TradingHoursManager } from '@/lib/utils/tradingHours';
 import { TIMEFRAME_CONFIG, generateTimeTicks, isIntraday } from '@/lib/chart-config';
 import { ChartAdapterProps, KOREAN_CHART_THEME } from './ChartAdapter';
+import { YAxisCalculatorFactory, YAxisCalculator } from './core/YAxisCalculator';
 
 // Create a scale function factory
 const createYScale = (yDomain: [number, number], chartHeight: number, margin: number = 10) => {
@@ -162,9 +163,24 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
   chartData,
   height = 400,
   timeframe,
-  onError,
-  onBrushChange
+  yAxisCalculator,
+  events,
+  config,
 }) => {
+  // Backward compatibility: onError, onBrushChange
+  const onError = events?.onError;
+  const onBrushChange = events?.onRangeChange;
+
+  // Y축 계산기 가져오기
+  const calculator = useMemo(() => {
+    if (!yAxisCalculator) {
+      return YAxisCalculatorFactory.get('daily-range'); // 기본값
+    }
+    if (typeof yAxisCalculator === 'string') {
+      return YAxisCalculatorFactory.get(yAxisCalculator);
+    }
+    return yAxisCalculator;
+  }, [yAxisCalculator]);
   // 차트 스크롤 상태 관리
   const [viewWindow, setViewWindow] = useState<{ startIndex: number; endIndex: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -342,45 +358,23 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
     setDragStart(null);
   }, []);
 
-  // 🎯 Y축 고정: 일별 최고/최저점 기준 90% 범위
+  // 🎯 Y축 도메인 계산 (YAxisCalculator 사용)
   const yDomain = useMemo(() => {
-    if (!formattedData || formattedData.length === 0) {
+    if (!chartData || chartData.length === 0) {
       return [0, 0] as [number, number];
     }
 
-    // ✅ 당일 전체 데이터의 실제 가격 범위 계산
-    const actualPrices = formattedData.flatMap(d => [d.high, d.low]);
-    const actualMin = Math.min(...actualPrices);
-    const actualMax = Math.max(...actualPrices);
+    // ✅ YAxisCalculator를 통한 Y축 계산
+    const domain = calculator.calculate(chartData);
 
-    // 가격 범위 계산
-    const priceRange = actualMax - actualMin;
-
-    // 90% 범위로 여유 공간 확보 (상하 각 5% 패딩)
-    // 실제 범위의 상하에 5%씩 여유를 둠
-    const padding = priceRange * 0.05;
-    const rawLowerLimit = actualMin - padding;
-    const rawUpperLimit = actualMax + padding;
-
-    // 호가 단위 기준으로 Y축 범위를 깔끔하게 정렬
-    const avgPrice = (actualMin + actualMax) / 2;
-    const tickUnit = getTickUnitByPrice(avgPrice);
-
-    const finalLowerLimit = Math.floor(rawLowerLimit / tickUnit) * tickUnit;
-    const finalUpperLimit = Math.ceil(rawUpperLimit / tickUnit) * tickUnit;
-
-    console.log('📊 Y축 고정 (일별 최고/최저 기준 90% 범위):', {
-      actualMin: actualMin.toLocaleString(),
-      actualMax: actualMax.toLocaleString(),
-      priceRange: priceRange.toLocaleString(),
-      padding: `${(padding).toFixed(0)} (5%)`,
-      tickUnit,
-      finalRange: `${finalLowerLimit.toLocaleString()} ~ ${finalUpperLimit.toLocaleString()}`,
-      rangeRatio: ((finalUpperLimit - finalLowerLimit) / priceRange).toFixed(2)
+    console.log(`📊 Y축 계산 (${calculator.name}):`, {
+      range: `${domain[0].toLocaleString()} ~ ${domain[1].toLocaleString()}`,
+      calculator: calculator.name,
+      dataPoints: chartData.length
     });
 
-    return [finalLowerLimit, finalUpperLimit] as [number, number];
-  }, [formattedData]); // ❌ xDomain 의존성 제거 → drag해도 Y축 불변
+    return domain;
+  }, [chartData, calculator]); // chartData 변경 시에만 재계산
 
   // 조건부 렌더링은 훅 호출 후에
   if (formattedData.length === 0) {
