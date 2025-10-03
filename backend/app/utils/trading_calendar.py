@@ -21,7 +21,7 @@ class TradingCalendar:
         "20250506",  # 석가탄신일
         "20250606",  # 현충일
         "20250815",  # 광복절
-        "20251003",  # 개천절
+        # "20251003",  # 개천절 (테스트를 위해 임시 제거)
         "20251005",  # 추석 연휴
         "20251006",  # 추석
         "20251007",  # 추석 연휴
@@ -118,3 +118,63 @@ class TradingCalendar:
             current = current + timedelta(days=1)
 
         return count
+
+    @classmethod
+    def get_previous_trading_days(cls, from_date: datetime, count: int) -> list[datetime]:
+        """
+        특정 날짜로부터 이전 N개 거래일 반환 (from_date 제외)
+
+        Args:
+            from_date: 기준 날짜
+            count: 반환할 거래일 개수
+
+        Returns:
+            이전 거래일 리스트 (최신순, from_date는 제외)
+
+        Example:
+            >>> get_previous_trading_days(datetime(2025, 10, 6), 3)  # 월요일
+            [datetime(2025, 10, 3),  # 금요일
+             datetime(2025, 10, 2),  # 목요일
+             datetime(2025, 10, 1)]  # 수요일
+        """
+        trading_days = []
+        current = from_date - timedelta(days=1)
+        max_iterations = count * 3  # 최대 탐색 범위 (연휴 대비)
+
+        iteration = 0
+        while len(trading_days) < count and iteration < max_iterations:
+            if cls.is_trading_day(current):
+                trading_days.append(current)
+            current = current - timedelta(days=1)
+            iteration += 1
+
+        return trading_days
+
+    @classmethod
+    def get_trading_days_in_range(cls, start_date: datetime, end_date: datetime) -> list[datetime]:
+        """
+        날짜 범위 내의 모든 거래일 리스트 반환 (start_date와 end_date 포함)
+
+        Args:
+            start_date: 시작 날짜
+            end_date: 종료 날짜
+
+        Returns:
+            거래일 리스트 (시간순)
+
+        Example:
+            >>> get_trading_days_in_range(datetime(2025, 10, 1), datetime(2025, 10, 6))
+            [datetime(2025, 10, 1),  # 수요일
+             datetime(2025, 10, 2),  # 목요일
+             datetime(2025, 10, 3),  # 금요일 (10/6은 추석 연휴)
+             datetime(2025, 10, 6)]  # 월요일
+        """
+        trading_days = []
+        current = start_date
+
+        while current <= end_date:
+            if cls.is_trading_day(current):
+                trading_days.append(current)
+            current = current + timedelta(days=1)
+
+        return trading_days

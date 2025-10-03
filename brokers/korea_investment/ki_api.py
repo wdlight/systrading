@@ -322,6 +322,134 @@ class KoreaInvestAPI(BrokerInterface):
             logger.warning("❌ 수집된 데이터 없음")
             return pd.DataFrame(columns=output_columns)
 
+    def get_daily_minute_chart_data(self, stock_code, target_date):
+        """
+        특정 날짜의 전체 분봉 데이터 조회 (과거 날짜 전용)
+
+        ⚠️ 중요: 오늘 데이터가 아닌 과거 특정 날짜 조회 전용 함수
+        ⚠️ API 특성: 한 번 호출로 최대 120개 데이터만 반환 (약 2시간 분량)
+        ⚠️ 해결책: 여러 번 호출하여 09:00~15:30 전체 데이터 수집
+
+        전략:
+        1. 09:00~11:00, 11:00~13:00, 13:00~15:30 구간으로 3회 호출
+        2. 각 구간의 마지막 시간(FID_INPUT_HOUR_1)을 달리하여 호출
+        3. 모든 구간 데이터를 병합하여 전체 일자 데이터 생성
+
+        ⚠️ API 문서와 실제 동작 불일치:
+        - API 문서: inquire-time-dailychartprice (TR_ID: FHKST03010320) 사용 명시
+          https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/quotations/inquire-time-dailychartprice
+        - 실제: FHKST03010320은 "없는 서비스 코드" 오류 발생 (OPSQ0002)
+        - 해결: inquire-time-itemchartprice (TR_ID: FHKST03010230)로 과거 날짜 조회 가능 확인
+
+        Args:
+            stock_code (str): 종목코드 (예: "005930")
+            target_date (datetime or str): 조회 날짜 (datetime 또는 "YYYYMMDD")
+
+        Returns:
+            DataFrame: 해당 날짜의 전체 분봉 데이터 (09:00~15:30, 약 390개)
+            Columns: ['일자', '시간', '시가', '고가', '저가', '종가', '거래량']
+
+        Example:
+            >>> api.get_daily_minute_chart_data("005930", "20251001")
+            >>> # 2025년 10월 1일의 삼성전자 전체 분봉 데이터 반환 (09:00~15:30)
+        """
+        # 날짜 형식 변환
+        if isinstance(target_date, datetime):
+            date_str = target_date.strftime("%Y%m%d")
+        else:
+            date_str = target_date
+
+        logger.info(f"📅 과거 전체 분봉 조회 시작: {stock_code}, 날짜={date_str}")
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # 시간 구간 설정 (3개 구간으로 분할)
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        time_segments = [
+            '110000',  # 09:00 ~ 11:00 (120분)
+            '130000',  # 11:00 ~ 13:00 (120분)
+            '153000',  # 13:00 ~ 15:30 (150분)
+        ]
+
+        all_data = []
+        url = '/uapi/domestic-stock/v1/quotations/inquire-time-itemchartprice'
+        tr_id = 'FHKST03010230'
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # 각 시간 구간별로 API 호출
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        for idx, end_time in enumerate(time_segments, 1):
+            params = {
+                'FID_ETC_CLS_CODE': '',
+                'FID_COND_MRKT_DIV_CODE': 'J',
+                'FID_INPUT_ISCD': stock_code,
+                'FID_INPUT_DATE_1': date_str,
+                'FID_INPUT_HOUR_1': end_time,  # 구간 종료 시간
+                'FID_PW_DATA_INCU_YN': 'Y',
+                'FID_FAKE_TICK_INCU_YN': 'N'
+            }
+
+            logger.info(f"  📡 구간 {idx}/3 호출: ~ {end_time[:2]}:{end_time[2:4]}")
+
+            response = self._url_fetch(url, tr_id, params)
+
+            if response is None or not response.is_ok():
+                logger.warning(f"  ⚠️ 구간 {idx} 호출 실패: {end_time}")
+                continue
+
+            try:
+                output2 = response.get_body().output2
+                if output2:
+                    all_data.extend(output2)
+                    logger.info(f"  ✅ 구간 {idx} 수신: {len(output2)}개")
+                else:
+                    logger.warning(f"  ⚠️ 구간 {idx} 데이터 없음")
+            except Exception as e:
+                logger.error(f"  ❌ 구간 {idx} 파싱 실패: {e}")
+                continue
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # 데이터 병합 및 중복 제거
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        if not all_data:
+            logger.warning(f"❌ 전체 데이터 수집 실패: {stock_code}, {date_str}")
+            return pd.DataFrame()
+
+        try:
+            # DataFrame 변환
+            df = pd.DataFrame(all_data)
+
+            target_columns = [
+                'stck_bsop_date',   # 영업일자
+                'stck_cntg_hour',   # 체결시간
+                'stck_oprc',        # 시가
+                'stck_hgpr',        # 고가
+                'stck_lwpr',        # 저가
+                'stck_prpr',        # 종가
+                'cntg_vol',         # 거래량
+            ]
+
+            output_columns = ['일자', '시간', '시가', '고가', '저가', '종가', '거래량']
+
+            df = df[target_columns]
+            df[target_columns[2:]] = df[target_columns[2:]].apply(pd.to_numeric)
+            df.rename(columns=dict(zip(target_columns, output_columns)), inplace=True)
+
+            # 중복 제거 (같은 시간대가 여러 구간에 포함될 수 있음)
+            df = df.drop_duplicates(subset=['시간'], keep='first')
+
+            # 시간 순으로 정렬 (과거 → 최신)
+            df = df.sort_values(by='시간', ascending=True).reset_index(drop=True)
+
+            logger.info(f"✅ 전체 분봉 수집 완료: {stock_code}, {date_str}, 총 {len(df)}개")
+            if len(df) > 0:
+                logger.info(f"   시간 범위: {df.iloc[0]['시간']} ~ {df.iloc[-1]['시간']}")
+
+            return df
+
+        except Exception as e:
+            logger.error(f"❌ 데이터 병합 실패: {stock_code}, {date_str}, 오류: {e}")
+            return pd.DataFrame()
+
     def get_daily_price_chart(self, stock_code, start_date, end_date, period_code='D'):
         """
         일/주/월봉 차트 데이터 조회
@@ -697,6 +825,17 @@ RESPONSE:
                 logger.error(f"Response Text: {response.text}")
                 logger.error(f"Request URL: {url}")
                 logger.error(f"Request Headers: {headers}")
+                logger.error(f"Request Params: {params}")
+
+                # Try to parse JSON response for more details
+                try:
+                    error_json = response.json()
+                    logger.error(f"Response JSON: {error_json}")
+                    if 'msg1' in error_json and error_json['msg1']:
+                        logger.error(f"API Error Message: {error_json['msg1']}")
+                except:
+                    pass
+
                 return None
                 
         except Exception as e:

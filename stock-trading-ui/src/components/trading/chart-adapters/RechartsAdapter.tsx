@@ -443,7 +443,17 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
             }
             tickFormatter={(time) => {
               const date = new Date(time);
-              return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+              const hours = date.getHours();
+              const minutes = date.getMinutes();
+
+              // 9:00이면 날짜도 함께 표시
+              if (hours === 9 && minutes === 0) {
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                return `${month}/${day} 9:00`;
+              }
+
+              return `${hours}:${minutes.toString().padStart(2, '0')}`;
             }}
             stroke={KOREAN_CHART_THEME.textColor}
             fontSize={12}
@@ -502,7 +512,17 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
             }}
             tickFormatter={(time) => {
               const date = new Date(time);
-              return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+              const hours = date.getHours();
+              const minutes = date.getMinutes();
+
+              // 9:00이면 날짜도 함께 표시
+              if (hours === 9 && minutes === 0) {
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                return `${month}/${day} 9:00`;
+              }
+
+              return `${hours}:${minutes.toString().padStart(2, '0')}`;
             }}
             traveller={{width: 10}}
           />

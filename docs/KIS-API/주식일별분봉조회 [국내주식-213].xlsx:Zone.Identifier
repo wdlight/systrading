@@ -1,0 +1,4 @@
+[ZoneTransfer]
+ZoneId=3
+ReferrerUrl=https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/quotations/inquire-time-dailychartprice
+HostUrl=https://apiportal.koreainvestment.com/api/apis/guide/excel/9fece97b-401f-4379-9e9d-4365b63c1126

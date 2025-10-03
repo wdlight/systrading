@@ -187,6 +187,22 @@ class Settings(BaseSettings):
             import traceback
             logging.error(f"스택 트레이스:\n{traceback.format_exc()}")
 
+    def get_korea_invest_config(self) -> dict:
+        """한국투자증권 API 설정을 딕셔너리로 반환"""
+        return {
+            'api_key': self.KI_API_KEY,
+            'api_secret_key': self.KI_SECRET_KEY,
+            'stock_account_number': self.KI_ACCOUNT_NUMBER,
+            'htsid': self.KI_HTSID,
+            'custtype': self.KI_CUSTTYPE,
+            'is_paper_trading': self.KI_IS_PAPER_TRADING,
+            'my_agent': self.KI_USER_AGENT,
+            'url': self.KI_API_URL,
+            'websocket_url': self.KI_WEBSOCKET_URL,
+            'paper_url': self.KI_PAPER_URL,
+            'paper_websocket_url': self.KI_PAPER_WEBSOCKET_URL,
+        }
+
 # 전역 설정 인스턴스
 _settings = None
 
@@ -197,7 +213,7 @@ def get_settings() -> Settings:
         _settings = Settings()
         
         # 기존 config.yaml에서 설정 로드 시도
-        config_path = os.path.join(os.path.dirname(__file__), '../../config.yaml')
+        config_path = os.path.join(os.path.dirname(__file__), '../..', 'config.yaml')
         if os.path.exists(config_path):
             _settings.load_from_yaml(config_path)
             

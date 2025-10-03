@@ -39,17 +39,22 @@ async def get_candlestick_data(
     "/{stock_code}/minute",
     response_model=List[ChartCandle],
     summary="분봉 차트 데이터 조회",
-    description="특정 종목의 분봉 차트 데이터를 조회합니다. 거래시간 필터링 옵션 제공."
+    description="특정 종목의 분봉 차트 데이터를 조회합니다. 거래시간 필터링 및 다중 시간 단위 지원."
 )
 async def get_minute_chart_data(
     stock_code: str,
     trading_service: TradingService = Depends(get_trading_service),
     date: Optional[str] = Query(None, description="조회 날짜 (YYYY-MM-DD). 미지정시 오늘"),
+    interval: str = Query('1m', regex='^(1m|5m|10m|30m|60m)$', description="시간 단위: 1m, 5m, 10m, 30m, 60m(1시간)"),
     include_extended_hours: bool = Query(False, description="시간외 거래 포함 여부 (8:30~16:00)"),
     regular_hours_only: bool = Query(True, description="정규 장 시간만 (9:00~15:30)")
 ) -> List[ChartCandle]:
     """
-    분봉 차트 데이터 조회
+    분봉 차트 데이터 조회 (당일 + 과거 날짜 지원)
+
+    - date 없음: 오늘 데이터 (실시간)
+    - date 있음: 해당 날짜 전체 데이터 (과거)
+    - interval: 1m(기본), 5m, 10m, 30m, 60m(1시간)
 
     - regular_hours_only=True: 9:00 ~ 15:30만 (기본값)
     - include_extended_hours=True: 8:30 ~ 16:00 (시간외 포함)
@@ -66,6 +71,14 @@ async def get_minute_chart_data(
         if date:
             try:
                 target_date = datetime.strptime(date, "%Y-%m-%d")
+
+                # ✅ 미래 날짜 방지
+                if target_date.date() > datetime.now().date():
+                    raise HTTPException(
+                        status_code=400,
+                        detail="미래 날짜는 조회할 수 없습니다"
+                    )
+
             except ValueError:
                 raise HTTPException(
                     status_code=400,
@@ -85,8 +98,8 @@ async def get_minute_chart_data(
             raise HTTPException(status_code=404, detail="차트 데이터를 찾을 수 없습니다.")
 
         logger.info(
-            f"분봉 데이터 조회 완료: {stock_code}, {len(chart_data)}개 캔들 "
-            f"(날짜: {date or '오늘'}, 정규장: {regular_hours_only}, 시간외: {include_extended_hours})"
+            f"✅ 차트 응답: {stock_code}, {len(chart_data)}개 캔들, interval={interval}, "
+            f"날짜={date or '오늘'}, 정규장={regular_hours_only}, 시간외={include_extended_hours}"
         )
         return chart_data
 
@@ -135,12 +148,22 @@ async def get_full_day_minute_chart(
                 )
         
         # 전체 분봉 데이터 조회
-        full_day_candles = await trading_service.get_full_day_candles(
-            stock_code=stock_code,
-            target_date=target_date
-        )
-        
+        logger.info(f"🔍 get_full_day_candles 호출: stock_code={stock_code}, target_date={target_date}")
+
+        try:
+            full_day_candles = await trading_service.get_full_day_candles(
+                stock_code=stock_code,
+                target_date=target_date
+            )
+        except Exception as e:
+            logger.error(f"❌ get_full_day_candles 내부 에러: {stock_code}, {e}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
+                detail=f"서버 내부 오류: {str(e)}"
+            )
+
         if not full_day_candles:
+            logger.warning(f"⚠️ 데이터 없음: {stock_code}, target_date={target_date}")
             raise HTTPException(
                 status_code=404,
                 detail=f"차트 데이터를 찾을 수 없습니다: {stock_code}"
@@ -224,4 +247,104 @@ async def get_current_minute_candle(
         raise HTTPException(
             status_code=500,
             detail=f"현재 분봉 조회 중 오류 발생: {str(e)}"
+        )
+
+
+@router.get(
+    "/{stock_code}/minute-range",
+    response_model=dict,
+    summary="날짜 범위 분봉 데이터 조회",
+    description="여러 날짜의 분봉 데이터를 한 번에 조회합니다. 초기 로딩 시 과거 데이터 사전 로드에 사용."
+)
+async def get_minute_chart_data_range(
+    stock_code: str,
+    trading_service: TradingService = Depends(get_trading_service),
+    end_date: Optional[str] = Query(None, description="종료 날짜 (YYYY-MM-DD). 미지정 시 오늘"),
+    max_days: int = Query(10, ge=1, le=30, description="조회할 최대 일수 (1~30)")
+) -> dict:
+    """
+    날짜 범위의 분봉 데이터를 조회합니다.
+
+    **전략:**
+    - 종료일로부터 이전 N개 거래일의 데이터 반환
+    - 비거래일(주말/공휴일) 자동 제외
+    - 캐시 우선 전략 (캐시 있으면 API 호출 안 함)
+
+    **요청 예시:**
+    ```
+    GET /api/chart/005930/minute-range?end_date=2025-10-06&max_days=4
+    ```
+
+    **응답 형식:**
+    ```json
+    {
+        "20251006": [360개 ChartCandle],  // 월요일
+        "20251003": [360개 ChartCandle],  // 금요일
+        "20251002": [360개 ChartCandle],  // 목요일
+        "20251001": [360개 ChartCandle]   // 수요일
+    }
+    ```
+
+    **사용 시나리오:**
+    - Frontend 초기 로딩 시 과거 3일치 사전 로드
+    - 차트 드래그 시 추가 과거 데이터 로드
+    - 날짜별로 메모리 캐시에 저장하여 재사용
+
+    **Args:**
+        stock_code: 종목 코드 (예: 005930)
+        end_date: 종료 날짜. None이면 오늘
+        max_days: 조회할 최대 일수 (종료일 포함)
+
+    **Returns:**
+        날짜별 분봉 데이터 딕셔너리 (날짜 키는 YYYYMMDD 형식)
+    """
+    try:
+        # 날짜 파싱
+        target_end_date = None
+        if end_date:
+            try:
+                target_end_date = datetime.strptime(end_date, "%Y-%m-%d")
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"잘못된 날짜 형식: {end_date}. YYYY-MM-DD 형식을 사용하세요."
+                )
+
+            # 미래 날짜 방지
+            if target_end_date.date() > datetime.now().date():
+                raise HTTPException(
+                    status_code=400,
+                    detail="미래 날짜는 조회할 수 없습니다."
+                )
+
+        # 범위 조회
+        data_by_date = await trading_service.get_minute_chart_data_range(
+            stock_code=stock_code,
+            end_date=target_end_date,
+            max_days=max_days
+        )
+
+        if not data_by_date:
+            raise HTTPException(
+                status_code=404,
+                detail=f"지정된 날짜 범위에서 데이터를 찾을 수 없습니다: {stock_code}"
+            )
+
+        # 응답 통계 로깅
+        total_candles = sum(len(candles) for candles in data_by_date.values())
+        logger.info(
+            f"범위 분봉 응답: {stock_code}, "
+            f"{len(data_by_date)}일치, "
+            f"총 {total_candles}개 캔들"
+        )
+
+        return data_by_date
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"범위 분봉 조회 실패: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"범위 분봉 조회 중 오류 발생: {str(e)}"
         )

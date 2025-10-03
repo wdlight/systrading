@@ -104,12 +104,28 @@ export function useRealChartData(
       let chartData: KoreanStockChart[] = [];
 
       if (timeframe === '1m') {
-        // 분봉 API는 직접 배열 반환 - 이미 KoreanStockChart 형식
+        // ✅ 분봉 API는 ChartCandle[] 배열 직접 반환
         if (Array.isArray(responseData)) {
-          chartData = responseData;
+          // ChartCandle을 KoreanStockChart 형식으로 변환
+          chartData = responseData.map((candle: any) => ({
+            timestamp: candle.timestamp,
+            open: candle.open,
+            high: candle.high,
+            low: candle.low,
+            close: candle.close,
+            volume: candle.volume || 0,
+            tradingValue: null,
+            foreignBuy: null,
+            foreignSell: null,
+            institutionalBuy: null,
+            institutionalSell: null,
+            individualBuy: null,
+            individualSell: null,
+          }));
           console.log(`📊 분봉 데이터 수신: ${chartData.length}개`);
         } else {
           console.error('❌ 분봉 API 응답이 배열이 아닙니다:', responseData);
+          throw new Error('Invalid API response format: expected array');
         }
       } else {
         // 일봉 API는 {output1, output2} 구조 반환

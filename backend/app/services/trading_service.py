@@ -69,15 +69,28 @@ class TradingService:
         # 날짜 설정 (None이면 오늘)
         query_date = target_date if target_date else datetime.now()
 
-        # 캐시 서비스를 통한 데이터 조회 (캐시 우선, gap-fill 최적화)
-        raw_data = await self.chart_cache_service.get_minute_candles(
-            stock_code=stock_code,
-            target_date=query_date,
-            korea_invest_service=self.korea_invest_service  # ✅ 직접 service 전달
-        )
+        # ✅ 오늘 vs 과거 날짜 판별
+        is_today = query_date.date() == datetime.now().date()
+
+        logger.info(f"📊 분봉 조회: {stock_code}, 날짜={query_date.strftime('%Y-%m-%d')}, 오늘여부={is_today}")
+
+        if is_today:
+            # 기존 로직: 실시간 API + Gap-fill
+            raw_data = await self.chart_cache_service.get_minute_candles(
+                stock_code=stock_code,
+                target_date=query_date,
+                korea_invest_service=self.korea_invest_service  # ✅ 직접 service 전달
+            )
+        else:
+            # ✅ 신규 로직: 과거 날짜 전체 조회
+            raw_data = await self.chart_cache_service.get_historical_minute_candles(
+                stock_code=stock_code,
+                target_date=query_date,
+                korea_invest_service=self.korea_invest_service
+            )
 
         if not raw_data:
-            logger.warning(f"차트 데이터 없음: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
+            logger.warning(f"⚠️ 데이터 없음: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
             return None
 
         # 필터링 로직
@@ -143,22 +156,35 @@ class TradingService:
         
         # 날짜 설정
         query_date = target_date if target_date else datetime.now()
-        
+
         # 캐시를 통해 실제 데이터 조회 (skip_cache_save=True로 중간 저장 방지)
         raw_data = await self.chart_cache_service.get_minute_candles(
             stock_code=stock_code,
             target_date=query_date,
-            korea_invest_service=self.korea_invest_service,  # ✅ 수정: api_fallback → korea_invest_service
-            skip_cache_save=True  # Full-day 데이터만 캐시에 저장
+            korea_invest_service=self.korea_invest_service,
+            skip_cache_save=True
         )
-        
+
         if not raw_data:
             logger.warning(f"차트 데이터 없음: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
             return None
-        
-        # 전체 거래시간 타임라인 생성
-        # - 당일: 9:00 ~ 현재 시간
-        # - 과거: 9:00 ~ 15:30 (전체)
+
+        # ✅ 비거래일 처리: 이전 거래일 데이터를 그대로 반환
+        # raw_data의 첫 번째 캔들 날짜를 확인하여 실제 데이터 날짜 파악
+        if raw_data:
+            first_candle_date = datetime.fromisoformat(raw_data[0].timestamp).date()
+            query_date_only = query_date.date()
+
+            # 요청한 날짜와 실제 데이터 날짜가 다르면 비거래일
+            if first_candle_date != query_date_only:
+                logger.info(
+                    f"📅 비거래일 감지: 요청={query_date_only}, 실제 데이터={first_candle_date}, "
+                    f"이전 거래일 데이터 그대로 반환 ({len(raw_data)}개 캔들)"
+                )
+                # 이전 거래일의 전체 데이터를 그대로 반환 (타임라인 재생성 없이)
+                return raw_data
+
+        # 거래일인 경우: 전체 거래시간 타임라인 생성
         trading_start = query_date.replace(hour=9, minute=0, second=0, microsecond=0)
 
         now = datetime.now()
@@ -167,6 +193,13 @@ class TradingService:
         if is_today:
             # 당일: 현재 시간까지만 (초/마이크로초 제거)
             trading_end = now.replace(second=0, microsecond=0)
+
+            # 장 시작 전이면 전일 데이터 사용 (09:00 기준)
+            market_open = query_date.replace(hour=9, minute=0, second=0, microsecond=0)
+            if trading_end < market_open:
+                logger.info(f"장 시작 전 (현재: {trading_end.strftime('%H:%M')}), 이전 거래일 데이터 그대로 반환")
+                return raw_data
+
             # 거래시간 이후면 15:30으로 제한
             market_close = query_date.replace(hour=15, minute=30, second=0, microsecond=0)
             if trading_end > market_close:
@@ -816,3 +849,79 @@ class TradingService:
             return {
                 "error": f"매매 성과 조회 실패: {str(e)}"
             }
+
+    async def get_minute_chart_data_range(
+        self,
+        stock_code: str,
+        end_date: Optional[datetime] = None,
+        max_days: int = 10
+    ) -> Dict[str, List[ChartCandle]]:
+        """
+        날짜 범위의 분봉 데이터 조회 (과거 여러 날짜)
+
+        Args:
+            stock_code: 종목 코드
+            end_date: 종료 날짜 (None이면 오늘, 이 날짜 포함)
+            max_days: 조회할 최대 일수 (end_date로부터 이전 N-1개 거래일 + end_date)
+
+        Returns:
+            날짜별 분봉 데이터 딕셔너리
+            {
+                "20251006": [ChartCandle 360개],
+                "20251003": [ChartCandle 360개],
+                ...
+            }
+
+        Example:
+            >>> # 월요일(10/6)로부터 과거 3일치 (월/금/목/수)
+            >>> data = await service.get_minute_chart_data_range("005930", datetime(2025, 10, 6), 4)
+            >>> assert len(data) == 4
+            >>> assert "20251006" in data  # 월요일
+            >>> assert "20251003" in data  # 금요일
+        """
+        from app.utils.trading_calendar import TradingCalendar
+
+        # 종료일 설정
+        target_end_date = end_date if end_date else datetime.now()
+
+        logger.info(f"📅 범위 분봉 조회: {stock_code}, 종료={target_end_date.strftime('%Y-%m-%d')}, 일수={max_days}")
+
+        # 1. 종료일 포함 + 이전 N-1개 거래일 계산
+        trading_days = []
+
+        # 종료일이 거래일이면 포함
+        if TradingCalendar.is_trading_day(target_end_date):
+            trading_days.append(target_end_date)
+
+        # 이전 거래일들 추가
+        previous_days = TradingCalendar.get_previous_trading_days(target_end_date, max_days - 1)
+        trading_days.extend(previous_days)
+
+        logger.info(f"   거래일 {len(trading_days)}개: {[d.strftime('%Y-%m-%d') for d in trading_days]}")
+
+        # 2. 각 날짜별로 분봉 데이터 조회
+        result = {}
+
+        for trade_date in trading_days:
+            date_str = trade_date.strftime("%Y%m%d")
+
+            try:
+                # get_minute_chart_data는 캐시 우선 전략 사용
+                candles = await self.get_minute_chart_data(
+                    stock_code=stock_code,
+                    target_date=trade_date,
+                    regular_hours_only=True
+                )
+
+                if candles:
+                    result[date_str] = candles
+                    logger.info(f"   ✅ {date_str}: {len(candles)}개")
+                else:
+                    logger.warning(f"   ⚠️ {date_str}: 데이터 없음")
+
+            except Exception as e:
+                logger.error(f"   ❌ {date_str} 조회 실패: {e}")
+                continue
+
+        logger.info(f"✅ 범위 조회 완료: {len(result)}일치 데이터")
+        return result

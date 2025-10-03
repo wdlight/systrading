@@ -257,6 +257,62 @@ class KoreaInvestAPIService:
             logger.error(f"차트 데이터 조회 실패: {e}")
             return None
 
+    async def get_daily_minute_chart_data(self, stock_code: str, target_date: datetime) -> Optional[List[ChartCandle]]:
+        """과거 특정 날짜의 1분봉 차트 데이터 조회 (비동기)"""
+        if not self.is_connected or not self.api_instance:
+            logger.error("API가 연결되지 않았습니다.")
+            return None
+
+        try:
+            logger.info(f"과거 분봉 데이터 조회: {stock_code}, {target_date.strftime('%Y-%m-%d')}")
+            df = await self._run_in_executor(
+                self.api_instance.get_daily_minute_chart_data,
+                stock_code,
+                target_date
+            )
+
+            if df is None or df.empty:
+                logger.warning(f"과거 분봉 데이터 없음: {stock_code}, {target_date.strftime('%Y-%m-%d')}")
+                return []
+
+            # 중복 제거
+            df = df.drop_duplicates(subset=['일자', '시간'], keep='first')
+            logger.info(f"과거 분봉 데이터 중복 제거 완료: {len(df)}개")
+
+            chart_candles: List[ChartCandle] = []
+            for _, row in df.iterrows():
+                try:
+                    date_str = str(row['일자'])
+                    time_str = str(row['시간']).zfill(6)
+
+                    if time_str == "240000":
+                        dt_object = datetime.strptime(date_str, "%Y%m%d") + timedelta(days=1)
+                        timestamp_iso = dt_object.strftime("%Y-%m-%dT00:00:00")
+                    else:
+                        dt_object = datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
+                        timestamp_iso = dt_object.isoformat()
+
+                    candle = ChartCandle(
+                        timestamp=timestamp_iso,
+                        open=float(row['시가']),
+                        high=float(row['고가']),
+                        low=float(row['저가']),
+                        close=float(row['종가']),
+                        volume=int(row['거래량'])
+                    )
+                    chart_candles.append(candle)
+                except Exception as e:
+                    logger.warning(f"과거 분봉 데이터 변환 중 오류: {e}")
+                    continue
+
+            logger.info(f"✅ 과거 분봉 데이터 변환 완료: {len(chart_candles)}개 캔들")
+            return chart_candles
+
+        except Exception as e:
+            self.last_error = str(e)
+            logger.error(f"과거 차트 데이터 조회 실패: {e}")
+            return None
+
     async def get_minute_chart_data_from(
         self,
         stock_code: str,
@@ -333,6 +389,33 @@ class KoreaInvestAPIService:
         except Exception as e:
             self.last_error = str(e)
             logger.error(f"Gap 구간 조회 실패: {stock_code}, {start_time}~, 오류: {e}")
+            return None
+
+    async def get_daily_minute_chart_data(
+        self,
+        stock_code: str,
+        target_date
+    ):
+        """
+        특정 날짜의 전체 분봉 데이터 조회 (과거 날짜용)
+        
+        Args:
+            stock_code: 종목코드
+            target_date: 조회 날짜 (datetime 또는 "YYYYMMDD")
+        
+        Returns:
+            DataFrame: 해당 날짜의 전체 분봉 데이터
+        """
+        try:
+            # 비동기 실행자를 통해 동기 메서드 호출
+            result = await self._run_in_executor(
+                self.api_instance.get_daily_minute_chart_data,
+                stock_code,
+                target_date
+            )
+            return result
+        except Exception as e:
+            logger.error(f"❌ 과거 분봉 데이터 조회 실패: {e}")
             return None
 
     async def get_daily_price_chart(self, stock_code: str, start_date: str, end_date: str, period_code: str = 'D') -> Optional[pd.DataFrame]:

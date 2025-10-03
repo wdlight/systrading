@@ -287,10 +287,21 @@ class ChartCacheService:
         # 5. API 호출하여 데이터 가져오기 (전체 조회)
         try:
             logger.info(f"API 호출 시작 (전체): {stock_code}, {target_date.strftime('%Y%m%d')}")
-            candles = await korea_invest_service.get_minute_chart_data(stock_code)
+
+            # ✅ 수정: 날짜에 따라 올바른 API 메서드 호출
+            is_today = target_date.date() == datetime.now().date()
+
+            if is_today:
+                # 오늘 데이터: get_minute_chart_data (실시간)
+                logger.info(f"오늘 데이터 조회: {stock_code}")
+                candles = await korea_invest_service.get_minute_chart_data(stock_code)
+            else:
+                # 과거 데이터: get_daily_minute_chart_data (과거 날짜 전용)
+                logger.info(f"과거 데이터 조회: {stock_code}, {target_date.strftime('%Y-%m-%d')}")
+                candles = await korea_invest_service.get_daily_minute_chart_data(stock_code, target_date)
 
             if not candles:
-                logger.warning(f"API에서 데이터를 받지 못함: {stock_code}")
+                logger.warning(f"API에서 데이터를 받지 못함: {stock_code}, {target_date.strftime('%Y%m%d')}")
                 return None
 
             # 6. 캐시에 저장 (skip_cache_save=True면 생략)
@@ -304,6 +315,112 @@ class ChartCacheService:
         except Exception as e:
             logger.error(f"API 호출 실패: {stock_code}, 오류: {e}")
             return None
+
+    async def get_historical_minute_candles(
+        self,
+        stock_code: str,
+        target_date: datetime,
+        korea_invest_service
+    ) -> Optional[List[ChartCandle]]:
+        """
+        과거 날짜의 분봉 데이터 조회 (영구 캐싱)
+        
+        Args:
+            stock_code: 종목코드
+            target_date: 조회 날짜
+            korea_invest_service: KoreaInvestAPIService 인스턴스
+        
+        Returns:
+            Optional[List[ChartCandle]]: 과거 날짜의 전체 분봉 데이터
+        """
+        # 1. 캐시 조회 (과거 데이터는 변경되지 않으므로 영구 캐싱)
+        cached_data = self._load_from_cache(stock_code, target_date)
+        
+        if cached_data:
+            logger.info(f"✅ Historical cache hit: {stock_code}, {target_date.strftime('%Y%m%d')}")
+            return cached_data
+        
+        # 2. 비거래일 체크
+        if not TradingCalendar.is_trading_day(target_date):
+            logger.info(f"⚠️ 비거래일: {target_date.strftime('%Y%m%d')}, 이전 거래일 조회")
+            previous_day = TradingCalendar.get_previous_trading_day(target_date)
+            return await self.get_historical_minute_candles(
+                stock_code, previous_day, korea_invest_service
+            )
+        
+        # 3. 신규 API 호출 (일자별 분봉 데이터)
+        logger.info(f"📅 과거 데이터 API 호출: {stock_code}, {target_date.strftime('%Y%m%d')}")
+        
+        try:
+            # 비동기 메서드 호출
+            df = await korea_invest_service.get_daily_minute_chart_data(
+                stock_code,
+                target_date
+            )
+
+            if df is None or (hasattr(df, 'empty') and df.empty):
+                logger.warning(f"❌ 과거 데이터 없음: {stock_code}, {target_date.strftime('%Y%m%d')}")
+                return None
+            
+            # DataFrame → ChartCandle 변환
+            candles = self._convert_df_to_candles(df, target_date)
+            
+            # 4. 영구 캐싱 (과거 데이터는 변경되지 않음)
+            self._save_to_cache(stock_code, target_date, candles)
+            logger.info(f"💾 과거 데이터 캐싱 완료: {stock_code}, {target_date.strftime('%Y%m%d')}, {len(candles)}개")
+            
+            return candles
+            
+        except Exception as e:
+            logger.error(f"❌ 과거 데이터 조회 실패: {stock_code}, {target_date.strftime('%Y%m%d')}, 오류: {e}")
+            return None
+    
+    def _convert_df_to_candles(self, df, target_date: datetime) -> List[ChartCandle]:
+        """
+        DataFrame을 ChartCandle 리스트로 변환
+        
+        Args:
+            df: pandas DataFrame (['일자', '시간', '시가', '고가', '저가', '종가', '거래량'])
+            target_date: 기준 날짜
+        
+        Returns:
+            List[ChartCandle]: 캔들 데이터 리스트
+        """
+        candles = []
+        
+        for _, row in df.iterrows():
+            try:
+                # 시간 파싱 (HHMMSS 형식)
+                time_str = str(row['시간']).zfill(6)  # 6자리 맞추기
+                hour = int(time_str[0:2])
+                minute = int(time_str[2:4])
+                second = int(time_str[4:6])
+                
+                # datetime 생성
+                timestamp = target_date.replace(
+                    hour=hour,
+                    minute=minute,
+                    second=second,
+                    microsecond=0
+                )
+                
+                # ChartCandle 생성
+                candle = ChartCandle(
+                    timestamp=timestamp.isoformat(),
+                    open=float(row['시가']),
+                    high=float(row['고가']),
+                    low=float(row['저가']),
+                    close=float(row['종가']),
+                    volume=int(row['거래량'])
+                )
+                
+                candles.append(candle)
+                
+            except Exception as e:
+                logger.warning(f"⚠️ Candle 변환 실패: {row}, 오류: {e}")
+                continue
+        
+        return candles
 
     def invalidate_cache(self, stock_code: str, date: Optional[datetime] = None):
         """
