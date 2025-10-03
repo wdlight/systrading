@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { KoreanStockChart } from '@/lib/types/korean-stocks';
+import { getKSTToday, isKSTToday } from '@/lib/utils/datetime';
 
 interface ChartApiResponse {
   success: boolean;
@@ -77,13 +78,21 @@ export function useRealChartData(
 
       let url = '';
       if (timeframe === '1m') {
-        // ✅ 백엔드의 Full Day 분봉 API 엔드포인트 사용 (Gap-fill 지원)
+        // ✅ /minute은 과거 날짜 조회용 (실제 데이터만 반환)
+        // ✅ /minute/full은 당일 전체 시간대 반환 (미래 시간 gap-fill 포함)
         const params = new URLSearchParams();
         if (targetDate) params.append('date', targetDate);
 
-        // Full Day 엔드포인트는 항상 9:00~15:30 전체 데이터 반환
-        url = `${API_BASE_URL}/api/chart/${stockCode}/minute/full?${params.toString()}`;
-        console.log(`🔍 Using Full Day API: ${url}`);
+        // 과거 날짜 조회 시: /minute (실제 데이터만)
+        // 당일 조회 시: /minute/full (gap-fill 포함, 391개 캔들)
+        // ⚠️ 중요: 한국 표준시(KST) 기준으로 오늘 판단 (UTC 아님!)
+        const todayKST = getKSTToday();
+        const checkDate = targetDate || todayKST;
+        const isTodayKST = isKSTToday(checkDate);
+
+        const endpoint = isTodayKST ? 'minute/full' : 'minute';
+        url = `${API_BASE_URL}/api/chart/${stockCode}/${endpoint}?${params.toString()}`;
+        console.log(`🔍 Using ${isTodayKST ? 'Full Day' : 'Minute Data'} API: ${url} (KST Today: ${todayKST})`);
       } else {
         url = `${API_BASE_URL}/api/stocks/${stockCode}/chart?period=${timeframe}&format=frontend`;
       }

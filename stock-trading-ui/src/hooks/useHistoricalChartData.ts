@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChartCandle } from '@/lib/types/korean-stocks';
+import { getKSTToday } from '@/lib/utils/datetime';
 
 interface UseHistoricalChartDataProps {
   stockCode: string;
@@ -36,30 +37,57 @@ export function useHistoricalChartData({
 
   /**
    * 특정 날짜 범위의 데이터 fetch
+   * 검증된 /minute API를 여러 번 호출하여 과거 데이터 수집
    */
   const fetchHistoricalRange = useCallback(
     async (endDate: Date, days: number): Promise<HistoricalDataCache> => {
-      const dateStr = endDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const historicalData: HistoricalDataCache = {};
 
       try {
-        const response = await fetch(
-          `/api/chart/${stockCode}/minute-range?end_date=${dateStr}&max_days=${days}`
-        );
+        console.log(`📥 과거 ${days}일 데이터 로드 시작...`);
 
-        if (!response.ok) {
-          throw new Error(`API 오류: ${response.status}`);
+        // 각 날짜별로 개별 API 호출
+        for (let i = 0; i < days; i++) {
+          const targetDate = new Date(endDate);
+          targetDate.setDate(targetDate.getDate() - i);
+          const dateStr = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
+          const dateKey = dateStr.replace(/-/g, ''); // YYYYMMDD
+
+          try {
+            const response = await fetch(
+              `${API_BASE_URL}/api/chart/${stockCode}/minute?date=${dateStr}`,
+              { signal: AbortSignal.timeout(30000) }
+            );
+
+            if (!response.ok) {
+              console.warn(`⚠️ ${dateStr} 데이터 로드 실패: ${response.status}`);
+              continue; // 해당 날짜 스킵하고 계속 진행
+            }
+
+            const candles: ChartCandle[] = await response.json();
+
+            // 유효한 데이터만 저장 (빈 배열 제외)
+            if (Array.isArray(candles) && candles.length > 0) {
+              historicalData[dateKey] = candles;
+              console.log(`  ✅ ${dateStr}: ${candles.length}개 캔들 로드`);
+            } else {
+              console.warn(`  ⚠️ ${dateStr}: 데이터 없음 (거래일 아님)`);
+            }
+          } catch (err) {
+            console.warn(`  ❌ ${dateStr} 로드 실패:`, err);
+            // 개별 날짜 실패는 무시하고 계속 진행
+            continue;
+          }
         }
 
-        const data: HistoricalDataCache = await response.json();
-
-        console.log(`📥 과거 데이터 로드 성공:`, {
-          endDate: dateStr,
-          days,
-          receivedDates: Object.keys(data),
-          totalCandles: Object.values(data).reduce((sum, candles) => sum + candles.length, 0),
+        console.log(`📥 과거 데이터 로드 완료:`, {
+          requestedDays: days,
+          receivedDates: Object.keys(historicalData).length,
+          totalCandles: Object.values(historicalData).reduce((sum, candles) => sum + candles.length, 0),
         });
 
-        return data;
+        return historicalData;
       } catch (err) {
         console.error('과거 데이터 로드 실패:', err);
         throw err;
@@ -75,23 +103,40 @@ export function useHistoricalChartData({
     if (!enabled || !stockCode || isInitializedRef.current) return;
 
     const loadInitialData = async () => {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       setIsLoading(true);
       setError(null);
 
       try {
-        // 1. 오늘 데이터 로드
-        const todayResponse = await fetch(`/api/chart/${stockCode}/minute`);
-        if (!todayResponse.ok) {
-          throw new Error('오늘 데이터 로드 실패');
+        // 1. 오늘 데이터 로드 (명시적으로 오늘 날짜 전달)
+        // ⚠️ 중요: 한국 표준시(KST) 기준 오늘 날짜 사용
+        const todayKST = getKSTToday(); // KST 기준 YYYY-MM-DD
+        const todayResponse = await fetch(
+          `${API_BASE_URL}/api/chart/${stockCode}/minute?date=${todayKST}`,
+          { signal: AbortSignal.timeout(30000) }
+        );
+
+        let todayData: ChartCandle[] = [];
+        if (todayResponse.ok) {
+          todayData = await todayResponse.json();
+          console.log(`✅ 오늘 데이터 (KST ${todayKST}): ${todayData.length}개 캔들`);
+        } else {
+          console.warn(`⚠️ 오늘 데이터 로드 실패: ${todayResponse.status}`);
         }
-        const todayData: ChartCandle[] = await todayResponse.json();
 
         // 2. 과거 N일 데이터 로드
-        const now = new Date();
-        const historicalData = await fetchHistoricalRange(now, initialDays);
+        // ⚠️ KST 기준으로 현재 시간 생성
+        const kstNow = new Date();
+        const kstOffset = 9 * 60 * 60 * 1000; // 9시간을 밀리초로
+        const kstDate = new Date(kstNow.getTime() + kstOffset);
+        const historicalData = await fetchHistoricalRange(kstDate, initialDays);
 
-        // 3. 캐시에 저장
-        cacheRef.current = { ...historicalData };
+        // 3. 캐시에 저장 (오늘 데이터도 포함)
+        const todayKey = todayKST.replace(/-/g, ''); // YYYYMMDD
+        cacheRef.current = {
+          ...historicalData,
+          ...(todayData.length > 0 ? { [todayKey]: todayData } : {})
+        };
 
         // 4. 모든 데이터 병합 (시간순 정렬)
         const allDates = Object.keys(historicalData).sort(); // YYYYMMDD 문자열 정렬
@@ -100,7 +145,10 @@ export function useHistoricalChartData({
         allDates.forEach(dateKey => {
           mergedData.push(...historicalData[dateKey]);
         });
-        mergedData.push(...todayData);
+
+        if (todayData.length > 0) {
+          mergedData.push(...todayData);
+        }
 
         // 5. 시간순 정렬 (중복 제거는 RechartsAdapter에서 수행)
         mergedData.sort((a, b) =>
