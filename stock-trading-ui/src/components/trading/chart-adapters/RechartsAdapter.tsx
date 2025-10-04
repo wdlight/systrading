@@ -385,17 +385,33 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
     return domain;
   }, [chartData, calculator]); // chartData 변경 시에만 재계산
 
-  // ⚡ XAxis ticks 메모이제이션 (성능 최적화)
+  // ⚡ XAxis ticks 메모이제이션 (시간 기반, 30분 단위)
   const xAxisTicks = useMemo(() => {
-    if (!viewWindow) {
-      const start = Math.max(0, formattedData.length - 120);
-      return formattedData
-        .filter((_, i) => i >= start && i % 30 === 0)
-        .map(d => d.dataIndex);
-    }
-    return formattedData
-      .filter((_, i) => i >= viewWindow.startIndex && i <= viewWindow.endIndex && i % 30 === 0)
-      .map(d => d.dataIndex);
+    // 시간 기준으로 30분 단위 tick 생성 (9:00, 9:30, 10:00, ...)
+    const ticks: number[] = [];
+
+    formattedData.forEach((candle, index) => {
+      const date = new Date(candle.time);
+      const minutes = date.getMinutes();
+
+      // 30분 단위 (00분, 30분)에만 tick 표시
+      if (minutes === 0 || minutes === 30) {
+        // viewWindow가 있으면 범위 내에서만
+        if (viewWindow) {
+          if (index >= viewWindow.startIndex && index <= viewWindow.endIndex) {
+            ticks.push(candle.dataIndex);
+          }
+        } else {
+          // viewWindow 없으면 마지막 120개 범위에서
+          const start = Math.max(0, formattedData.length - 120);
+          if (index >= start) {
+            ticks.push(candle.dataIndex);
+          }
+        }
+      }
+    });
+
+    return ticks;
   }, [formattedData, viewWindow]);
 
   // 조건부 렌더링은 훅 호출 후에
@@ -451,11 +467,11 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
               const hours = date.getHours();
               const minutes = date.getMinutes();
 
-              // 9:00이면 날짜도 함께 표시
+              // ✅ 9:00이면 날짜 경계 표시 (줄바꿈으로 날짜와 시간 구분)
               if (hours === 9 && minutes === 0) {
                 const month = date.getMonth() + 1;
                 const day = date.getDate();
-                return `${month}/${day} 9:00`;
+                return `${month}/${day}\n9:00`;
               }
 
               return `${hours}:${minutes.toString().padStart(2, '0')}`;
@@ -522,7 +538,7 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
               const hours = date.getHours();
               const minutes = date.getMinutes();
 
-              // 9:00이면 날짜도 함께 표시
+              // ✅ 9:00이면 날짜 경계 표시 (Brush용 - 한 줄로 표시)
               if (hours === 9 && minutes === 0) {
                 const month = date.getMonth() + 1;
                 const day = date.getDate();
