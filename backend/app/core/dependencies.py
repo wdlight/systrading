@@ -8,6 +8,7 @@ from typing import Generator
 
 from app.core.config import get_settings
 from app.core.korea_invest import KoreaInvestAPIService
+from app.services.stock_info_service import StockInfoService
 
 # 전역 서비스 인스턴스들
 _korea_invest_service = None
@@ -15,6 +16,7 @@ _account_service = None
 _trading_service = None
 _watchlist_service = None
 _stock_service = None
+_stock_info_service = None
 
 @lru_cache()
 def get_korea_invest_service() -> KoreaInvestAPIService:
@@ -61,14 +63,22 @@ def get_stock_service():
         _stock_service = StockService(korea_invest_service)
     return _stock_service
 
+def get_stock_info_service() -> StockInfoService:
+    """전체 종목 정보 서비스 인스턴스 반환"""
+    global _stock_info_service
+    if _stock_info_service is None:
+        _stock_info_service = StockInfoService()
+    return _stock_info_service
+
 def reset_services():
     """모든 서비스 인스턴스 재설정 (테스트용)"""
-    global _korea_invest_service, _account_service, _trading_service, _watchlist_service, _stock_service
+    global _korea_invest_service, _account_service, _trading_service, _watchlist_service, _stock_service, _stock_info_service
     _korea_invest_service = None
     _account_service = None
     _trading_service = None
     _watchlist_service = None
     _stock_service = None
+    _stock_info_service = None
     
     # 캐시 초기화
     get_korea_invest_service.cache_clear()

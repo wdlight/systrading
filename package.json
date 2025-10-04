@@ -3,6 +3,7 @@
     "shadcn": "^3.2.1"
   },
   "dependencies": {
-    "@playwright/test": "^1.55.0"
+    "@playwright/test": "^1.55.0",
+    "lightweight-charts": "^5.0.9"
   }
 }

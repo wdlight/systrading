@@ -22,6 +22,7 @@ from app.services.technical_analysis_service import TechnicalAnalysisService
 from app.services.chart_cache_service import ChartCacheService
 from app.core.korea_invest import KoreaInvestAPIService
 from app.utils.trading_hours import TradingHoursManager
+from app.utils.trading_calendar import TradingCalendar
 
 
 class TradingService:
@@ -69,6 +70,17 @@ class TradingService:
         # 날짜 설정 (None이면 오늘)
         query_date = target_date if target_date else datetime.now()
 
+        # 오늘 데이터 요청 시 비거래일이면 최근 거래일로 변경
+        if target_date is None and not TradingCalendar.is_trading_day(query_date):
+            try:
+                last_trading_day = TradingCalendar.get_previous_trading_days(query_date, 1)[0]
+                logger.info(f"오늘은 비거래일입니다. 최근 거래일({last_trading_day.strftime('%Y-%m-%d')}) 데이터로 대체합니다.")
+                query_date = last_trading_day
+            except IndexError:
+                logger.warning("이전 거래일을 찾을 수 없습니다.")
+                # 특별한 처리 없이 그대로 진행 (데이터 없음으로 응답될 것)
+                pass
+
         # ✅ 오늘 vs 과거 날짜 판별
         is_today = query_date.date() == datetime.now().date()
 
@@ -93,6 +105,17 @@ class TradingService:
             logger.warning(f"⚠️ 데이터 없음: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
             return None
 
+        # ✅ 수정: raw_data에서 실제 데이터의 날짜를 확인하여 필터링 기준 결정
+        # (비거래일의 경우 이전 거래일 데이터가 반환되므로, 첫 번째 캔들의 날짜를 기준으로 함)
+        actual_data_date = None
+        if raw_data and len(raw_data) > 0:
+            try:
+                first_candle_time = datetime.fromisoformat(raw_data[0].timestamp)
+                actual_data_date = first_candle_time.date()
+                logger.info(f"실제 데이터 날짜: {actual_data_date}, 요청 날짜: {query_date.date()}")
+            except:
+                pass
+
         # 필터링 로직
         filtered_data = []
 
@@ -104,15 +127,24 @@ class TradingService:
                 logger.warning(f"잘못된 타임스탬프 형식: {candle.timestamp}")
                 continue
 
-            # 날짜 필터링
+            # ✅ 수정: 날짜 필터링 - actual_data_date 기준으로 필터링
             if target_date:
                 # 특정 날짜 지정된 경우
-                if candle_time.date() != target_date.date():
+                # 비거래일의 경우 이전 거래일 데이터를 받으므로, actual_data_date와 비교
+                if actual_data_date and candle_time.date() != actual_data_date:
+                    continue
+                elif not actual_data_date and candle_time.date() != target_date.date():
                     continue
             else:
-                # 날짜 미지정 시 오늘 데이터만
-                if not TradingHoursManager.is_today(candle_time):
-                    continue
+                # 날짜 미지정 시 - 비거래일이면 이전 거래일 데이터 허용
+                if actual_data_date:
+                    # actual_data_date가 있으면 해당 날짜 데이터만 허용
+                    if candle_time.date() != actual_data_date:
+                        continue
+                else:
+                    # actual_data_date가 없으면 오늘 데이터만
+                    if not TradingHoursManager.is_today(candle_time):
+                        continue
 
             # 거래시간 필터링
             if regular_hours_only:

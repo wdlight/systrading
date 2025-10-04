@@ -1,0 +1,17 @@
+export const STOCK_LIST = [
+  { value: '005930', label: '삼성전자' },
+  { value: '000660', label: 'SK하이닉스' },
+  { value: '035420', label: 'NAVER' },
+  { value: '051910', label: 'LG화학' },
+  { value: '005380', label: '현대차' },
+  { value: '207940', label: '삼성바이오로직스' },
+  { value: '000270', label: '기아' },
+  { value: '068270', label: '셀트리온' },
+  { value: '035720', label: '카카오' },
+  { value: '005490', label: 'POSCO홀딩스' },
+  { value: '105560', label: 'KB금융' },
+  { value: '028260', label: '삼성물산' },
+  { value: '055550', label: '신한지주' },
+  { value: '017670', label: 'SK텔레콤' },
+  { value: '003550', label: 'LG' },
+];
