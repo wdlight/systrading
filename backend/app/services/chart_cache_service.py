@@ -6,10 +6,13 @@
 import os
 import json
 from typing import List, Optional, Callable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.models.schemas import ChartCandle
+
+# KST = UTC+9
+KST = timezone(timedelta(hours=9))
 from app.utils.trading_calendar import TradingCalendar
 from loguru import logger
 
@@ -396,17 +399,18 @@ class ChartCacheService:
                 minute = int(time_str[2:4])
                 second = int(time_str[4:6])
                 
-                # datetime 생성
+                # datetime 생성 (KST timezone 명시)
                 timestamp = target_date.replace(
                     hour=hour,
                     minute=minute,
                     second=second,
-                    microsecond=0
+                    microsecond=0,
+                    tzinfo=KST  # ✅ KST timezone 추가
                 )
-                
+
                 # ChartCandle 생성
                 candle = ChartCandle(
-                    timestamp=timestamp.isoformat(),
+                    timestamp=timestamp.isoformat(),  # ISO 8601: "2025-10-03T09:00:00+09:00"
                     open=float(row['시가']),
                     high=float(row['고가']),
                     low=float(row['저가']),

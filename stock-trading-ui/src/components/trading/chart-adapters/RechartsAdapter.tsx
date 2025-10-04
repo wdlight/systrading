@@ -16,7 +16,6 @@ import {
 } from 'recharts';
 import { getTickUnitByPrice } from '@/lib/utils';
 import { TradingHoursManager } from '@/lib/utils/tradingHours';
-import { TIMEFRAME_CONFIG, generateTimeTicks, isIntraday } from '@/lib/chart-config';
 import { ChartAdapterProps, KOREAN_CHART_THEME } from './ChartAdapter';
 import { YAxisCalculatorFactory, YAxisCalculator } from './core/YAxisCalculator';
 
@@ -231,9 +230,28 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
           prevTime.getHours() === currTime.getHours() &&
           prevTime.getMinutes() === currTime.getMinutes()
         );
-      });
+      }).map((candle, index) => ({
+        ...candle,
+        dataIndex: index,  // ✅ 인덱스 추가 (0, 1, 2, ...)
+      }));
 
+      // 🔍 디버그: 데이터 상세 로그 활성화
       console.log(`🔄 데이터 중복 제거: ${mapped.length}개 → ${uniqueData.length}개`);
+      console.log('--- FRONTEND DATA VALIDATION ---');
+      console.log(`Total candles for chart: ${uniqueData.length}`);
+      if (uniqueData.length > 0) {
+        const formatForLog = (d: any) => ({
+          time: new Date(d.time).toISOString(),
+          dataIndex: d.dataIndex,
+          open: d.open,
+          high: d.high,
+          low: d.low,
+          close: d.close,
+        });
+        console.log('First 10 candles:', JSON.stringify(uniqueData.slice(0, 10).map(formatForLog), null, 2));
+        console.log('Last 10 candles:', JSON.stringify(uniqueData.slice(-10).map(formatForLog), null, 2));
+      }
+      console.log('---------------------------------');
 
       return uniqueData;
     } catch (error) {
@@ -253,64 +271,50 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
     }
   }, [formattedData]);
 
-  // X축 시간 domain 계산 (viewWindow 기준)
-  const xDomain = useMemo(() => {
-    if (formattedData.length === 0) {
-      return [0, 0];
-    }
+  // ✅ 인덱스 기반 X축: xDomain 삭제됨 (더 이상 필요 없음)
 
-    // ✅ 수정: viewWindow의 실제 시간 범위 사용
-    if (viewWindow) {
-      const startTime = new Date(formattedData[viewWindow.startIndex].time).getTime();
-      // endIndex의 실제 시간 사용 (120분 고정이 아닌 실제 데이터 범위)
-      const endTime = new Date(formattedData[viewWindow.endIndex].time).getTime();
-      return [startTime, endTime];
-    }
-
-    // 기본: 마지막 120개 데이터 범위
-    const defaultWindowSize = Math.min(120, formattedData.length);
-    const defaultStart = Math.max(0, formattedData.length - defaultWindowSize);
-    const startTime = new Date(formattedData[defaultStart].time).getTime();
-    const lastTime = new Date(formattedData[formattedData.length - 1].time).getTime();
-    return [startTime, lastTime];
-  }, [formattedData, viewWindow]);
-
-  // ✅ displayData는 더 이상 사용하지 않음 (전체 데이터를 차트에 전달)
-  // 디버그용 로그만 유지
+  // ✅ 디버그 로그 (인덱스 기반)
   useEffect(() => {
     if (formattedData.length > 0 && viewWindow) {
-      console.log('📊 Chart State:', {
+      console.log('📊 Chart State (Index-based):', {
         totalCandles: formattedData.length,
         viewWindow,
-        xDomain: [new Date(xDomain[0]).toLocaleTimeString(), new Date(xDomain[1]).toLocaleTimeString()],
+        visibleRange: `Index ${viewWindow.startIndex} ~ ${viewWindow.endIndex}`,
         firstCandle: new Date(formattedData[0].time).toLocaleTimeString(),
         lastCandle: new Date(formattedData[formattedData.length - 1].time).toLocaleTimeString(),
       });
     }
-  }, [formattedData.length, viewWindow, xDomain, formattedData]);
+  }, [formattedData.length, viewWindow, formattedData]);
 
   // React 합성 이벤트 핸들러들
   // Initialize viewWindow when data is available
   useEffect(() => {
-    if (formattedData.length > 0 && !viewWindow) {
+    // Initialize viewWindow only when data is available AND chart width has been calculated
+    if (formattedData.length > 0 && !viewWindow && chartWidth > 0 && chartWidth !== 1000) {
       const windowSize = Math.min(120, formattedData.length);
-      const defaultStart = Math.max(0, formattedData.length - windowSize);
-      // ✅ 수정: endIndex가 배열 범위를 벗어나지 않도록 보장
+
+      // ✅ 데이터 중앙에 윈도우 배치 (균형있는 초기 화면)
+      const centerIndex = Math.floor(formattedData.length / 2);
+      const defaultStart = Math.max(0, centerIndex - Math.floor(windowSize / 2));
       const defaultEnd = Math.min(defaultStart + windowSize - 1, formattedData.length - 1);
+
       setViewWindow({
         startIndex: defaultStart,
         endIndex: defaultEnd
       });
 
-      console.log('🎬 Initial viewWindow:', {
+      // 🔍 디버그: 초기 viewWindow 설정 로그
+      console.log('🎬 Initial viewWindow (centered):', {
         startIndex: defaultStart,
         endIndex: defaultEnd,
-        windowSize: defaultEnd - defaultStart + 1,
-        startTime: new Date(formattedData[defaultStart].time).toLocaleTimeString(),
-        endTime: new Date(formattedData[defaultEnd].time).toLocaleTimeString(),
+        centerIndex,
+        windowSize,
+        totalData: formattedData.length,
+        firstVisibleTime: new Date(formattedData[defaultStart].time).toISOString(),
+        lastVisibleTime: new Date(formattedData[defaultEnd].time).toISOString(),
       });
     }
-  }, [formattedData.length, viewWindow, formattedData]);
+  }, [formattedData, viewWindow, chartWidth, formattedData.length]);
 
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
     if (event.button !== 0 || !viewWindow) return;
@@ -338,15 +342,8 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
         // ✅ 수정: endIndex가 데이터 범위를 벗어나지 않도록 제한
         const newEndIndex = Math.min(newStartIndex + windowSize, formattedData.length - 1);
 
-        console.log('🖱️ Drag Update:', {
-          deltaX,
-          deltaCandles,
-          oldStart: viewWindow.startIndex,
-          newStart: newStartIndex,
-          newEnd: newEndIndex,
-          oldTime: new Date(formattedData[viewWindow.startIndex].time).toLocaleTimeString(),
-          newTime: new Date(formattedData[newStartIndex].time).toLocaleTimeString(),
-        });
+        // 성능 최적화: 드래그 중 console.log 제거
+        // console.log('🖱️ Drag Update:', { ... });
 
         setViewWindow({ startIndex: newStartIndex, endIndex: newEndIndex });
     }
@@ -367,14 +364,39 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
     // ✅ YAxisCalculator를 통한 Y축 계산
     const domain = calculator.calculate(chartData);
 
-    console.log(`📊 Y축 계산 (${calculator.name}):`, {
-      range: `${domain[0].toLocaleString()} ~ ${domain[1].toLocaleString()}`,
-      calculator: calculator.name,
-      dataPoints: chartData.length
-    });
+    // 성능 최적화: 초기 로딩 시에만 로그 출력
+    // 📊 상세 디버깅: 날짜 범위 및 가격 범위 확인 (개발 중에만 활성화)
+    // const timestamps = chartData.map(c => new Date(c.timestamp));
+    // const minDate = new Date(Math.min(...timestamps.map(d => d.getTime())));
+    // const maxDate = new Date(Math.max(...timestamps.map(d => d.getTime())));
+    // const allPrices = chartData.flatMap(c => [c.high, c.low]);
+    // const actualMin = Math.min(...allPrices);
+    // const actualMax = Math.max(...allPrices);
+    //
+    // console.log(`📊 Y축 계산 (${calculator.name}):`, {
+    //   range: `${domain[0].toLocaleString()} ~ ${domain[1].toLocaleString()}`,
+    //   calculator: calculator.name,
+    //   dataPoints: chartData.length,
+    //   dateRange: `${minDate.toLocaleDateString('ko-KR')} ~ ${maxDate.toLocaleDateString('ko-KR')}`,
+    //   actualPriceRange: `${actualMin.toLocaleString()} ~ ${actualMax.toLocaleString()}`,
+    //   daysCovered: Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24))
+    // });
 
     return domain;
   }, [chartData, calculator]); // chartData 변경 시에만 재계산
+
+  // ⚡ XAxis ticks 메모이제이션 (성능 최적화)
+  const xAxisTicks = useMemo(() => {
+    if (!viewWindow) {
+      const start = Math.max(0, formattedData.length - 120);
+      return formattedData
+        .filter((_, i) => i >= start && i % 30 === 0)
+        .map(d => d.dataIndex);
+    }
+    return formattedData
+      .filter((_, i) => i >= viewWindow.startIndex && i <= viewWindow.endIndex && i % 30 === 0)
+      .map(d => d.dataIndex);
+  }, [formattedData, viewWindow]);
 
   // 조건부 렌더링은 훅 호출 후에
   if (formattedData.length === 0) {
@@ -406,7 +428,7 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
     >
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart
-          data={formattedData} // ✅ 전체 데이터 사용 (좌측 드래그로 과거 데이터 조회 가능)
+          data={formattedData} // ✅ 전체 데이터 사용 (Brush로 범위 제어)
           margin={{ top: 20, right: 80, left: 20, bottom: 20 }}
         >
           <CartesianGrid
@@ -416,33 +438,16 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
           />
 
           <XAxis
-            dataKey="time"
+            dataKey="dataIndex"
             type="number"
-            domain={xDomain}
-            scale="time"
-            ticks={
-              // 15분 간격으로만 tick 표시 (120분 영역 기준)
-              (() => {
-                const ticks = [];
-                const [start, end] = xDomain;
-                const startDate = new Date(start);
+            domain={['dataMin', 'dataMax']}
+            allowDataOverflow={false}
+            ticks={xAxisTicks}
+            tickFormatter={(dataIndex) => {
+              const candle = formattedData[dataIndex];
+              if (!candle) return '';
 
-                // 시작 시간을 15분 단위로 올림
-                const startMinutes = startDate.getMinutes();
-                const nextQuarter = Math.ceil(startMinutes / 15) * 15;
-                startDate.setMinutes(nextQuarter, 0, 0);
-
-                let currentTime = startDate.getTime();
-                while (currentTime <= end) {
-                  ticks.push(currentTime);
-                  currentTime += 15 * 60 * 1000; // 15분씩 증가
-                }
-
-                return ticks;
-              })()
-            }
-            tickFormatter={(time) => {
-              const date = new Date(time);
+              const date = new Date(candle.time);
               const hours = date.getHours();
               const minutes = date.getMinutes();
 
@@ -491,27 +496,29 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
             yAxisId={0}
           />
 
-          {/* Brush for infinite scroll */}
+          {/* Brush for infinite scroll (index-based) */}
           <Brush
             data={formattedData}
-            dataKey="time"
+            dataKey="dataIndex"
             height={30}
             stroke={KOREAN_CHART_THEME.gridColor}
             fill={KOREAN_CHART_THEME.backgroundColor}
             startIndex={viewWindow?.startIndex ?? Math.max(0, formattedData.length - 120)}
             endIndex={viewWindow?.endIndex ?? formattedData.length - 1}
             onChange={(brushData: any) => {
-              console.log('🔥 Brush onChange triggered:', brushData);
+              // 성능 최적화: console.log 제거
+              // console.log('🔥 Brush onChange triggered:', brushData);
               if (onBrushChange && brushData) {
                 const { startIndex, endIndex } = brushData;
-                console.log('[RechartsAdapter] Brush changed:', { startIndex, endIndex, totalData: formattedData.length });
+                // console.log('[RechartsAdapter] Brush changed:', { startIndex, endIndex, totalData: formattedData.length });
                 onBrushChange({ startIndex: startIndex ?? 0, endIndex: endIndex ?? formattedData.length - 1 });
-              } else {
-                console.log('⚠️ Brush onChange called but no data:', { onBrushChange: !!onBrushChange, brushData });
               }
             }}
-            tickFormatter={(time) => {
-              const date = new Date(time);
+            tickFormatter={(dataIndex) => {
+              const candle = formattedData[dataIndex];
+              if (!candle) return '';
+
+              const date = new Date(candle.time);
               const hours = date.getHours();
               const minutes = date.getMinutes();
 

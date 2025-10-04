@@ -9,7 +9,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChartCandle } from '@/lib/types/korean-stocks';
-import { getKSTToday } from '@/lib/utils/datetime';
+import { getKSTToday, toKSTDateString } from '@/lib/utils/datetime';
 
 interface UseHistoricalChartDataProps {
   stockCode: string;
@@ -51,7 +51,7 @@ export function useHistoricalChartData({
         for (let i = 0; i < days; i++) {
           const targetDate = new Date(endDate);
           targetDate.setDate(targetDate.getDate() - i);
-          const dateStr = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
+          const dateStr = toKSTDateString(targetDate); // YYYY-MM-DD in KST
           const dateKey = dateStr.replace(/-/g, ''); // YYYYMMDD
 
           try {

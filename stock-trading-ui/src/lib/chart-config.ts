@@ -13,7 +13,7 @@ const formatters = {
 
 // Configuration for each timeframe
 export const TIMEFRAME_CONFIG: { [key: string]: { mainUnit: string; formatter: (date: Date) => string } } = {
-  '1m':   { mainUnit: 'fifteen_minute', formatter: formatters.time },
+  '1m':   { mainUnit: 'thirty_minute', formatter: formatters.time },
   '5m':   { mainUnit: 'hour',           formatter: formatters.time },
   '10m':  { mainUnit: 'hour',           formatter: formatters.time },
   '30m':  { mainUnit: 'hour',           formatter: formatters.time },
@@ -56,6 +56,18 @@ export const generateTimeTicks = (startTime: number, endTime: number, timeframe:
       while (cursor < endDate) {
         ticks.push(cursor.getTime());
         cursor.setMinutes(cursor.getMinutes() + 15);
+      }
+      break;
+
+    case 'thirty_minute':
+      // Round down to the nearest 30-minute mark
+      cursor.setMinutes(Math.floor(cursor.getMinutes() / 30) * 30, 0, 0);
+      
+      while (cursor <= endDate) {
+        if (cursor >= startDate) {
+          ticks.push(cursor.getTime());
+        }
+        cursor.setMinutes(cursor.getMinutes() + 30);
       }
       break;
 

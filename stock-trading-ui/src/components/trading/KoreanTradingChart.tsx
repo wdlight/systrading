@@ -34,12 +34,14 @@ import RealtimeCandlestickChart from './RealtimeCandlestickChart';
 interface KoreanTradingChartProps {
   className?: string;
   stock?: KoreanStock | null;
+  chartData?: ChartCandle[]; // ✅ 외부에서 병합된 차트 데이터 전달 (과거+실시간)
   height?: number;
   showIndicators?: boolean;
   useRealData?: boolean;
   autoRefresh?: boolean;
   timeframe: ChartTimeframe;
   setTimeframe: (tf: ChartTimeframe) => void;
+  onRangeChange?: (range: { startIndex: number; endIndex: number }) => void;
 }
 
 type ChartTimeframe = '1m' | '1D' | '1W' | '1M' | '3M' | '6M' | '1Y';
@@ -133,12 +135,14 @@ function calculateStdDev(prices: number[]): number {
 export function KoreanTradingChart({
   className,
   stock,
+  chartData: externalChartData, // ✅ 외부에서 전달된 차트 데이터
   height = 400,
   showIndicators = true,
   useRealData = false,
   autoRefresh = false,
   timeframe,
-  setTimeframe
+  setTimeframe,
+  onRangeChange
 }: KoreanTradingChartProps) {
   const [chartType, setChartType] = useState<ChartType>('candlestick');
   const [showVolume, setShowVolume] = useState(true);
@@ -156,16 +160,19 @@ export function KoreanTradingChart({
     stock?.code || '',
     timeframe,
     {
-      enabled: useRealData && !!stock?.code,
+      enabled: useRealData && !!stock?.code && !externalChartData, // ✅ 외부 데이터가 있으면 비활성화
       autoRefresh: autoRefresh,
       // refreshInterval은 useRealChartData 내부에서 timeframe에 따라 결정됨
     }
   );
 
+  // ✅ 데이터 우선순위: 외부 데이터 > 내부 실시간 데이터
+  const finalChartData = externalChartData ?? realChartData;
+
   const technicalIndicators = useMemo(() => {
-    if (realChartData.length === 0) return null;
-    return calculateTechnicalIndicators(realChartData);
-  }, [realChartData]);
+    if (finalChartData.length === 0) return null;
+    return calculateTechnicalIndicators(finalChartData);
+  }, [finalChartData]);
 
   const timeframes: { value: ChartTimeframe; label: string }[] = [
     { value: '1m', label: '1분' },
@@ -333,7 +340,12 @@ export function KoreanTradingChart({
 
       <CardContent className="space-y-4">
         {useRealData && timeframe === '1m' ? (
-          <RealtimeCandlestickChart chartData={realChartData} height={height - 100} timeframe={timeframe} />
+          <RealtimeCandlestickChart
+            chartData={finalChartData}
+            height={height - 100}
+            timeframe={timeframe}
+            onRangeChange={onRangeChange}
+          />
         ) : (
           <div
             className="bg-[#0a0a0b] border border-gray-700 rounded-lg relative overflow-hidden flex items-center justify-center text-gray-400"

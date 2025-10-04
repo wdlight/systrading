@@ -13,6 +13,7 @@ interface RealtimeCandlestickChartProps {
   timeframe: string;
   enableHistoricalLoad?: boolean; // 과거 데이터 자동 로딩 활성화 여부
   initialDays?: number; // 초기 프리로드 일수 (기본값: 3)
+  onRangeChange?: (range: { startIndex: number; endIndex: number }) => void; // 드래그 시 과거 데이터 로드
 }
 
 const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = memo(({
@@ -21,7 +22,8 @@ const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = memo((
   height = 400,
   timeframe,
   enableHistoricalLoad = true,
-  initialDays = 3
+  initialDays = 3,
+  onRangeChange: externalOnRangeChange
 }) => {
   // 🎯 과거 데이터 자동 로딩 훅 (stockCode가 제공된 경우만)
   const {
@@ -75,8 +77,8 @@ const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = memo((
       height={height}
       timeframe={timeframe}
       events={{
-        // ✅ 범위 변경 이벤트는 stockCode 모드일 때만 활성화
-        onRangeChange: stockCode && !externalChartData ? handleRangeChange : undefined,
+        // ✅ 외부 핸들러 우선, 없으면 내부 handleRangeChange (stockCode 모드일 때만)
+        onRangeChange: externalOnRangeChange || (stockCode && !externalChartData ? handleRangeChange : undefined),
         onError: (error) => {
           console.error('차트 렌더링 오류:', error);
         }

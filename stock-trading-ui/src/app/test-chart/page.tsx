@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useSamsungChartData, useChartApiTest, validateChartData } from '@/hooks/useRealChartData';
 import { useSamsungRealTimePrice, getPriceDirection, getPriceColor, formatPrice, formatVolume, formatMarketCap } from '@/hooks/useRealTimePrice';
+import { useHistoricalChartData } from '@/hooks/useHistoricalChartData';
 import { KoreanTradingChart } from '@/components/trading/KoreanTradingChart';
 import { POPULAR_KOREAN_STOCKS } from '@/lib/types/korean-stocks';
 import { useTradingHours } from '@/hooks/useTradingHours';
@@ -34,9 +35,21 @@ export default function TestChartPage() {
   // 거래시간 Hook
   const { currentSession, isMarketOpen, formatTimeUntilReset, sessionDisplayName } = useTradingHours();
 
+  // ✅ 과거 데이터 자동 로딩 Hook (좌측 드래그 시 10/1, 9/30 등 로드)
+  const {
+    chartData: historicalChartData,
+    isLoading: isHistoricalLoading,
+    error: historicalError,
+    handleRangeChange,
+  } = useHistoricalChartData({
+    stockCode: '005930',
+    enabled: true,
+    initialDays: 3, // 3일치 데이터 프리로드
+  });
+
   // 삼성전자 차트 데이터 Hook (시간 필터링 옵션 추가)
   const {
-    chartData,
+    chartData: realTimeChartData,
     metadata,
     isLoading,
     error,
@@ -50,6 +63,9 @@ export default function TestChartPage() {
     includeExtendedHours,
     regularHoursOnly
   });
+
+  // ✅ 과거 데이터와 실시간 데이터 병합 (과거 데이터 우선)
+  const chartData = historicalChartData.length > 0 ? historicalChartData : realTimeChartData;
 
   // API 테스트 Hook
   const {
@@ -579,6 +595,7 @@ export default function TestChartPage() {
             {displayStock && (
               <KoreanTradingChart
                 stock={displayStock}
+                chartData={chartData}
                 height={600}
                 showIndicators={true}
                 className="w-full"
@@ -586,6 +603,7 @@ export default function TestChartPage() {
                 autoRefresh={autoRefresh}
                 timeframe={timeframe}
                 setTimeframe={setTimeframe}
+                onRangeChange={handleRangeChange}
               />
             )}
 

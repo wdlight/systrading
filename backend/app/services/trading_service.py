@@ -136,162 +136,182 @@ class TradingService:
     async def get_full_day_candles(
         self,
         stock_code: str,
-        target_date: Optional[datetime] = None
+        target_date: Optional[datetime] = None,
+        days: int = 3
     ) -> Optional[List[ChartCandle]]:
         """
-        당일 전체 거래시간(9:00~15:30) 분봉 데이터 반환
+        최근 N일치 전체 거래시간(9:00~15:30) 분봉 데이터 반환
         
         - 실제 거래된 시간: 실제 OHLCV 데이터
         - 미래 시간 또는 거래 없는 시간: 직전 종가로 채움 (volume=0)
-        - 총 391개 캔들 (9:00~15:30, 1분 간격)
+        - 기본 3일치 데이터 반환 (약 1173개 캔들)
         
         Args:
             stock_code: 종목 코드
-            target_date: 조회할 날짜 (None이면 오늘)
+            target_date: 조회 종료 날짜 (None이면 오늘)
+            days: 조회할 일수 (기본 3일)
             
         Returns:
-            9:00~15:30 전체 분봉 데이터 (391개)
+            최근 N일치 전체 분봉 데이터
         """
         from datetime import timedelta
         
         # 날짜 설정
-        query_date = target_date if target_date else datetime.now()
-
-        # 캐시를 통해 실제 데이터 조회 (skip_cache_save=True로 중간 저장 방지)
-        raw_data = await self.chart_cache_service.get_minute_candles(
-            stock_code=stock_code,
-            target_date=query_date,
-            korea_invest_service=self.korea_invest_service,
-            skip_cache_save=True
-        )
-
-        if not raw_data:
-            logger.warning(f"차트 데이터 없음: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
-            return None
-
-        # ✅ 비거래일 처리: 이전 거래일 데이터를 그대로 반환
-        # raw_data의 첫 번째 캔들 날짜를 확인하여 실제 데이터 날짜 파악
-        if raw_data:
-            first_candle_date = datetime.fromisoformat(raw_data[0].timestamp).date()
-            query_date_only = query_date.date()
-
-            # 요청한 날짜와 실제 데이터 날짜가 다르면 비거래일
-            if first_candle_date != query_date_only:
-                logger.info(
-                    f"📅 비거래일 감지: 요청={query_date_only}, 실제 데이터={first_candle_date}, "
-                    f"이전 거래일 데이터 그대로 반환 ({len(raw_data)}개 캔들)"
-                )
-                # 이전 거래일의 전체 데이터를 그대로 반환 (타임라인 재생성 없이)
-                return raw_data
-
-        # 거래일인 경우: 전체 거래시간 타임라인 생성
-        trading_start = query_date.replace(hour=9, minute=0, second=0, microsecond=0)
-
-        now = datetime.now()
-        is_today = query_date.date() == now.date()
-
-        if is_today:
-            # 당일: 현재 시간까지만 (초/마이크로초 제거)
-            trading_end = now.replace(second=0, microsecond=0)
-
-            # 장 시작 전이면 전일 데이터 사용 (09:00 기준)
-            market_open = query_date.replace(hour=9, minute=0, second=0, microsecond=0)
-            if trading_end < market_open:
-                logger.info(f"장 시작 전 (현재: {trading_end.strftime('%H:%M')}), 이전 거래일 데이터 그대로 반환")
-                return raw_data
-
-            # 거래시간 이후면 15:30으로 제한
-            market_close = query_date.replace(hour=15, minute=30, second=0, microsecond=0)
-            if trading_end > market_close:
-                trading_end = market_close
-            logger.info(f"당일 타임라인 생성: 9:00 ~ {trading_end.strftime('%H:%M')}")
-        else:
-            # 과거: 전체 거래시간
-            trading_end = query_date.replace(hour=15, minute=30, second=0, microsecond=0)
-            logger.info(f"과거 타임라인 생성: 9:00 ~ 15:30")
-
-        # 1분 간격 타임스탬프 생성
-        timeline = []
-        current_time = trading_start
-        while current_time <= trading_end:
-            timeline.append(current_time)
-            current_time += timedelta(minutes=1)
-
-        logger.info(f"타임라인 생성 완료: {len(timeline)}개 캔들")
+        end_date = target_date if target_date else datetime.now()
         
-        # 실제 데이터를 딕셔너리로 변환 (빠른 검색)
-        data_dict = {}
-        for candle in raw_data:
-            try:
-                candle_time = datetime.fromisoformat(candle.timestamp)
-                # 시간만 비교 (초/마이크로초 제거)
-                key_time = candle_time.replace(second=0, microsecond=0)
-                data_dict[key_time] = candle
-            except ValueError:
-                logger.warning(f"잘못된 타임스탬프 형식: {candle.timestamp}")
-                continue
+        # ✅ N일치 데이터 수집
+        all_candles = []
         
-        logger.info(f"실제 데이터: {len(data_dict)}개")
-        
-        # 전체 타임라인에 데이터 채우기
-        full_candles = []
-        last_close = None
-
-        # 첫 번째 실제 데이터 시간 확인
-        first_data_time = None
-        if data_dict:
-            first_data_time = min(data_dict.keys())
-            logger.info(f"첫 실제 데이터 시각: {first_data_time.strftime('%H:%M')}")
-
-        for ts in timeline:
-            if ts in data_dict:
-                # 실제 데이터 존재
-                candle = data_dict[ts]
-                last_close = candle.close
-                full_candles.append(candle)
-            else:
-                # 데이터 없음 → 채우기 여부 판단
-                # ✅ 수정: 첫 실제 데이터 이전 시간은 skip (더미 데이터 생성 방지)
-                if first_data_time and ts < first_data_time:
-                    # 실제 거래 데이터 이전 시간대는 채우지 않음
-                    continue
-
-                # 미래 시간(현재 분 이후)만 last_close로 채우기
-                if last_close is not None:
-                    full_candles.append(ChartCandle(
-                        timestamp=ts.isoformat(),
-                        open=last_close,
-                        high=last_close,
-                        low=last_close,
-                        close=last_close,
-                        volume=0  # volume=0으로 미래/거래없음 표시
-                    ))
-                # else: 데이터가 전혀 없는 경우 skip
-        
-        logger.info(f"Full day candles 생성 완료: {len(full_candles)}개 (실제: {len(data_dict)}, 채움: {len(full_candles) - len(data_dict)})")
-
-        # 데이터 검증 로깅
-        expected_count = len(timeline)  # 당일/과거 구분에 따른 예상 개수
-        if len(full_candles) != expected_count:
-            logger.warning(
-                f"⚠️ VALIDATION: Expected {expected_count} candles, got {len(full_candles)} "
-                f"({'당일 9:00~현재' if is_today else '과거 9:00~15:30'})"
+        for day_offset in range(days - 1, -1, -1):  # 3일이면: 2, 1, 0 (과거→현재 순서)
+            query_date = end_date - timedelta(days=day_offset)
+            
+            logger.info(f"📅 Day {days - day_offset}/{days}: {query_date.strftime('%Y-%m-%d')} 데이터 로드 중...")
+            
+            # 캐시를 통해 실제 데이터 조회 (skip_cache_save=True로 중간 저장 방지)
+            raw_data = await self.chart_cache_service.get_minute_candles(
+                stock_code=stock_code,
+                target_date=query_date,
+                korea_invest_service=self.korea_invest_service,
+                skip_cache_save=True
             )
 
-        volume_zero_count = sum(1 for c in full_candles if c.volume == 0)
-        logger.info(
-            f"✅ VALIDATION: {len(full_candles)} candles total | "
-            f"{volume_zero_count} filled | {len(full_candles) - volume_zero_count} actual | "
-            f"기간: {trading_start.strftime('%H:%M')}~{trading_end.strftime('%H:%M')} "
-            f"({'당일' if is_today else '과거'})"
-        )
+            if not raw_data:
+                logger.warning(f"차트 데이터 없음: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
+                continue
 
-        # Full Day 데이터를 캐시에 저장 (기존 부분 데이터 덮어쓰기)
-        if full_candles:
-            self.chart_cache_service._save_to_cache(stock_code, query_date, full_candles)
-            logger.info(f"Full day candles 캐시 저장 완료: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
+            # ✅ 비거래일 처리: 이전 거래일 데이터를 그대로 반환
+            # raw_data의 첫 번째 캔들 날짜를 확인하여 실제 데이터 날짜 파악
+            if raw_data:
+                first_candle_date = datetime.fromisoformat(raw_data[0].timestamp).date()
+                query_date_only = query_date.date()
 
-        return full_candles
+                # 요청한 날짜와 실제 데이터 날짜가 다르면 비거래일
+                if first_candle_date != query_date_only:
+                    logger.info(
+                        f"📅 비거래일 감지: 요청={query_date_only}, 실제 데이터={first_candle_date}, "
+                        f"이전 거래일 데이터 그대로 반환 ({len(raw_data)}개 캔들)"
+                    )
+                    # 이전 거래일의 전체 데이터를 그대로 반환 (타임라인 재생성 없이)
+                    all_candles.extend(raw_data)
+                    continue
+
+            # 거래일인 경우: 전체 거래시간 타임라인 생성
+            trading_start = query_date.replace(hour=9, minute=0, second=0, microsecond=0)
+
+            now = datetime.now()
+            is_today = query_date.date() == now.date()
+
+            if is_today:
+                # 당일: 현재 시간까지만 (초/마이크로초 제거)
+                trading_end = now.replace(second=0, microsecond=0)
+
+                # 장 시작 전이면 전일 데이터 사용 (09:00 기준)
+                market_open = query_date.replace(hour=9, minute=0, second=0, microsecond=0)
+                if trading_end < market_open:
+                    logger.info(f"장 시작 전 (현재: {trading_end.strftime('%H:%M')}), 이전 거래일 데이터 그대로 반환")
+                    all_candles.extend(raw_data)
+                    continue
+
+                # 거래시간 이후면 15:30으로 제한
+                market_close = query_date.replace(hour=15, minute=30, second=0, microsecond=0)
+                if trading_end > market_close:
+                    trading_end = market_close
+                logger.info(f"당일 타임라인 생성: 9:00 ~ {trading_end.strftime('%H:%M')}")
+            else:
+                # 과거: 전체 거래시간
+                trading_end = query_date.replace(hour=15, minute=30, second=0, microsecond=0)
+                logger.info(f"과거 타임라인 생성: 9:00 ~ 15:30")
+
+            # 1분 간격 타임스탬프 생성
+            timeline = []
+            current_time = trading_start
+            while current_time <= trading_end:
+                timeline.append(current_time)
+                current_time += timedelta(minutes=1)
+
+            logger.info(f"타임라인 생성 완료: {len(timeline)}개 캔들")
+            
+            # 실제 데이터를 딕셔너리로 변환 (빠른 검색)
+            data_dict = {}
+            for candle in raw_data:
+                try:
+                    candle_time = datetime.fromisoformat(candle.timestamp)
+                    # 시간만 비교 (초/마이크로초 제거)
+                    key_time = candle_time.replace(second=0, microsecond=0)
+                    data_dict[key_time] = candle
+                except ValueError:
+                    logger.warning(f"잘못된 타임스탬프 형식: {candle.timestamp}")
+                    continue
+            
+            logger.info(f"실제 데이터: {len(data_dict)}개")
+            
+            # 전체 타임라인에 데이터 채우기
+            day_candles = []
+            last_close = None
+
+            # 첫 번째 실제 데이터 시간 확인
+            first_data_time = None
+            if data_dict:
+                first_data_time = min(data_dict.keys())
+                logger.info(f"첫 실제 데이터 시각: {first_data_time.strftime('%H:%M')}")
+
+            for ts in timeline:
+                if ts in data_dict:
+                    # 실제 데이터 존재
+                    candle = data_dict[ts]
+                    last_close = candle.close
+                    day_candles.append(candle)
+                else:
+                    # 데이터 없음 → 채우기 여부 판단
+                    # ✅ 수정: 첫 실제 데이터 이전 시간은 skip (더미 데이터 생성 방지)
+                    if first_data_time and ts < first_data_time:
+                        # 실제 거래 데이터 이전 시간대는 채우지 않음
+                        continue
+
+                    # 미래 시간(현재 분 이후)만 last_close로 채우기
+                    if last_close is not None:
+                        day_candles.append(ChartCandle(
+                            timestamp=ts.isoformat(),
+                            open=last_close,
+                            high=last_close,
+                            low=last_close,
+                            close=last_close,
+                            volume=0  # volume=0으로 미래/거래없음 표시
+                        ))
+                    # else: 데이터가 전혀 없는 경우 skip
+            
+            logger.info(f"Day {days - day_offset} candles 생성 완료: {len(day_candles)}개 (실제: {len(data_dict)}, 채움: {len(day_candles) - len(data_dict)})")
+
+            # 데이터 검증 로깅
+            expected_count = len(timeline)  # 당일/과거 구분에 따른 예상 개수
+            if len(day_candles) != expected_count:
+                logger.warning(
+                    f"⚠️ VALIDATION: Expected {expected_count} candles, got {len(day_candles)} "
+                    f"({'당일 9:00~현재' if is_today else '과거 9:00~15:30'})"
+                )
+
+            volume_zero_count = sum(1 for c in day_candles if c.volume == 0)
+            logger.info(
+                f"✅ VALIDATION: {len(day_candles)} candles total | "
+                f"{volume_zero_count} filled | {len(day_candles) - volume_zero_count} actual | "
+                f"기간: {trading_start.strftime('%H:%M')}~{trading_end.strftime('%H:%M')} "
+                f"({'당일' if is_today else '과거'})"
+            )
+
+            # 하루치 데이터를 전체 리스트에 추가
+            all_candles.extend(day_candles)
+
+            # Full Day 데이터를 캐시에 저장 (기존 부분 데이터 덮어쓰기)
+            if day_candles:
+                self.chart_cache_service._save_to_cache(stock_code, query_date, day_candles)
+                logger.info(f"Full day candles 캐시 저장 완료: {stock_code}, {query_date.strftime('%Y-%m-%d')}")
+        
+        if not all_candles:
+            logger.warning(f"전체 기간 데이터 없음: {stock_code}, {days}일")
+            return None
+        
+        logger.info(f"🎯 최종 {days}일치 데이터 반환: 총 {len(all_candles)}개 캔들")
+        return all_candles
 
     async def get_current_minute_candle(
         self,
