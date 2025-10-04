@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { TRViewChartControls } from '@/components/trading/TRViewChartControls';
@@ -23,6 +25,13 @@ const TRViewChart = dynamic(
     )
   }
 );
+
+const SAMPLE_STOCKS = [
+  { code: '005930', name: '삼성전자' },
+  { code: '000660', name: 'SK하이닉스' },
+  { code: '035420', name: 'NAVER' },
+  { code: '051910', name: 'LG화학' },
+];
 
 export default function TRViewPage() {
   const [stockCode, setStockCode] = useState('005930');
@@ -69,6 +78,7 @@ export default function TRViewPage() {
           <TRViewChartControls
             selectedStockCode={stockCode}
             onStockChange={setStockCode}
+            stocks={SAMPLE_STOCKS}
             showVolume={showVolume}
             onVolumeToggle={() => setShowVolume(!showVolume)}
             showGrid={showGrid}
@@ -99,7 +109,6 @@ export default function TRViewPage() {
                 </div>
               )}
 
-              {/* ✅ 수정된 부분 */}
               {error && (
                 <div className="h-[500px] flex items-center justify-center">
                   <div className="text-red-400">
