@@ -153,3 +153,7 @@ claude-flow
 # Removed Windows wrapper files per user request
 hive-mind-prompt-*.txt
 backend/vkis/*
+
+# TA-Lib Source and Library
+backend/ta-lib/
+backend/ta-lib-0.4.0-src.tar.gz
