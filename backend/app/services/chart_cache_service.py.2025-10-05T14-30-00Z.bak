@@ -293,22 +293,15 @@ class ChartCacheService:
 
             # ✅ 수정: 날짜에 따라 올바른 API 메서드 호출
             is_today = target_date.date() == datetime.now().date()
-            candles: Optional[List[ChartCandle]] = None
 
             if is_today:
-                # 오늘 데이터: get_minute_chart_data (실시간) -> returns List[ChartCandle]
+                # 오늘 데이터: get_minute_chart_data (실시간)
                 logger.info(f"오늘 데이터 조회: {stock_code}")
                 candles = await korea_invest_service.get_minute_chart_data(stock_code)
             else:
-                # 과거 데이터: get_daily_minute_chart_data (과거 날짜 전용) -> returns DataFrame
+                # 과거 데이터: get_daily_minute_chart_data (과거 날짜 전용)
                 logger.info(f"과거 데이터 조회: {stock_code}, {target_date.strftime('%Y-%m-%d')}")
-                df = await korea_invest_service.get_daily_minute_chart_data(stock_code, target_date)
-                
-                # DataFrame -> List[ChartCandle] 변환
-                if df is not None and not df.empty:
-                    candles = self._convert_df_to_candles(df, target_date)
-                else:
-                    candles = []
+                candles = await korea_invest_service.get_daily_minute_chart_data(stock_code, target_date)
 
             if not candles:
                 logger.warning(f"API에서 데이터를 받지 못함: {stock_code}, {target_date.strftime('%Y%m%d')}")
@@ -323,7 +316,7 @@ class ChartCacheService:
             return candles
 
         except Exception as e:
-            logger.error(f"API 호출 실패: {stock_code}, 오류: {e}", exc_info=True)
+            logger.error(f"API 호출 실패: {stock_code}, 오류: {e}")
             return None
 
     async def get_historical_minute_candles(
