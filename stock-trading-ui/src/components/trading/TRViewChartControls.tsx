@@ -73,18 +73,22 @@ export function TRViewChartControls({
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <Command>
-                <CommandInput placeholder="종목 검색..." />
+            <PopoverContent className="w-full p-0 shadow-professional-lg border-gray-600">
+              <Command className="bg-[#1a1a1b]">
+                <CommandInput
+                  placeholder="종목 검색..."
+                  className="text-white placeholder:text-gray-500"
+                />
                 <CommandList>
-                  {isLoading && <CommandEmpty>종목 리스트 로딩 중...</CommandEmpty>}
-                  {error && <CommandEmpty>오류: {error}</CommandEmpty>}
-                  {!isLoading && !error && stockList.length === 0 && <CommandEmpty>검색 결과가 없습니다.</CommandEmpty>}
+                  {isLoading && <CommandEmpty className="text-gray-400">종목 리스트 로딩 중...</CommandEmpty>}
+                  {error && <CommandEmpty className="text-red-400">오류: {error}</CommandEmpty>}
+                  {!isLoading && !error && stockList.length === 0 && <CommandEmpty className="text-gray-400">검색 결과가 없습니다.</CommandEmpty>}
                   <CommandGroup>
                     {stockList.map((stock) => (
                       <CommandItem
                         key={stock.value}
                         value={stock.label}
+                        data-selected={selectedStockCode === stock.value}
                         onSelect={(currentValue) => {
                           const selected = stockList.find(s => s.label === currentValue);
                           if (selected) {
@@ -92,14 +96,19 @@ export function TRViewChartControls({
                           }
                           setOpen(false);
                         }}
+                        className="text-white"
                       >
                         <Check
                           className={cn(
-                            "mr-2 h-4 w-4",
+                            "mr-2 h-4 w-4 text-blue-400",
                             selectedStockCode === stock.value ? "opacity-100" : "opacity-0"
                           )}
                         />
-                        {stock.label} ({stock.value})
+                        <span className={cn(
+                          selectedStockCode === stock.value && "text-blue-300"
+                        )}>
+                          {stock.label} ({stock.value})
+                        </span>
                       </CommandItem>
                     ))}
                   </CommandGroup>
