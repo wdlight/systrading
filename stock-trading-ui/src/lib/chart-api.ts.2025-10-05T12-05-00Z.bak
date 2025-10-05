@@ -67,43 +67,6 @@ export class ChartAPI {
   }
 
   /**
-   * 일봉 차트 데이터 조회
-   * @param stockCode 종목코드
-   * @param startDate 조회 시작 날짜 (YYYY-MM-DD)
-   * @param endDate 조회 종료 날짜 (YYYY-MM-DD)
-   * @returns 캔들 데이터 배열
-   */
-  async getDayCandles(
-    stockCode: string,
-    startDate: string,
-    endDate: string
-  ): Promise<ChartCandle[]> {
-    try {
-      const params = new URLSearchParams({
-        start_date: startDate,
-        end_date: endDate,
-      });
-
-      const url = `${this.baseUrl}/api/chart/${stockCode}/day?${params.toString()}`;
-      console.log('[ChartAPI] Fetching daily candles:', { stockCode, startDate, endDate, url });
-
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data: ChartCandle[] = await response.json();
-      console.log(`[ChartAPI] Received ${data.length} daily candles for ${stockCode}`);
-
-      return data;
-    } catch (error) {
-      console.error('[ChartAPI] Error fetching daily candles:', error);
-      throw error;
-    }
-  }
-
-  /**
    * 이전 거래일의 분봉 데이터 조회
    * @param stockCode 종목코드
    * @param currentDate 현재 날짜 (YYYY-MM-DD)

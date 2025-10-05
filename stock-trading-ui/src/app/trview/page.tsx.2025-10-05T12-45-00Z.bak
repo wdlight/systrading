@@ -139,7 +139,6 @@ export default function TRViewPage() {
                     enableCrosshair={true}
                     onLoadPrevious={loadPreviousMinute}
                     isLoadingMore={isLoadingMoreMinute}
-                    timeframe="minute"
                   />
                 )}
               </CardContent>
@@ -173,7 +172,6 @@ export default function TRViewPage() {
                     enableCrosshair={true}
                     onLoadPrevious={loadPreviousDay}
                     isLoadingMore={isLoadingMoreDay}
-                    timeframe="day"
                   />
                 )}
               </CardContent>

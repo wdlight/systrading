@@ -1,0 +1,112 @@
+// hooks/useTRViewChart.ts
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { ChartCandle } from '@/lib/types/korean-stocks';
+import { chartAPI } from '@/lib/chart-api';
+
+interface UseTRViewChartProps {
+  stockCode: string;
+  enabled?: boolean;
+}
+
+export function useTRViewChart({
+  stockCode,
+  enabled = true,
+}: UseTRViewChartProps) {
+  const [chartData, setChartData] = useState<ChartCandle[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loadedDates, setLoadedDates] = useState<Set<string>>(new Set());
+  const [oldestDate, setOldestDate] = useState<string | null>(null);
+  const [canLoadMore, setCanLoadMore] = useState(true);
+
+  const fetchInitialData = useCallback(async () => {
+    if (!enabled || !stockCode) return;
+
+    setIsLoading(true);
+    setError(null);
+    setChartData([]);
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const data = await chartAPI.getMinuteCandles(stockCode, { date: today });
+      
+      if (data.length > 0) {
+        setChartData(data);
+        setOldestDate(today);
+        setLoadedDates(new Set([today]));
+        setCanLoadMore(true);
+      } else {
+        setCanLoadMore(false);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '차트 데이터 로드 실패';
+      setError(message);
+      console.error('TRView 차트 데이터 로드 오류:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [enabled, stockCode]);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  const loadPreviousDay = useCallback(async () => {
+    if (isLoadingMore || !canLoadMore || !oldestDate) return;
+
+    setIsLoadingMore(true);
+    let attempts = 5; // 주말/휴장일 감안하여 최대 5번 시도
+    let foundData = false;
+
+    try {
+      let targetDate = new Date(oldestDate);
+
+      while (attempts > 0 && !foundData) {
+        targetDate.setDate(targetDate.getDate() - 1);
+        const prevDateStr = targetDate.toISOString().split('T')[0];
+
+        if (loadedDates.has(prevDateStr)) {
+          attempts--;
+          continue;
+        }
+
+        const prevData = await chartAPI.getMinuteCandles(stockCode, { date: prevDateStr });
+        setLoadedDates(prevLoadedDates => new Set(prevLoadedDates).add(prevDateStr));
+
+        if (prevData.length > 0) {
+          setChartData(currentData => {
+            const newData = [...prevData, ...currentData];
+            const uniqueData = Array.from(new Map(newData.map(item => [item.timestamp, item])).values())
+              .sort((a, b) => a.timestamp - b.timestamp);
+            return uniqueData;
+          });
+          setOldestDate(prevDateStr);
+          foundData = true;
+        } else {
+          attempts--;
+        }
+      }
+
+      if (!foundData) {
+        setCanLoadMore(false);
+      }
+    } catch (err) {
+      console.error('Error loading previous day data:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, canLoadMore, oldestDate, stockCode, loadedDates]);
+
+  return { 
+    chartData, 
+    isLoading, 
+    error, 
+    refetch: fetchInitialData, 
+    loadPreviousDay, 
+    isLoadingMore, 
+    canLoadMore 
+  };
+}

@@ -438,39 +438,6 @@ class KoreaInvestAPIService:
             self.last_error = str(e)
             logger.error(f"일/주/월봉 차트 데이터 조회 실패: {e}")
             return None
-
-    async def get_daily_chart_data(self, stock_code: str, start_date: str, end_date: str) -> Optional[List[ChartCandle]]:
-        """일봉 데이터를 조회하여 ChartCandle 리스트로 반환합니다."""
-        logger.info(f"일봉 데이터 조회 시작: {stock_code}, 기간: {start_date}~{end_date}")
-        df = await self.get_daily_price_chart(stock_code, start_date, end_date, 'D')
-
-        if df is None or df.empty:
-            logger.warning(f"API로부터 일봉 데이터를 받지 못함: {stock_code}")
-            return []
-
-        chart_candles: List[ChartCandle] = []
-        for _, row in df.iterrows():
-            try:
-                # '일자' (YYYYMMDD)를 ISO 형식의 타임스탬프로 변환
-                date_str = str(row['일자'])
-                dt_object = datetime.strptime(date_str, "%Y%m%d")
-                timestamp_iso = dt_object.strftime("%Y-%m-%dT00:00:00")
-
-                candle = ChartCandle(
-                    timestamp=timestamp_iso,
-                    open=float(row['시가']),
-                    high=float(row['고가']),
-                    low=float(row['저가']),
-                    close=float(row['종가']),
-                    volume=int(row['거래량'])
-                )
-                chart_candles.append(candle)
-            except Exception as e:
-                logger.warning(f"일봉 데이터 변환 중 오류 발생: {e}, 데이터: {row}")
-                continue
-        
-        logger.info(f"일봉 데이터 변환 완료: {len(chart_candles)}개 캔들")
-        return chart_candles
     
     async def get_current_price(self, stock_code: str) -> Optional[Dict[str, Any]]:
         """현재가 조회 (비동기)"""

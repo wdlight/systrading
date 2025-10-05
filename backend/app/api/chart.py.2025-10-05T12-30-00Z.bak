@@ -19,8 +19,8 @@ router = APIRouter(tags=["Chart"])
 )
 async def get_day_chart_data(
     stock_code: str,
-    start_date: str = Query(..., description="시작 날짜 (YYYY-MM-DD)", regex=r"^\d{4}-\d{2}-\d{2}$"),
-    end_date: str = Query(..., description="종료 날짜 (YYYY-MM-DD)", regex=r"^\d{4}-\d{2}-\d{2}$"),
+    start_date: str = Query(..., description="시작 날짜 (YYYY-MM-DD)", regex=r"^\\d{4}-\\d{2}-\\d{2}$"),
+    end_date: str = Query(..., description="종료 날짜 (YYYY-MM-DD)", regex=r"^\\d{4}-\\d{2}-\\d{2}$"),
     trading_service: TradingService = Depends(get_trading_service),
 ) -> List[ChartCandle]:
     """

@@ -1,7 +1,7 @@
 // components/trading/TRViewChart.tsx
 'use client';
 
-import { useEffect, useRef, useMemo, useState } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import {
   createChart,
   IChartApi,
@@ -45,8 +45,7 @@ export function TRViewChart({
   onReady,
   onLoadPrevious,
   isLoadingMore,
-}: TRViewChartProps) {  const [legendData, setLegendData] = useState<any>(null);
-  const chartContainerRef = useRef<HTMLDivElement>(null);
+}: TRViewChartProps) {  const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
@@ -220,64 +219,8 @@ export function TRViewChart({
     loadingIndicatorRef.current.style.display = isLoadingMore ? 'block' : 'none';
   }, [isLoadingMore]);
 
-  // OHLC Legend Logic
-  useEffect(() => {
-    if (!chartRef.current || !candleSeriesRef.current) {
-      return;
-    }
-    const chart = chartRef.current;
-    const candleSeries = candleSeriesRef.current;
-
-    const handleCrosshairMove = (param: any) => {
-      if (
-        !param.time ||
-        !param.seriesData.has(candleSeries)
-      ) {
-        setLegendData(null);
-        return;
-      }
-      const candle = param.seriesData.get(candleSeries);
-      const volume = volumeSeriesRef.current ? param.seriesData.get(volumeSeriesRef.current) : null;
-      setLegendData({ ...candle, volume: volume?.value });
-    };
-
-    chart.subscribeCrosshairMove(handleCrosshairMove);
-
-    return () => {
-      chart.unsubscribeCrosshairMove(handleCrosshairMove);
-    };
-  }, [chartData]); // Re-run when data changes, ensuring subscription is on the correct series
-
   return (
     <div style={{ position: 'relative' }} className={className}>
-      {/* 정보창(Legend) UI */}
-      {legendData && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            zIndex: 20,
-            padding: '8px',
-            background: 'rgba(26, 26, 27, 0.8)',
-            border: '1px solid #333',
-            borderRadius: '4px',
-            color: 'white',
-            fontSize: '12px',
-            pointerEvents: 'none',
-          }}
-        >
-          <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>
-            {new Date(legendData.time * 1000).toLocaleString()}
-          </div>
-          <div>O: <span style={{ color: '#22c55e' }}>{legendData.open}</span></div>
-          <div>H: <span style={{ color: '#ef4444' }}>{legendData.high}</span></div>
-          <div>L: <span style={{ color: '#3b82f6' }}>{legendData.low}</span></div>
-          <div>C: <span style={{ color: '#f97316' }}>{legendData.close}</span></div>
-          {legendData.volume && <div>Vol: {legendData.volume.toLocaleString()}</div>}
-        </div>
-      )}
-
       <div
         ref={chartContainerRef}
         className="bg-[#0a0a0b] border border-gray-700 rounded-lg"

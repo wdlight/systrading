@@ -11,54 +11,6 @@ from loguru import logger
 
 router = APIRouter(tags=["Chart"])
 
-@router.get(
-    "/{stock_code}/day",
-    response_model=List[ChartCandle],
-    summary="일봉 차트 데이터 조회",
-    description="지정된 기간의 일봉 차트 데이터를 조회합니다. 최소 6개월 이상의 데이터를 요청하는 데 사용됩니다."
-)
-async def get_day_chart_data(
-    stock_code: str,
-    start_date: str = Query(..., description="시작 날짜 (YYYY-MM-DD)", regex=r"^\d{4}-\d{2}-\d{2}$"),
-    end_date: str = Query(..., description="종료 날짜 (YYYY-MM-DD)", regex=r"^\d{4}-\d{2}-\d{2}$"),
-    trading_service: TradingService = Depends(get_trading_service),
-) -> List[ChartCandle]:
-    """
-    일봉 차트 데이터 조회
-
-    - **start_date**: 조회 시작일
-    - **end_date**: 조회 종료일
-    - 프론트엔드에서는 초기 로드 시 1년치 데이터를 요청합니다.
-    """
-    try:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-
-        if start_dt > end_dt:
-            raise HTTPException(status_code=400, detail="시작 날짜는 종료 날짜보다 늦을 수 없습니다.")
-
-        chart_data = await trading_service.get_day_chart_data(
-            stock_code=stock_code,
-            start_date=start_dt,
-            end_date=end_dt
-        )
-
-        if chart_data is None:
-            logger.warning(f"일봉 데이터 없음: {stock_code}, {start_date}~{end_date}")
-            return []
-
-        logger.info(f"일봉 데이터 응답: {stock_code}, {len(chart_data)}개 캔들")
-        return chart_data
-
-    except ValueError:
-        raise HTTPException(status_code=400, detail="잘못된 날짜 형식입니다. YYYY-MM-DD 형식을 사용하세요.")
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"일봉 차트 데이터 조회 실패: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"일봉 차트 데이터 조회 중 오류 발생: {e}")
-
-
 @router.get("/{stock_code}", response_model=ChartCandleResponse)
 async def get_candlestick_data(
     stock_code: str,

@@ -157,3 +157,7 @@ backend/vkis/*
 # TA-Lib Source and Library
 backend/ta-lib/
 backend/ta-lib-0.4.0-src.tar.gz
+
+backend/kordata/*/*.json
+backend/kordata/*/daily/*.json
+

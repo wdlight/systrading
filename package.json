@@ -4,6 +4,7 @@
   },
   "dependencies": {
     "@playwright/test": "^1.55.0",
-    "lightweight-charts": "^5.0.9"
+    "lightweight-charts": "^5.0.9",
+    "openai": "^6.1.0"
   }
 }
