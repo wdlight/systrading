@@ -49,3 +49,49 @@ class StockInfoService:
             logger.info("종목 리스트 캐시를 사용합니다.")
         
         return self._stock_list_cache
+
+    async def get_market_indices(self) -> Dict[str, Dict[str, float]]:
+        """KOSPI, KOSDAQ 지수를 pykrx로 조회합니다."""
+        today = datetime.now().strftime("%Y%m%d")
+        try:
+            df = stock.get_index_ohlcv(today, today, "KOSPI")
+            kospi = df.iloc[0]
+            
+            df_kosdaq = stock.get_index_ohlcv(today, today, "KOSDAQ")
+            kosdaq = df_kosdaq.iloc[0]
+
+            return {
+                "kospi": {
+                    "current": kospi['종가'],
+                    "change": kospi['종가'] - kospi['시가'],
+                    "change_rate": (kospi['종가'] / kospi['시가'] - 1) * 100 if kospi['시가'] != 0 else 0,
+                },
+                "kosdaq": {
+                    "current": kosdaq['종가'],
+                    "change": kosdaq['종가'] - kosdaq['시가'],
+                    "change_rate": (kosdaq['종가'] / kosdaq['시가'] - 1) * 100 if kosdaq['시가'] != 0 else 0,
+                }
+            }
+        except Exception as e:
+            logger.warning(f"pykrx 지수 조회 실패: {e}. 더미 데이터를 사용합니다.")
+            return {
+                "kospi": {"current": 2600.0, "change": 10.5, "change_rate": 0.4},
+                "kosdaq": {"current": 850.0, "change": -5.2, "change_rate": -0.6},
+            }
+
+    async def get_market_overview(self) -> Dict[str, Any]:
+        """시장 현황 데이터를 구성하여 반환합니다."""
+        indices = await self.get_market_indices()
+        
+        # 주요 종목 정보 (더미)
+        top_gainers = [{"stock_code": "005930", "stock_name": "삼성전자", "current_price": 78000, "change_rate": 1.5}]
+        top_losers = [{"stock_code": "035720", "stock_name": "카카오", "current_price": 45000, "change_rate": -2.1}]
+
+        return {
+            "market_status": "open",
+            "kospi": indices["kospi"],
+            "kosdaq": indices["kosdaq"],
+            "usd_krw": {"current": 1350.0, "change": 2.0, "change_rate": 0.15}, # 환율은 더미
+            "top_gainers": top_gainers,
+            "top_losers": top_losers,
+        }

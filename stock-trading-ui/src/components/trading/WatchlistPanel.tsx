@@ -104,9 +104,9 @@ export function WatchlistPanel({ className }: WatchlistPanelProps) {
                 <Eye className="h-5 w-5" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-heading-md text-white">Portfolio Holdings</h3>
+                <h3 className="text-heading-md text-white">Watchlist</h3>
                 <p className="text-caption-md text-gray-400">
-                  {filteredAndSortedWatchlist.length} position{filteredAndSortedWatchlist.length !== 1 ? 's' : ''} tracked
+                  {filteredAndSortedWatchlist.length} item{filteredAndSortedWatchlist.length !== 1 ? 's' : ''} in watchlist
                 </p>
               </div>
             </div>

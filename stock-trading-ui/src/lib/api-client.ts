@@ -138,7 +138,7 @@ export class TradingAPIClient {
    * 매매 조건 조회
    */
   async getTradingConditions(): Promise<TradingConditions> {
-    return this.requestWithRetry<TradingConditions>('/api/trading/conditions');
+    return this.requestWithRetry<TradingConditions>('/api/conditions');
   }
 
   /**
@@ -269,7 +269,7 @@ export class TradingAPIClient {
    * 시장 현황 조회
    */
   async getMarketOverview(): Promise<MarketOverview> {
-    return this.requestWithRetry<MarketOverview>('/api/market/overview');
+    return this.requestWithRetry<MarketOverview>('/api/stocks/overview');
   }
 
   /**

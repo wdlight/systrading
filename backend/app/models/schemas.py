@@ -195,3 +195,24 @@ class ErrorResponse(BaseModel):
     error_code: str = Field(..., description="에러 코드")
     error_message: str = Field(..., description="에러 메시지")
     timestamp: datetime = Field(default_factory=datetime.now)
+
+# ===== 시장 현황 모델 =====
+
+class MarketIndex(BaseModel):
+    current: float
+    change: float
+    change_rate: float
+
+class TopStock(BaseModel):
+    stock_code: str
+    stock_name: str
+    current_price: int
+    change_rate: float
+
+class MarketOverview(BaseModel):
+    market_status: str
+    kospi: MarketIndex
+    kosdaq: MarketIndex
+    usd_krw: MarketIndex
+    top_gainers: List[TopStock]
+    top_losers: List[TopStock]

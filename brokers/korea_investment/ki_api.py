@@ -157,7 +157,7 @@ class KoreaInvestAPI(BrokerInterface):
                 logger.warning(f"연속조회 키 저장 실패: {e}")
             
             df = pd.DataFrame(output1)
-            target_columns = [ 'pdno',  'prdt_name', 'hldg_qty', 'ord_psbl_qty', 'pchs_amt', 'evlu_erng_rt','prpr', 'bfdy_cprs_icdc', 'fltt_rt' ]
+            target_columns = [ 'pdno',  'prdt_name', 'hldg_qty', 'ord_psbl_qty', 'pchs_avg_pric', 'evlu_pfls_rt','prpr', 'bfdy_cprs_icdc', 'fltt_rt' ]
             df = df[target_columns]
             df[target_columns[2:]] = df[target_columns[2:]].apply(pd.to_numeric) # 종목코드, 종목명 제외하고 형변환
             column_name_map = dict( zip(target_columns, out_columns))

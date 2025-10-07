@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { QuickActionPanel } from '@/components/layout/QuickActionPanel';
 import { PortfolioSummary } from '@/components/trading/PortfolioSummary';
 import { TradingConditions } from '@/components/trading/TradingConditions';
+import { HoldingsPanel } from '@/components/trading/HoldingsPanel';
 import { WatchlistPanel } from '@/components/trading/WatchlistPanel';
 import { PortfolioPerformance } from '@/components/trading/PortfolioPerformance';
 import { MarketOverview } from '@/components/trading/MarketOverview';
@@ -62,6 +63,11 @@ export default function Home() {
                 <div>
                   <PortfolioPerformance className="h-full" />
                 </div>
+              </div>
+
+              {/* Main Section: Holdings Panel */}
+              <div className="space-y-6">
+                <HoldingsPanel />
               </div>
 
               {/* Main Section: Watchlist Panel */}
