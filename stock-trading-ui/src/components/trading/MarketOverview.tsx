@@ -21,9 +21,46 @@ export function MarketOverview({ className }: MarketOverviewProps) {
   }
 
   const marketData = [
-    { name: 'KOSPI', value: marketOverview.kospi.current, change: marketOverview.kospi.change, changeRate: marketOverview.kospi.change_rate, trend: marketOverview.kospi.change >= 0 ? 'up' : 'down', waiting: marketOverview.kospi.current === 0 },
-    { name: 'KOSDAQ', value: marketOverview.kosdaq.current, change: marketOverview.kosdaq.change, changeRate: marketOverview.kosdaq.change_rate, trend: marketOverview.kosdaq.change >= 0 ? 'up' : 'down', waiting: marketOverview.kosdaq.current === 0 },
-    { name: 'USD/KRW', value: marketOverview.usd_krw.current, change: marketOverview.usd_krw.change, changeRate: marketOverview.usd_krw.change_rate, trend: marketOverview.usd_krw.change >= 0 ? 'up' : 'down', waiting: false },
+    {
+      name: 'KOSPI',
+      value: marketOverview.kospi.current,
+      change: marketOverview.kospi.change,
+      changeRate: marketOverview.kospi.change_rate,
+      trend: marketOverview.kospi.change >= 0 ? 'up' : 'down',
+      waiting: marketOverview.kospi.current === 0,
+    },
+    {
+      name: 'KOSDAQ',
+      value: marketOverview.kosdaq.current,
+      change: marketOverview.kosdaq.change,
+      changeRate: marketOverview.kosdaq.change_rate,
+      trend: marketOverview.kosdaq.change >= 0 ? 'up' : 'down',
+      waiting: marketOverview.kosdaq.current === 0,
+    },
+    {
+      name: 'NASDAQ',
+      value: marketOverview.nasdaq.current,
+      change: marketOverview.nasdaq.change,
+      changeRate: marketOverview.nasdaq.change_rate,
+      trend: marketOverview.nasdaq.change >= 0 ? 'up' : 'down',
+      waiting: marketOverview.nasdaq.current === 0,
+    },
+    {
+      name: 'S&P 500',
+      value: marketOverview.sp500.current,
+      change: marketOverview.sp500.change,
+      changeRate: marketOverview.sp500.change_rate,
+      trend: marketOverview.sp500.change >= 0 ? 'up' : 'down',
+      waiting: marketOverview.sp500.current === 0,
+    },
+    {
+      name: 'USD/KRW',
+      value: marketOverview.usd_krw.current,
+      change: marketOverview.usd_krw.change,
+      changeRate: marketOverview.usd_krw.change_rate,
+      trend: marketOverview.usd_krw.change >= 0 ? 'up' : 'down',
+      waiting: marketOverview.usd_krw.current === 0,
+    },
   ];
 
   const topStocks = [

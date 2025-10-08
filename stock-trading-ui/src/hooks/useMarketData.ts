@@ -26,16 +26,32 @@ export function useMarketData() {
   useEffect(() => {
     loadInitialData();
 
-    const handleIndexUpdate = (data: any) => {
+    type IndexUpdatePayload = {
+      index_code?: string;
+      code?: string;
+      current?: number | string;
+      change?: number | string;
+      change_rate?: number | string;
+      raw?: Record<string, unknown>;
+      meta?: Record<string, unknown>;
+      timestamp?: string;
+    };
+
+    const handleIndexUpdate = (data: IndexUpdatePayload) => {
       setMarketOverview(prev => {
         if (!prev) return null;
         
         const newOverview = { ...prev };
-        const code = data.index_code;
+        const rawCode = data.index_code ?? data.code;
+        const code = typeof rawCode === 'string' ? rawCode.toUpperCase() : String(rawCode ?? '');
+
         const indexKey =
-          code === '001' || code === '0001' ? 'kospi' :
-          code === '201' || code === '1001' || code === '0201' || code === '1501' || code === '2001' ? 'kosdaq' :
-          null;
+          code === '001' || code === '0001' ? 'kospi'
+            : code === '201' || code === '1001' || code === '0201' || code === '1501' || code === '2001' ? 'kosdaq'
+            : code === 'NDX' || code === 'IXIC' ? 'nasdaq'
+            : code === 'US500' || code === 'SPX' ? 'sp500'
+            : code === 'FX@KRW' || code === 'USDKRW' ? 'usd_krw'
+            : null;
 
         if (indexKey && newOverview[indexKey]) {
           const current = Number(data.current);

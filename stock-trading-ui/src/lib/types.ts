@@ -205,6 +205,8 @@ export interface MarketOverview {
   market_status: string;
   kospi: MarketIndex;
   kosdaq: MarketIndex;
+  nasdaq: MarketIndex;
+  sp500: MarketIndex;
   usd_krw: MarketIndex;
   top_gainers?: MarketTopStock[];
   top_losers?: MarketTopStock[];

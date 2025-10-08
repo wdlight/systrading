@@ -558,6 +558,15 @@ class KoreaInvestAPIService:
             parsed = self._parse_index_response(output, market_code, index_code)
 
             if parsed:
+                self.update_cached_index(
+                    parsed.index_code,
+                    parsed.market_code,
+                    parsed.current,
+                    parsed.change,
+                    parsed.change_rate,
+                    meta=meta,
+                    raw=raw_result,
+                )
                 logger.info(
                     "지수 조회 성공",
                     extra={
@@ -577,6 +586,142 @@ class KoreaInvestAPIService:
         except Exception as e:
             self.last_error = str(e)
             logger.error(f"지수 현재가 조회 실패: {e}")
+            return None
+
+
+    async def get_overseas_index_price(
+        self,
+        index_code: str,
+        market_code: str = "N",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        period_code: str = "D",
+    ) -> Optional[MarketIndexData]:
+        """해외 지수/환율 기간 시세에서 최신 값을 추출"""
+        if not self.is_connected or not self.api_instance:
+            logger.error("API가 연결되지 않았습니다.")
+            return None
+
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, "%Y%m%d")
+            except ValueError:
+                logger.warning(
+                    f"end_date 형식이 잘못되어 현재 날짜로 대체합니다. end_date={end_date}"
+                )
+                end_dt = datetime.now()
+                end_date = end_dt.strftime("%Y%m%d")
+        else:
+            end_dt = datetime.now()
+            end_date = end_dt.strftime("%Y%m%d")
+
+        if start_date is None:
+            start_date = (end_dt - timedelta(days=30)).strftime("%Y%m%d")
+
+        try:
+            raw_result = await self._run_in_executor(
+                self.api_instance.get_overseas_daily_chartprice,
+                market_code,
+                index_code,
+                start_date,
+                end_date,
+                period_code,
+            )
+
+            if not raw_result:
+                raw_result = await self._run_in_executor(
+                    self.api_instance.get_overseas_price_periodic,
+                    market_code,
+                    index_code,
+                    start_date,
+                    end_date,
+                    period_code,
+                )
+
+            self.last_raw_response = raw_result
+
+            if not raw_result:
+                self.last_error = "Empty response"
+                logger.warning(
+                    "해외 지수 조회 결과가 비어 있습니다.",
+                    extra={
+                        "market_code": market_code,
+                        "index_code": index_code,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                    }
+                )
+                return None
+
+            ok = raw_result.get("ok", True)
+            meta = raw_result.get("meta", {}) or {}
+            output = raw_result.get("output1")
+
+            if not ok:
+                self.last_error = meta.get("msg1") or "Non-success response"
+                logger.warning(
+                    "해외 지수 조회 비정상 응답",
+                    extra={
+                        "market_code": market_code,
+                        "index_code": index_code,
+                        "meta": meta,
+                    }
+                )
+
+            if not output:
+                self.last_error = "Empty output"
+                logger.warning(
+                    "해외 지수 조회 output1이 비어 있습니다.",
+                    extra={
+                        "market_code": market_code,
+                        "index_code": index_code,
+                        "meta": meta,
+                    }
+                )
+                return None
+
+            parsed = self._parse_overseas_index_response(output, market_code, index_code)
+
+            if parsed:
+                self.update_cached_index(
+                    parsed.index_code,
+                    parsed.market_code,
+                    parsed.current,
+                    parsed.change,
+                    parsed.change_rate,
+                    meta=meta,
+                    raw=raw_result,
+                )
+                logger.info(
+                    "해외 지수 조회 성공",
+                    extra={
+                        "market_code": market_code,
+                        "index_code": index_code,
+                        "meta": meta,
+                        "values": parsed.model_dump(),
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "period_code": period_code,
+                    }
+                )
+            else:
+                logger.warning(
+                    "해외 지수 파싱 결과가 None입니다.",
+                    extra={
+                        "market_code": market_code,
+                        "index_code": index_code,
+                        "meta": meta,
+                    }
+                )
+
+            return parsed
+
+        except Exception as e:
+            self.last_error = str(e)
+            logger.error(
+                f"해외 지수 조회 실패: {e}",
+                exc_info=True
+            )
             return None
 
 
@@ -610,6 +755,106 @@ class KoreaInvestAPIService:
         except Exception as parse_error:
             logger.error(
                 f"지수 응답 파싱 실패: {parse_error} (market_code={market_code}, index_code={index_code}, data={data})",
+                exc_info=True
+            )
+            self.last_error = str(parse_error)
+            return None
+
+    def _extract_float(self, data: Dict[str, Any], keys: List[str]) -> Optional[float]:
+        for key in keys:
+            if key not in data:
+                continue
+
+            value = data.get(key)
+            if value in (None, ""):
+                continue
+
+            try:
+                return float(str(value).replace(",", ""))
+            except (TypeError, ValueError):
+                continue
+        return None
+
+    def _parse_overseas_index_response(
+        self,
+        data: Dict[str, Any],
+        market_code: str,
+        index_code: str
+    ) -> Optional[MarketIndexData]:
+        if not isinstance(data, dict):
+            logger.error(
+                f"해외 지수 응답 형식 오류: dict가 아님 (type={type(data)})",
+                extra={"market_code": market_code, "index_code": index_code}
+            )
+            self.last_error = "Invalid response format"
+            return None
+
+        try:
+            current = self._extract_float(
+                data,
+                [
+                    "ovrs_nmix_prpr",
+                    "ovrs_prod_prpr",
+                    "now_pric1",
+                    "t_rate",
+                ],
+            )
+
+            previous = self._extract_float(
+                data,
+                [
+                    "ovrs_nmix_prdy_clpr",
+                    "p_rate",
+                ],
+            )
+
+            change = self._extract_float(
+                data,
+                [
+                    "ovrs_nmix_prdy_vrss",
+                    "prdy_vrss",
+                    "t_xdif",
+                ],
+            )
+
+            change_rate = self._extract_float(
+                data,
+                [
+                    "prdy_ctrt",
+                    "ovrs_nmix_prdy_ctrt",
+                    "t_xrat",
+                ],
+            )
+
+            if current is None and market_code == "X":
+                current = self._extract_float(data, ["t_rate"])
+
+            if current is None:
+                raise ValueError("필수 해외 지수 필드가 누락되었습니다")
+
+            if change is None and current is not None and previous is not None:
+                change = current - previous
+
+            if change_rate is None and change is not None and previous not in (None, 0.0):
+                try:
+                    change_rate = (change / previous) * 100 if previous else 0.0
+                except ZeroDivisionError:
+                    change_rate = 0.0
+
+            change = change if change is not None else 0.0
+            change_rate = change_rate if change_rate is not None else 0.0
+
+            return MarketIndexData(
+                index_code=index_code,
+                market_code=market_code,
+                current=current,
+                change=change,
+                change_rate=change_rate,
+            )
+
+        except Exception as parse_error:
+            logger.error(
+                f"해외 지수 응답 파싱 실패: {parse_error} (market_code={market_code}, index_code={index_code}, data={data})",
                 exc_info=True
             )
             self.last_error = str(parse_error)

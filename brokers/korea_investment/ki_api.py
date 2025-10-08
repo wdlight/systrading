@@ -583,6 +583,91 @@ class KoreaInvestAPI(BrokerInterface):
         }
 
 
+    def get_overseas_price_periodic(
+        self,
+        market_code: str,
+        item_code: str,
+        start_date: str,
+        end_date: str,
+        period_code: str = "D",
+    ):
+        """해외 지수/환율 기간별 시세 조회 (price-periodic)"""
+        url = "/uapi/overseas-price/v1/quotations/price-periodic"
+        tr_id = "FHKST03030100"
+
+        params = {
+            "fid_cond_mrkt_div_code": market_code,
+            "fid_input_iscd": item_code,
+            "fid_input_date_1": start_date,
+            "fid_input_date_2": end_date,
+            "fid_period_div_code": period_code,
+        }
+
+        response = self._url_fetch(url, tr_id, params)
+
+        if not response:
+            return None
+
+        body = response.get_body()
+        meta = {
+            "rt_cd": getattr(body, "rt_cd", None),
+            "msg_cd": getattr(body, "msg_cd", None),
+            "msg1": getattr(body, "msg1", None),
+        }
+
+        output1 = getattr(body, "output1", None)
+        output2 = getattr(body, "output2", None)
+
+        return {
+            "ok": response.is_ok(),
+            "output1": output1,
+            "output2": output2,
+            "meta": meta,
+        }
+
+    def get_overseas_daily_chartprice(
+        self,
+        market_code: str,
+        item_code: str,
+        start_date: str,
+        end_date: str,
+        period_code: str = "D",
+    ):
+        """해외 종목/지수/환율 기간별 시세 조회 (inquire-daily-chartprice)"""
+        url = "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice"
+        tr_id = "FHKST03030100"
+
+        params = {
+            "fid_cond_mrkt_div_code": market_code,
+            "fid_input_iscd": item_code,
+            "fid_input_date_1": start_date,
+            "fid_input_date_2": end_date,
+            "fid_period_div_code": period_code,
+        }
+
+        response = self._url_fetch(url, tr_id, params)
+
+        if not response:
+            return None
+
+        body = response.get_body()
+        meta = {
+            "rt_cd": getattr(body, "rt_cd", None),
+            "msg_cd": getattr(body, "msg_cd", None),
+            "msg1": getattr(body, "msg1", None),
+        }
+
+        output1 = getattr(body, "output1", None)
+        output2 = getattr(body, "output2", None)
+
+        return {
+            "ok": response.is_ok(),
+            "output1": output1,
+            "output2": output2,
+            "meta": meta,
+        }
+
+
     def get_daily_ccld(self, start_date: str, end_date: str, stock_code: str = "", sll_buy_dvsn_cd: str = "00"):
         """
         일별 주문 체결 조회 (KIS-04)

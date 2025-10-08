@@ -59,34 +59,81 @@ class StockInfoService:
             indices: Dict[str, Dict[str, float]] = {}
 
             request_map = {
-                "kospi": [("U", "0001")],
-                "kosdaq": [
-                    ("J", "1001"),
-                    ("J", "0201"),
-                    ("J", "1501"),
-                    ("J", "2001"),
-                    ("U", "1001"),
-                ],
+                "kospi": {
+                    "type": "domestic",
+                    "candidates": [("U", "0001")],
+                },
+                "kosdaq": {
+                    "type": "domestic",
+                    "candidates": [
+                        ("J", "1001"),
+                        ("J", "0201"),
+                        ("J", "1501"),
+                        ("J", "2001"),
+                        ("U", "1001"),
+                    ],
+                },
+                "nasdaq": {
+                    "type": "overseas",
+                    "candidates": [
+                        ("N", "NDX"),
+                        ("N", "IXIC"),
+                    ],
+                },
+                "sp500": {
+                    "type": "overseas",
+                    "candidates": [
+                        ("N", "US500"),
+                        ("N", "SPX"),
+                    ],
+                },
+                "usd_krw": {
+                    "type": "overseas",
+                    "candidates": [
+                        ("X", "FX@KRW"),
+                    ],
+                },
             }
 
-            for label, candidates in request_map.items():
+            def zero_payload(market_code: str, index_code: str) -> Dict[str, float]:
+                return {
+                    "code": index_code,
+                    "market": market_code,
+                    "current": 0.0,
+                    "change": 0.0,
+                    "change_rate": 0.0,
+                }
+
+            fetch_map = {
+                "domestic": self.korea_invest_service.get_index_current_price,
+                "overseas": self.korea_invest_service.get_overseas_index_price,
+            }
+
+            for label, spec in request_map.items():
+                candidates = spec.get("candidates", [])
+                fetch_type = spec.get("type", "domestic")
+                fetcher = fetch_map.get(fetch_type, self.korea_invest_service.get_index_current_price)
                 result_data = None
                 last_meta = None
 
                 for market_code, index_code in candidates:
-                    result = await self.korea_invest_service.get_index_current_price(
-                        index_code,
+                    result = await fetcher(
+                        index_code=index_code,
                         market_code=market_code
                     )
 
                     raw = self.korea_invest_service.get_last_raw_response() or {}
-                    meta = raw.get("meta") if isinstance(raw, dict) else None
+                    if isinstance(raw, dict):
+                        meta = raw.get("meta")
+                    else:
+                        meta = None
                     last_meta = meta
 
                     logger.info(
                         "지수 조회 응답",
                         extra={
                             "label": label,
+                            "fetch_type": fetch_type,
                             "market_code": market_code,
                             "index_code": index_code,
                             "meta": meta,
@@ -157,20 +204,17 @@ class StockInfoService:
 
                     fallback_market = candidates[-1][0] if candidates else "U"
                     fallback_code = candidates[-1][1] if candidates else "0001"
-                    indices[label] = {
-                        "code": fallback_code,
-                        "market": fallback_market,
-                        "current": 0.0,
-                        "change": 0.0,
-                        "change_rate": 0.0,
-                    }
+                    indices[label] = zero_payload(fallback_market, fallback_code)
 
             return indices
         except Exception as e:
             logger.error(f"Failed to fetch market indices: {e}", exc_info=True)
             return {
-                "kospi": {"code": "0001", "market": "U", "current": 0, "change": 0, "change_rate": 0},
-                "kosdaq": {"code": "1001", "market": "K", "current": 0, "change": 0, "change_rate": 0},
+                "kospi": {"code": "0001", "market": "U", "current": 0.0, "change": 0.0, "change_rate": 0.0},
+                "kosdaq": {"code": "1001", "market": "J", "current": 0.0, "change": 0.0, "change_rate": 0.0},
+                "nasdaq": {"code": "NDX", "market": "N", "current": 0.0, "change": 0.0, "change_rate": 0.0},
+                "sp500": {"code": "US500", "market": "N", "current": 0.0, "change": 0.0, "change_rate": 0.0},
+                "usd_krw": {"code": "FX@KRW", "market": "X", "current": 0.0, "change": 0.0, "change_rate": 0.0},
             }
 
     async def get_market_overview(self) -> Dict[str, Any]:
@@ -183,15 +227,11 @@ class StockInfoService:
 
         return {
             "market_status": "open",
-            "kospi": indices["kospi"],
-            "kosdaq": indices["kosdaq"],
-            "usd_krw": {
-                "code": "USDKRW",
-                "market": "FX",
-                "current": 1350.0,
-                "change": 2.0,
-                "change_rate": 0.15
-            }, # 환율은 더미
+            "kospi": indices.get("kospi", {"code": "0001", "market": "U", "current": 0.0, "change": 0.0, "change_rate": 0.0}),
+            "kosdaq": indices.get("kosdaq", {"code": "1001", "market": "J", "current": 0.0, "change": 0.0, "change_rate": 0.0}),
+            "nasdaq": indices.get("nasdaq", {"code": "NDX", "market": "N", "current": 0.0, "change": 0.0, "change_rate": 0.0}),
+            "sp500": indices.get("sp500", {"code": "US500", "market": "N", "current": 0.0, "change": 0.0, "change_rate": 0.0}),
+            "usd_krw": indices.get("usd_krw", {"code": "FX@KRW", "market": "X", "current": 0.0, "change": 0.0, "change_rate": 0.0}),
             "top_gainers": top_gainers,
             "top_losers": top_losers,
         }

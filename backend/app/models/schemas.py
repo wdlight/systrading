@@ -215,6 +215,8 @@ class MarketOverview(BaseModel):
     market_status: str
     kospi: MarketIndex
     kosdaq: MarketIndex
+    nasdaq: MarketIndex
+    sp500: MarketIndex
     usd_krw: MarketIndex
     top_gainers: List[TopStock]
     top_losers: List[TopStock]
