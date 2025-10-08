@@ -243,6 +243,9 @@ export class WebSocketManager {
       case WS_MESSAGE_TYPES.ORDER_UPDATE:
         this.notifyListeners(type, data);
         break;
+      case WS_MESSAGE_TYPES.MARKET_INDEX_UPDATE:
+        this.notifyListeners(type, data);
+        break;
       default:
         console.warn('알 수 없는 메시지 타입:', type);
     }
@@ -390,4 +393,13 @@ export function subscribeToOrderUpdates(callback: (data: OrderUpdate['data']) =>
 export function subscribeToConnectionStatus(callback: (state: ConnectionState) => void): () => void {
   wsManager.onConnectionStateChange(callback);
   return () => wsManager.offConnectionStateChange(callback);
+}
+
+// 시장 지수 업데이트 구독
+export function subscribeToMarketIndexUpdates(callback: (data: any) => void): void {
+  wsManager.on(WS_MESSAGE_TYPES.MARKET_INDEX_UPDATE, callback);
+}
+
+export function unsubscribeFromMarketIndexUpdates(callback: (data: any) => void): void {
+  wsManager.off(WS_MESSAGE_TYPES.MARKET_INDEX_UPDATE, callback);
 }

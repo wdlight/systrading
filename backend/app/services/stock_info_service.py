@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from loguru import logger
 import pandas as pd
@@ -6,12 +6,14 @@ import pandas as pd
 # pykrx는 vkis 가상환경에 설치되어 있어야 합니다.
 # pip install pykrx
 from pykrx import stock
+from app.core.korea_invest import KoreaInvestAPIService
 
 class StockInfoService:
-    def __init__(self):
+    def __init__(self, korea_invest_service: KoreaInvestAPIService):
         self._stock_list_cache: List[Dict[str, str]] = []
         self._last_updated: Optional[datetime] = None
         self._cache_duration = timedelta(hours=12) # 12시간 캐시 유지
+        self.korea_invest_service = korea_invest_service
         logger.info("StockInfoService 초기화 완료.")
 
     async def _fetch_all_stocks_from_pykrx(self) -> List[Dict[str, str]]:
@@ -51,32 +53,124 @@ class StockInfoService:
         return self._stock_list_cache
 
     async def get_market_indices(self) -> Dict[str, Dict[str, float]]:
-        """KOSPI, KOSDAQ 지수를 pykrx로 조회합니다."""
-        today = datetime.now().strftime("%Y%m%d")
+        """초기 로딩을 위한 시장 지수 더미 데이터를 반환합니다. 실제 데이터는 WebSocket을 통해 제공됩니다."""
+        logger.info("Returning initial dummy data for market indices. Real data will be pushed via WebSocket.")
         try:
-            df = stock.get_index_ohlcv(today, today, "KOSPI")
-            kospi = df.iloc[0]
-            
-            df_kosdaq = stock.get_index_ohlcv(today, today, "KOSDAQ")
-            kosdaq = df_kosdaq.iloc[0]
+            indices: Dict[str, Dict[str, float]] = {}
 
-            return {
-                "kospi": {
-                    "current": kospi['종가'],
-                    "change": kospi['종가'] - kospi['시가'],
-                    "change_rate": (kospi['종가'] / kospi['시가'] - 1) * 100 if kospi['시가'] != 0 else 0,
-                },
-                "kosdaq": {
-                    "current": kosdaq['종가'],
-                    "change": kosdaq['종가'] - kosdaq['시가'],
-                    "change_rate": (kosdaq['종가'] / kosdaq['시가'] - 1) * 100 if kosdaq['시가'] != 0 else 0,
-                }
+            request_map = {
+                "kospi": [("U", "0001")],
+                "kosdaq": [
+                    ("J", "1001"),
+                    ("J", "0201"),
+                    ("J", "1501"),
+                    ("J", "2001"),
+                    ("U", "1001"),
+                ],
             }
+
+            for label, candidates in request_map.items():
+                result_data = None
+                last_meta = None
+
+                for market_code, index_code in candidates:
+                    result = await self.korea_invest_service.get_index_current_price(
+                        index_code,
+                        market_code=market_code
+                    )
+
+                    raw = self.korea_invest_service.get_last_raw_response() or {}
+                    meta = raw.get("meta") if isinstance(raw, dict) else None
+                    last_meta = meta
+
+                    logger.info(
+                        "지수 조회 응답",
+                        extra={
+                            "label": label,
+                            "market_code": market_code,
+                            "index_code": index_code,
+                            "meta": meta,
+                            "values": result.model_dump() if result else None,
+                        }
+                    )
+
+                    if (
+                        result
+                        and (result.current != 0.0 or result.change != 0.0 or result.change_rate != 0.0)
+                    ):
+                        result_data = result
+                        break
+
+                if result_data:
+                    indices[label] = {
+                        "code": result_data.index_code,
+                        "market": result_data.market_code,
+                        "current": result_data.current,
+                        "change": result_data.change,
+                        "change_rate": result_data.change_rate,
+                    }
+                else:
+                    cached_result = None
+                    for market_code, index_code in candidates:
+                        cached = self.korea_invest_service.get_cached_index(index_code)
+                        if not cached:
+                            continue
+
+                        current = cached.get("current")
+                        change = cached.get("change")
+                        change_rate = cached.get("change_rate")
+
+                        if any(
+                            value not in (None, 0.0, 0)
+                            for value in (current, change, change_rate)
+                        ):
+                            cached_result = {
+                                "code": cached.get("index_code", index_code),
+                                "market": cached.get("market_code", market_code),
+                                "current": current or 0.0,
+                                "change": change or 0.0,
+                                "change_rate": change_rate or 0.0,
+                            }
+                            logger.info(
+                                f"{label.upper()} 지수를 WebSocket 캐시에서 사용합니다.",
+                                extra={
+                                    "index_code": index_code,
+                                    "market_code": market_code,
+                                    "cached_timestamp": cached.get("timestamp"),
+                                }
+                            )
+                            break
+
+                    if cached_result:
+                        indices[label] = cached_result
+                        continue
+
+                    # 실패 시 최근 메타 정보와 함께 0 값 반환
+                    if last_meta:
+                        logger.warning(
+                            f"{label.upper()} 지수 데이터를 가져오지 못했습니다. 마지막 메타={last_meta}"
+                        )
+                    else:
+                        logger.warning(
+                            f"{label.upper()} 지수 데이터를 가져오지 못했습니다. 후보 코드 모두 실패"
+                        )
+
+                    fallback_market = candidates[-1][0] if candidates else "U"
+                    fallback_code = candidates[-1][1] if candidates else "0001"
+                    indices[label] = {
+                        "code": fallback_code,
+                        "market": fallback_market,
+                        "current": 0.0,
+                        "change": 0.0,
+                        "change_rate": 0.0,
+                    }
+
+            return indices
         except Exception as e:
-            logger.warning(f"pykrx 지수 조회 실패: {e}. 더미 데이터를 사용합니다.")
+            logger.error(f"Failed to fetch market indices: {e}", exc_info=True)
             return {
-                "kospi": {"current": 2600.0, "change": 10.5, "change_rate": 0.4},
-                "kosdaq": {"current": 850.0, "change": -5.2, "change_rate": -0.6},
+                "kospi": {"code": "0001", "market": "U", "current": 0, "change": 0, "change_rate": 0},
+                "kosdaq": {"code": "1001", "market": "K", "current": 0, "change": 0, "change_rate": 0},
             }
 
     async def get_market_overview(self) -> Dict[str, Any]:
@@ -91,7 +185,13 @@ class StockInfoService:
             "market_status": "open",
             "kospi": indices["kospi"],
             "kosdaq": indices["kosdaq"],
-            "usd_krw": {"current": 1350.0, "change": 2.0, "change_rate": 0.15}, # 환율은 더미
+            "usd_krw": {
+                "code": "USDKRW",
+                "market": "FX",
+                "current": 1350.0,
+                "change": 2.0,
+                "change_rate": 0.15
+            }, # 환율은 더미
             "top_gainers": top_gainers,
             "top_losers": top_losers,
         }

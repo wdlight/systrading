@@ -64,12 +64,13 @@ export const API_CONFIG = {
 
 // WebSocket 메시지 타입
 export const WS_MESSAGE_TYPES = {
+  CONNECTION_STATUS: 'connection_status',
   ACCOUNT_UPDATE: 'account_update',
   WATCHLIST_UPDATE: 'watchlist_update',
   PRICE_UPDATE: 'price_update',
   TRADING_STATUS: 'trading_status',
-  CONNECTION_STATUS: 'connection_status',
   ORDER_UPDATE: 'order_update',
+  MARKET_INDEX_UPDATE: 'market_index_update',
 } as const;
 
 // 매매 조건 타입

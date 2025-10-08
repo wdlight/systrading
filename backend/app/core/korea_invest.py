@@ -11,6 +11,7 @@ from functools import partial
 from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime, timedelta
 
+from pydantic import BaseModel
 from app.models.schemas import ChartCandle
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 if project_root not in sys.path:
@@ -38,6 +39,14 @@ except ImportError as e:
             pass
 
 
+class MarketIndexData(BaseModel):
+    index_code: str
+    market_code: str
+    current: float
+    change: float
+    change_rate: float
+
+
 class KoreaInvestAPIService:
     """한국투자증권 API 서비스 래퍼 클래스"""
     
@@ -46,6 +55,8 @@ class KoreaInvestAPIService:
         self.api_instance = None
         self.is_connected = False
         self.last_error = None
+        self.last_raw_response: Optional[Dict[str, Any]] = None
+        self.cached_indices: Dict[str, Dict[str, Any]] = {}
         
         # 비동기 실행을 위한 executor
         self.executor = None
@@ -500,6 +511,143 @@ class KoreaInvestAPIService:
             logger.error(f"현재가 조회 실패: {e}")
         
         return None
+
+    async def get_index_current_price(
+        self,
+        index_code: str,
+        market_code: str = "U"
+    ) -> Optional[MarketIndexData]:
+        """업종/지수 현재가 조회 (비동기)"""
+        if not self.is_connected or not self.api_instance:
+            logger.error("API가 연결되지 않았습니다.")
+            return None
+        
+        try:
+            raw_result = await self._run_in_executor(
+                self.api_instance.get_index_current_price,
+                market_code,
+                index_code
+            )
+            self.last_raw_response = raw_result
+
+            if not raw_result:
+                logger.warning(
+                    f"지수 현재가 조회 결과가 비어 있습니다. market_code={market_code}, index_code={index_code}"
+                )
+                self.last_error = "Empty response"
+                return None
+
+            if isinstance(raw_result, dict):
+                ok = raw_result.get("ok", True)
+                output = raw_result.get("output")
+                meta = raw_result.get("meta", {})
+            else:
+                ok = True
+                output = raw_result
+                meta = {}
+
+            if not ok:
+                self.last_error = meta.get("msg1") or "Non-success response"
+                logger.warning(
+                    f"지수 현재가 조회 비정상 응답: market_code={market_code}, index_code={index_code}, meta={meta}"
+                )
+
+            if not output:
+                return None
+
+            parsed = self._parse_index_response(output, market_code, index_code)
+
+            if parsed:
+                logger.info(
+                    "지수 조회 성공",
+                    extra={
+                        "market_code": market_code,
+                        "index_code": index_code,
+                        "meta": meta,
+                        "values": parsed.model_dump(),
+                    }
+                )
+            else:
+                logger.warning(
+                    f"지수 파싱 결과가 None입니다. market_code={market_code}, index_code={index_code}, meta={meta}"
+                )
+
+            return parsed
+            
+        except Exception as e:
+            self.last_error = str(e)
+            logger.error(f"지수 현재가 조회 실패: {e}")
+            return None
+
+
+    def _parse_index_response(
+        self,
+        data: Dict[str, Any],
+        market_code: str,
+        index_code: str
+    ) -> Optional[MarketIndexData]:
+        """한국투자증권 지수 응답을 숫자 값으로 변환"""
+        try:
+            current_str = data.get("bstp_nmix_prpr")
+            change_str = data.get("bstp_nmix_prdy_vrss")
+            change_rate_str = data.get("bstp_nmix_prdy_ctrt")
+
+            if current_str is None or change_str is None or change_rate_str is None:
+                raise ValueError("필수 지수 필드가 누락되었습니다")
+
+            current = float(str(current_str).replace(",", ""))
+            change = float(str(change_str).replace(",", ""))
+            change_rate = float(str(change_rate_str).replace(",", ""))
+
+            return MarketIndexData(
+                index_code=index_code,
+                market_code=market_code,
+                current=current,
+                change=change,
+                change_rate=change_rate,
+            )
+
+        except Exception as parse_error:
+            logger.error(
+                f"지수 응답 파싱 실패: {parse_error} (market_code={market_code}, index_code={index_code}, data={data})",
+                exc_info=True
+            )
+            self.last_error = str(parse_error)
+            return None
+
+    def get_last_raw_response(self) -> Optional[Dict[str, Any]]:
+        """가장 최근 REST 지수 호출의 원본 응답"""
+        return self.last_raw_response
+
+    def update_cached_index(
+        self,
+        index_code: Optional[str],
+        market_code: Optional[str],
+        current: Optional[float],
+        change: Optional[float],
+        change_rate: Optional[float],
+        meta: Optional[Dict[str, Any]] = None,
+        raw: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """WebSocket 등으로 수신한 지수 값을 캐시"""
+        if not index_code:
+            return
+
+        self.cached_indices[index_code] = {
+            "index_code": index_code,
+            "market_code": market_code,
+            "current": current,
+            "change": change,
+            "change_rate": change_rate,
+            "meta": meta,
+            "raw": raw,
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    def get_cached_index(self, index_code: str) -> Optional[Dict[str, Any]]:
+        return self.cached_indices.get(index_code)
+
+
     
     def get_connection_status(self) -> Dict[str, Any]:
         """연결 상태 확인"""

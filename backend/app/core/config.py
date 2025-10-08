@@ -62,6 +62,7 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"
     
     def load_from_yaml(self, yaml_file_path: str = "config.yaml"):
         """기존 config.yaml에서 설정 로드"""

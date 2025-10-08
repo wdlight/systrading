@@ -67,7 +67,8 @@ def get_stock_info_service() -> StockInfoService:
     """전체 종목 정보 서비스 인스턴스 반환"""
     global _stock_info_service
     if _stock_info_service is None:
-        _stock_info_service = StockInfoService()
+        korea_invest_service = get_korea_invest_service()
+        _stock_info_service = StockInfoService(korea_invest_service)
     return _stock_info_service
 
 def reset_services():

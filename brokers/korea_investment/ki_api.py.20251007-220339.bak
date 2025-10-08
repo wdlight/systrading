@@ -104,24 +104,6 @@ class KoreaInvestAPI(BrokerInterface):
 
         return json.dumps({"header": header, "body": body})
 
-    def get_index_send_data(self, tr_key: str) -> str:
-        """지수 실시간 구독 요청 생성 (H0STISE0)"""
-        header = {
-            "approval_key": self.g_approval_key,
-            "custtype": self.custtype,
-            "tr_type": "1",  # 등록
-            "content-type": "utf-8"
-        }
-
-        body = {
-            "input": {
-                "tr_id": "H0STISE0",
-                "tr_key": tr_key
-            }
-        }
-
-        return json.dumps({"header": header, "body": body})
-
     def authenticate(self, credentials):
         """인증 처리 (이미 KoreaInvestEnv에서 처리됨)"""
         return True
@@ -551,37 +533,6 @@ class KoreaInvestAPI(BrokerInterface):
         if t1 and t1.is_ok():
             return t1.get_body().output
         return None
-
-
-    def get_index_current_price(self, market_code: str, index_code: str):
-        """국내 업종/지수 현재가 조회 (inquire-price)"""
-        url = "/uapi/domestic-stock/v1/quotations/inquire-price"
-        tr_id = "FHPUP02100000"
-
-        params = {
-            "fid_cond_mrkt_div_code": market_code,  # "U": KOSPI, "J": KOSDAQ 등
-            "fid_input_iscd": index_code
-        }
-
-        response = self._url_fetch(url, tr_id, params)
-
-        if not response:
-            return None
-
-        body = response.get_body()
-        output = getattr(body, "output", None)
-        meta = {
-            "rt_cd": getattr(body, "rt_cd", None),
-            "msg_cd": getattr(body, "msg_cd", None),
-            "msg1": getattr(body, "msg1", None),
-        }
-
-        return {
-            "ok": response.is_ok(),
-            "output": output,
-            "meta": meta,
-        }
-
 
     def get_daily_ccld(self, start_date: str, end_date: str, stock_code: str = "", sll_buy_dvsn_cd: str = "00"):
         """

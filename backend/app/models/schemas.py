@@ -199,6 +199,8 @@ class ErrorResponse(BaseModel):
 # ===== 시장 현황 모델 =====
 
 class MarketIndex(BaseModel):
+    code: str
+    market: str
     current: float
     change: float
     change_rate: float

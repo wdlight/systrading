@@ -61,6 +61,15 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
     send_data = korea_invest_api.get_send_data(cmd=5, stock_code=None) #주문 접수/체결 통보 등록
     logger.info(f"[실시간 체결 통보 등록]")
     await websocket.send(send_data)
+
+    # 지수 실시간 구독 등록 (KOSPI 001, KOSDAQ 201)
+    for tr_key in ["001", "201"]:
+      try:
+        index_send_data = korea_invest_api.get_index_send_data(tr_key)
+        logger.info(f"[실시간 지수 등록] tr_key={tr_key}")
+        await websocket.send(index_send_data)
+      except Exception as e:
+        logger.error(f"실시간 지수 등록 실패 tr_key={tr_key}: {e}")
     
     while True:
       if not ws_req_queue.empty():
@@ -146,6 +155,30 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
               aes_key = jsonObject["body"]["output"]["key"]
               aes_iv = jsonObject["body"]["output"]["iv"]
               logger.info(f"### TRID [{trid}] KEY[{aes_key}] IV[{aes_iv}]")
+
+          if trid == "H0STISE0":
+            body = jsonObject.get("body", {})
+            output = body.get("output", {})
+            input_info = body.get("input", {})
+            index_code = (
+              output.get("tr_key")
+              or output.get("idx_clsf_cd")
+              or input_info.get("tr_key")
+              or output.get("index_code")
+            )
+
+            ws_result_queue.put({
+              "action_id": "실시간지수",
+              "index_code": index_code,
+              "data": output,
+              "meta": {
+                "rt_cd": body.get("rt_cd"),
+                "msg_cd": body.get("msg_cd"),
+                "msg1": body.get("msg1"),
+              }
+            })
+
+            continue
 
         if trid == "PINGPONG":
           logger.info(f"### RECV [PINGPONG] [{data}]")

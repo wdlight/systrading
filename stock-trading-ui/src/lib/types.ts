@@ -184,22 +184,33 @@ export interface ConnectionStatus {
 
 // 시장 정보 타입
 export interface MarketIndex {
-  name: string;
   code: string;
-  current_value: number;
-  change_amount: number;
+  market: string;
+  current: number;
+  change: number;
   change_rate: number;
-  volume: number;
-  is_up: boolean;
+  meta?: Record<string, unknown>;
+  raw?: Record<string, unknown>;
+  timestamp?: string;
+}
+
+export interface MarketTopStock {
+  stock_code: string;
+  stock_name: string;
+  current_price: number;
+  change_rate: number;
 }
 
 export interface MarketOverview {
+  market_status: string;
   kospi: MarketIndex;
   kosdaq: MarketIndex;
   usd_krw: MarketIndex;
+  top_gainers?: MarketTopStock[];
+  top_losers?: MarketTopStock[];
   gold?: MarketIndex;
   bitcoin?: MarketIndex;
-  updated_at: string;
+  updated_at?: string;
 }
 
 // 기술적 지표 타입

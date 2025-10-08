@@ -528,16 +528,22 @@ async def get_market_overview():
     market_data = {
         "market_status": "open",
         "kospi": {
+            "code": "0001",
+            "market": "U",
             "current": 2580.45 + random.uniform(-50, 50),
             "change": random.uniform(-30, 30),
             "change_rate": random.uniform(-1.5, 1.5)
         },
         "kosdaq": {
+            "code": "1001",
+            "market": "K",
             "current": 850.23 + random.uniform(-20, 20),
             "change": random.uniform(-15, 15),
             "change_rate": random.uniform(-1.0, 1.0)
         },
         "usd_krw": {
+            "code": "USDKRW",
+            "market": "FX",
             "current": 1340.5 + random.uniform(-10, 10),
             "change": random.uniform(-5, 5),
             "change_rate": random.uniform(-0.5, 0.5)

@@ -32,6 +32,9 @@ class RealtimeDataService:
         ])
         self.account_info_df = pd.DataFrame()
         
+        # 최신 지수 값 캐시 (WebSocket → REST fallback에 활용)
+        self.latest_market_indices: Dict[str, Dict[str, Any]] = {}
+
         # 설정값들 (기존 PyQt5 애플리케이션에서 가져올 예정)
         self.trading_conditions = {
             "buy_conditions": {
@@ -113,7 +116,41 @@ class RealtimeDataService:
         
         self.tasks = []
         logger.info("실시간 데이터 서비스가 중지되었습니다.")
-    
+
+    def _extract_index_values(self, payload: Dict[str, Any]) -> Optional[Dict[str, float]]:
+        """WebSocket 지수 페이로드에서 현재가/변동값 추출"""
+        if not payload:
+            return None
+
+        candidate_keys = [
+            ("bstp_nmix_prpr", "bstp_nmix_prdy_vrss", "bstp_nmix_prdy_ctrt"),
+            ("bstp_idx_prpr", "bstp_idx_prdy_vrss", "bstp_idx_prdy_ctrt"),
+            ("bstp_undn_prpr", "bstp_undn_prdy_vrss", "bstp_undn_prdy_ctrt"),
+        ]
+
+        for current_key, change_key, rate_key in candidate_keys:
+            current = payload.get(current_key)
+            change = payload.get(change_key)
+            rate = payload.get(rate_key)
+
+            if current is None and change is None and rate is None:
+                continue
+
+            try:
+                current_val = float(str(current).replace(",", "")) if current is not None else None
+                change_val = float(str(change).replace(",", "")) if change is not None else None
+                rate_val = float(str(rate).replace(",", "")) if rate is not None else None
+
+                return {
+                    "current": current_val,
+                    "change": change_val,
+                    "change_rate": rate_val,
+                }
+            except (TypeError, ValueError):
+                continue
+
+        return None
+
     async def _account_update_loop(self):
         """계좌 정보 업데이트 루프 (기존 timer2 로직)"""
         logger.info("계좌 업데이트 루프 시작 (2초 주기)")
@@ -242,6 +279,12 @@ class RealtimeDataService:
             return
 
         action_id = result.get('action_id')
+
+        if action_id == 'WEBSOCKET_PROCESS_ERROR':
+            logger.critical("!!! WebSocket 프로세스에서 치명적인 오류가 발생했습니다 !!!")
+            logger.error(f"오류: {result.get('error')}")
+            logger.error(f"Traceback:\n{result.get('traceback')}")
+            return
         
         try:
             if action_id == '실시간호가' or action_id == '실시간체결': # domestic_websocket.py와 ID 일치 필요
@@ -268,6 +311,68 @@ class RealtimeDataService:
                 logger.info(f"주문체결통보 수신: {result}")
                 # 계좌 정보 즉시 업데이트 요청
                 await self._update_account_info()
+
+            elif action_id == '실시간지수':
+                data = result.get('data', {}) or {}
+                index_code = result.get('index_code') or data.get('tr_key')
+                meta = result.get('meta', {})
+
+                parsed = self._extract_index_values(data)
+                if parsed:
+                    current = parsed['current']
+                    change = parsed['change']
+                    change_rate = parsed['change_rate']
+                else:
+                    current = data.get('current_price')
+                    change = data.get('change')
+                    change_rate = data.get('change_rate')
+
+                market_map = {
+                    '001': 'U',
+                    '0001': 'U',
+                    '201': 'J',
+                    '1001': 'J',
+                    '0201': 'J',
+                    '1501': 'J',
+                    '2001': 'J',
+                }
+                market_code = market_map.get(index_code, 'U')
+
+                try:
+                    self.korea_invest_service.update_cached_index(
+                        index_code=index_code,
+                        market_code=market_code,
+                        current=current if current is not None else 0.0,
+                        change=change if change is not None else 0.0,
+                        change_rate=change_rate if change_rate is not None else 0.0,
+                        meta=meta,
+                        raw=data
+                    )
+                except Exception as cache_err:
+                    logger.error(f"지수 캐시 업데이트 실패: {cache_err}")
+
+                self.latest_market_indices[index_code] = {
+                    "current": current,
+                    "change": change,
+                    "change_rate": change_rate,
+                    "market_code": market_code,
+                    "meta": meta,
+                    "timestamp": datetime.now().isoformat(),
+                }
+
+                await self.connection_manager.broadcast({
+                    "type": "market_index_update",
+                    "data": {
+                        "index_code": index_code,
+                        "current": current,
+                        "change": change,
+                        "change_rate": change_rate,
+                        "timestamp": data.get("timestamp") or datetime.now().isoformat(),
+                        "raw": data,
+                        "meta": meta,
+                    },
+                    "timestamp": datetime.now().isoformat()
+                })
 
         except (ValueError, TypeError) as e:
             logger.error(f"실시간 데이터 처리 중 오류: {e} - 데이터: {result}")
