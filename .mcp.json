@@ -26,6 +26,17 @@
         "start"
       ],
       "type": "stdio"
+    },
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "serena",
+        "mcp",
+        "start",
+        "--project",
+        "."
+      ],
+      "type": "stdio"
     }
   }
 }
