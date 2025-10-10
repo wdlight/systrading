@@ -14,7 +14,7 @@ export function TabButton({
     <button
       onClick={onClick}
       className={cn(
-        'flex-1 flex items-center justify-center gap-2 p-3 text-sm font-medium transition-all duration-200',
+        'flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium transition-all duration-200',
         'border-b-2 border-transparent',
         active
           ? 'text-blue-400 bg-blue-500/10 border-blue-400 shadow-sm'
@@ -23,7 +23,7 @@ export function TabButton({
       )}
       type="button"
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-3.5 w-3.5" />
       <span>{label}</span>
     </button>
   );

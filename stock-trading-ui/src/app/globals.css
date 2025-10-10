@@ -47,6 +47,15 @@
 
 /* Professional Dark Theme Colors */
 @layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   .bg-portfolio-primary {
     background-color: #0a0a0b;
   }

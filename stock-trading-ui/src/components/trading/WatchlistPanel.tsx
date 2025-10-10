@@ -8,8 +8,10 @@ import { Input } from '@/components/ui/input';
 import { CompactPriceDisplay } from '@/components/common/PriceDisplay';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { cn, formatNumber, getRSIStatus, getMACDSignal, formatDateTime } from '@/lib/utils';
-import { Eye, Plus, X, TrendingUp, AlertCircle, ChevronDown, ChevronUp, Clock } from 'lucide-react';
+import { Eye, Plus, X, TrendingUp, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import { WatchlistItem } from '@/lib/types';
+import { ErrorState } from '@/components/common/ErrorState';
+import { EmptyState } from '@/components/common/EmptyState';
 
 interface LogEntry {
   timestamp: string;
@@ -21,53 +23,59 @@ interface WatchlistPanelProps {
   className?: string;
 }
 
+interface WatchlistCardProps {
+  className?: string;
+  items: WatchlistItem[];
+  isLoading?: boolean;
+  error?: string | null;
+}
+
 export function WatchlistPanel({ className }: WatchlistPanelProps) {
   const { watchlist, isLoading, error } = useRealtimeData();
+  return (
+    <WatchlistCard
+      className={className}
+      items={watchlist}
+      isLoading={isLoading}
+      error={error}
+    />
+  );
+}
+
+export function WatchlistCard({ className, items, isLoading, error }: WatchlistCardProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'code' | 'profit_rate' | 'rsi' | 'volume'>('code');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  // 검색 및 정렬된 워치리스트
   const filteredAndSortedWatchlist = useMemo(() => {
-    let filtered = watchlist.filter(item =>
+    let filtered = items.filter((item) =>
       item.stock_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.stock_name && item.stock_name.toLowerCase().includes(searchTerm.toLowerCase()))
+      (item.stock_name && item.stock_name.toLowerCase().includes(searchTerm.toLowerCase())),
     );
 
-    filtered.sort((a, b) => {
-      let aValue: number;
-      let bValue: number;
-
+    filtered = filtered.sort((a, b) => {
       switch (sortBy) {
         case 'code':
-          return sortOrder === 'asc' 
+          return sortOrder === 'asc'
             ? a.stock_code.localeCompare(b.stock_code)
             : b.stock_code.localeCompare(a.stock_code);
         case 'profit_rate':
-          aValue = a.profit_rate;
-          bValue = b.profit_rate;
-          break;
+          return sortOrder === 'asc' ? a.profit_rate - b.profit_rate : b.profit_rate - a.profit_rate;
         case 'rsi':
-          aValue = a.rsi;
-          bValue = b.rsi;
-          break;
+          return sortOrder === 'asc' ? a.rsi - b.rsi : b.rsi - a.rsi;
         case 'volume':
-          aValue = a.volume;
-          bValue = b.volume;
-          break;
+          return sortOrder === 'asc' ? a.volume - b.volume : b.volume - a.volume;
         default:
           return 0;
       }
-
-      return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
     });
 
     return filtered;
-  }, [watchlist, searchTerm, sortBy, sortOrder]);
+  }, [items, searchTerm, sortBy, sortOrder]);
 
   const handleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortBy(field);
       setSortOrder('desc');
@@ -84,9 +92,9 @@ export function WatchlistPanel({ className }: WatchlistPanelProps) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="animate-pulse space-y-2">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-12 bg-gray-200 rounded-lg" />
+          <div className="space-y-2 animate-pulse">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <div key={index} className="h-12 rounded-lg bg-gray-200" />
             ))}
           </div>
         </CardContent>
@@ -95,7 +103,7 @@ export function WatchlistPanel({ className }: WatchlistPanelProps) {
   }
 
   return (
-    <Card className={cn(className, "bg-[#2a2a2a] border-gray-700 shadow-xl")}>
+    <Card className={cn(className, 'bg-[#2a2a2a] border-gray-700 shadow-xl')}>
       <CardHeader className="pb-5">
         <div className="flex flex-col gap-5">
           <div className="flex items-center justify-between">
@@ -106,25 +114,23 @@ export function WatchlistPanel({ className }: WatchlistPanelProps) {
               <div className="space-y-1">
                 <h3 className="text-heading-md text-white">Watchlist</h3>
                 <p className="text-caption-md text-gray-400">
-                  {filteredAndSortedWatchlist.length} item{filteredAndSortedWatchlist.length !== 1 ? 's' : ''} in watchlist
+                  {filteredAndSortedWatchlist.length} item
+                  {filteredAndSortedWatchlist.length !== 1 ? 's' : ''} in watchlist
                 </p>
               </div>
             </div>
 
-            <Button
-              className="button-professional bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-professional hover:shadow-professional-lg hover:scale-105"
-            >
-              <Plus className="h-4 w-4 mr-2" />
+            <Button className="button-professional bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-professional transition-transform hover:scale-105 hover:from-blue-600 hover:to-blue-700 hover:shadow-professional-lg">
+              <Plus className="mr-2 h-4 w-4" />
               Add Stock
             </Button>
           </div>
 
-          {/* Professional Search Bar */}
           <div className="flex gap-3">
             <Input
               placeholder="Search by stock code or name..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(event) => setSearchTerm(event.target.value)}
               className="input-professional flex-1 focus:border-blue-400 focus:ring-blue-400"
             />
           </div>
@@ -132,78 +138,56 @@ export function WatchlistPanel({ className }: WatchlistPanelProps) {
       </CardHeader>
 
       <CardContent>
-        {error && (
-          <div className="p-5 mb-5 bg-red-500/10 border border-red-500/30 rounded-lg backdrop-blur-sm">
-            <div className="flex items-center gap-4">
-              <div className="icon-bg-red">
-                <AlertCircle className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-body-md font-semibold text-red-400">Connection Error</p>
-                <p className="text-caption-md text-red-300">{error}</p>
-              </div>
-            </div>
-          </div>
-        )}
+        {error && <ErrorState description={error} />}
 
-        {filteredAndSortedWatchlist.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Eye className="h-8 w-8 text-gray-500" />
-            </div>
-            <h4 className="text-heading-sm font-semibold text-gray-400 mb-2">
-              {searchTerm ? 'No Results Found' : 'No Holdings Yet'}
-            </h4>
-            <p className="text-body-md text-gray-500">
-              {searchTerm
-                ? 'Try adjusting your search terms'
-                : 'Add your first stock to start tracking'}
-            </p>
-          </div>
+        {filteredAndSortedWatchlist.length === 0 && !error ? (
+          <EmptyState
+            title={searchTerm ? '조건에 맞는 종목이 없습니다' : '워치리스트가 비어 있습니다'}
+            description={
+              searchTerm
+                ? '검색어를 변경하거나 필터를 초기화해 보세요.'
+                : '관심 종목을 추가하면 실시간 시그널을 받아볼 수 있습니다.'
+            }
+            icon={<Eye className="h-7 w-7 text-gray-500" />}
+          />
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="text-xs border-gray-600">
+                <TableRow className="border-gray-600 text-xs">
                   <TableHead
-                    className="h-11 cursor-pointer hover:bg-gray-700 text-gray-300 font-semibold uppercase tracking-wide transition-colors duration-200"
+                    className="h-11 cursor-pointer text-gray-300 font-semibold uppercase tracking-wide transition-colors duration-200 hover:bg-gray-700"
                     onClick={() => handleSort('code')}
                   >
                     Stock
-                    {sortBy === 'code' && (
-                      <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
+                    {sortBy === 'code' && <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
                   </TableHead>
-                  <TableHead className="h-11 text-center text-gray-300 font-semibold uppercase tracking-wide">현재가</TableHead>
+                  <TableHead className="h-11 text-center font-semibold uppercase tracking-wide text-gray-300">
+                    현재가
+                  </TableHead>
                   <TableHead
-                    className="h-11 cursor-pointer hover:bg-gray-700 text-gray-300 font-semibold uppercase tracking-wide transition-colors duration-200"
+                    className="h-11 cursor-pointer text-gray-300 font-semibold uppercase tracking-wide transition-colors duration-200 hover:bg-gray-700"
                     onClick={() => handleSort('profit_rate')}
                   >
                     수익률
-                    {sortBy === 'profit_rate' && (
-                      <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
+                    {sortBy === 'profit_rate' && <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
                   </TableHead>
-                  <TableHead className="h-11 text-gray-300 font-semibold uppercase tracking-wide">평균단가</TableHead>
-                  <TableHead className="h-11 text-gray-300 font-semibold uppercase tracking-wide">수량</TableHead>
-                  <TableHead className="h-11 text-gray-300 font-semibold uppercase tracking-wide">MACD</TableHead>
+                  <TableHead className="h-11 font-semibold uppercase tracking-wide text-gray-300">평균단가</TableHead>
+                  <TableHead className="h-11 font-semibold uppercase tracking-wide text-gray-300">수량</TableHead>
+                  <TableHead className="h-11 font-semibold uppercase tracking-wide text-gray-300">MACD</TableHead>
                   <TableHead
-                    className="h-11 cursor-pointer hover:bg-gray-700 text-gray-300 font-semibold uppercase tracking-wide transition-colors duration-200"
+                    className="h-11 cursor-pointer text-gray-300 font-semibold uppercase tracking-wide transition-colors duration-200 hover:bg-gray-700"
                     onClick={() => handleSort('rsi')}
                   >
                     RSI
-                    {sortBy === 'rsi' && (
-                      <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
+                    {sortBy === 'rsi' && <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
                   </TableHead>
                   <TableHead
-                    className="h-8 cursor-pointer hover:bg-gray-700 text-gray-300"
+                    className="h-8 cursor-pointer text-gray-300 transition-colors duration-200 hover:bg-gray-700"
                     onClick={() => handleSort('volume')}
                   >
                     거래량
-                    {sortBy === 'volume' && (
-                      <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-                    )}
+                    {sortBy === 'volume' && <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
                   </TableHead>
                   <TableHead className="h-8 text-gray-300">액션</TableHead>
                 </TableRow>

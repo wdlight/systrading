@@ -1,12 +1,13 @@
-import { 
-  AccountBalance, 
-  TradingConditions, 
-  WatchlistItem, 
-  OrderRequest, 
-  Order, 
+import {
+  AccountBalance,
+  TradingConditions,
+  WatchlistItem,
+  OrderRequest,
+  Order,
   ApiResponse,
   MarketOverview,
-  ApiError
+  ApiError,
+  PortfolioHistoryPoint,
 } from './types';
 import { API_CONFIG } from './constants';
 import { getErrorMessage } from './utils';
@@ -187,6 +188,11 @@ export class TradingAPIClient {
    */
   async getWatchlist(): Promise<WatchlistItem[]> {
     return this.requestWithRetry<WatchlistItem[]>('/api/watchlist');
+  }
+
+  async getPortfolioHistory(period: string): Promise<PortfolioHistoryPoint[]> {
+    const searchParams = new URLSearchParams({ period });
+    return this.requestWithRetry<PortfolioHistoryPoint[]>(`/api/portfolio/history?${searchParams.toString()}`);
   }
 
   /**

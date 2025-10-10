@@ -1,172 +1,235 @@
 'use client';
 
-import { useState } from 'react';
+import FocusTrap from 'focus-trap-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { QuickActionPanel } from '@/components/layout/QuickActionPanel';
-import { PortfolioSummary } from '@/components/trading/PortfolioSummary';
-import { TradingConditions } from '@/components/trading/TradingConditions';
-import { HoldingsPanel } from '@/components/trading/HoldingsPanel';
-import { WatchlistPanel } from '@/components/trading/WatchlistPanel';
 import { PortfolioPerformance } from '@/components/trading/PortfolioPerformance';
 import { MarketOverview } from '@/components/trading/MarketOverview';
-import { DetailedConnectionStatus } from '@/components/common/ConnectionStatus';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { useAccountData } from '@/hooks/useAccountData';
-import { cn } from '@/lib/utils';
+import { Target } from 'lucide-react';
+import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
+import { mockUserNotifications } from '@/lib/mock/userNotifications';
+import { UserNotification } from '@/lib/types';
+import { AssetPanel } from '@/components/trading/AssetPanel';
 
 export default function Home() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { connectionStatus, isLoading: realtimeLoading } = useRealtimeData();
-  const { accountBalance, isLoading: accountLoading } = useAccountData();
+  const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
+  const {
+    connectionStatus,
+    watchlist,
+    isLoading: realtimeLoading,
+    error: realtimeError,
+  } = useRealtimeData();
+  const {
+    accountBalance,
+    portfolioStats,
+    isLoading: accountLoading,
+    error: accountError,
+  } = useAccountData();
+  const [userNotifications] = useLocalStorage<UserNotification[]>(
+    'user-notifications',
+    mockUserNotifications,
+  );
+
+  const unreadNotifications = useMemo(
+    () => userNotifications.filter((notification) => !notification.read).length,
+    [userNotifications],
+  );
 
   const isLoading = realtimeLoading || accountLoading;
+
+  useEffect(() => {
+    if (!bottomSheetOpen) {
+      document.body.style.overflow = '';
+      return;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [bottomSheetOpen]);
+
+  useEffect(() => {
+    if (!bottomSheetOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setBottomSheetOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [bottomSheetOpen]);
 
   return (
     <div className="min-h-screen bg-[#1a1a1a]">
       {/* Enhanced Professional Header */}
-      <Header onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
+      <Header />
 
-      {/* Main Container - New Layout: Sidebar + Main + QuickAction Panel */}
-      <div className="flex min-h-[calc(100vh-64px)]">
-        {/* Left Sidebar - Trading Conditions (Compact) */}
-        <aside className={cn(
-          'w-72 bg-[#2a2a2a] border-r border-gray-700',
-          'transform transition-transform duration-300 ease-in-out',
-          'lg:translate-x-0 lg:static lg:inset-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-          'fixed inset-y-0 left-0 z-30 lg:z-0',
-          'lg:relative'
-        )}>
-          <div className="h-screen lg:h-auto overflow-y-auto scrollbar-hide p-2">
-            <TradingConditions />
-          </div>
-        </aside>
+      <div className="flex min-h-[calc(100vh-64px)] overflow-hidden">
+        <QuickActionPanel className="hidden xl:flex" />
 
-        {/* 오버레이 (모바일) */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
+        <main className="flex-1 overflow-hidden bg-[#1a1a1a]">
+          <div className="flex h-full overflow-hidden">
+            <div className="flex-1 overflow-y-auto">
+              <div className="mx-auto max-w-[1280px] space-y-2 px-3 py-3 md:space-y-3 md:px-4 md:py-4 animate-in fade-in duration-500">
+                <MarketOverview compact className="w-full" />
 
-        {/* Main Dashboard Area */}
-        <main className="flex-1 min-w-0 bg-[#1a1a1a] overflow-y-auto">
-          <div className="min-h-full">
-            {/* Enhanced Dashboard Grid Layout */}
-            <div className="p-4 md:p-6 space-y-4 md:space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
-              {/* Top Section: Portfolio Summary + Performance Analytics (50:50) */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-                <div>
-                  <PortfolioSummary />
-                </div>
-                <div>
-                  <PortfolioPerformance className="h-full" />
-                </div>
-              </div>
+                <PortfolioPerformance
+                  accountBalance={accountBalance}
+                  stats={portfolioStats}
+                />
 
-              {/* Main Section: Holdings Panel */}
-              <div className="space-y-6">
-                <HoldingsPanel />
-              </div>
+                <AssetPanel
+                  positions={accountBalance?.positions ?? []}
+                  watchlist={watchlist}
+                  holdingsLoading={accountLoading}
+                  holdingsError={accountError}
+                  watchlistLoading={realtimeLoading}
+                  watchlistError={realtimeError}
+                />
 
-              {/* Main Section: Watchlist Panel */}
-              <div className="space-y-6">
-                <WatchlistPanel />
-              </div>
-
-              {/* Bottom Section: Market Overview */}
-              <div className="space-y-4 lg:space-y-6">
-                <MarketOverview />
-              </div>
-
-              {/* Professional Loading Indicator */}
-              {isLoading && (
-                <div className="fixed bottom-6 right-6 bg-[#2a2a2a] border border-gray-600 rounded-lg p-4 shadow-2xl z-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-sm text-gray-300 font-medium">
-                      데이터 로딩 중...
-                    </span>
+                {isLoading && (
+                  <div className="fixed bottom-4 right-4 z-50 rounded-lg border border-gray-600 bg-[#2a2a2a] p-3 shadow-2xl">
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+                      <span className="text-xs font-medium text-gray-300">데이터 로딩 중...</span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Development Info Panel with Integrated Connection Status */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="mt-8">
-                  {/* Integrated Development Status with Real-time Connection */}
-                  <div className="p-4 bg-[#2a2a2a] border border-blue-500/30 rounded-lg">
-                    <h3 className="text-sm font-medium text-blue-400 mb-4 flex items-center gap-2">
-                      🚀 Development Status & 실시간 연결 활성
-                    </h3>
-                    <div className="text-xs text-gray-300 space-y-3">
-                      {/* Real-time Connection Status */}
-                      <div className="border-b border-gray-700 pb-3 mb-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium">실시간 연결 상태:</span>
-                          <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${
-                              connectionStatus.status === 'connected' ? 'bg-profit' : 'bg-loss'
-                            }`} />
-                            <span className={connectionStatus.status === 'connected' ? 'text-profit-foreground' : 'text-loss-foreground'}>
-                              {connectionStatus.status === 'connected' ? '연결됨' : '연결 끊김'}
-                            </span>
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="pt-2">
+                    <div className="rounded-lg border border-blue-500/30 bg-[#2a2a2a] p-3">
+                      <h3 className="mb-2 flex items-center gap-2 text-xs font-medium text-blue-400">
+                        🚀 Development Status & 실시간 연결 활성
+                      </h3>
+                      <div className="space-y-2 text-[11px] text-gray-300">
+                        <div className="mb-2 border-b border-gray-700 pb-2">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="font-medium">실시간 연결 상태:</span>
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`h-2 w-2 rounded-full ${
+                                  connectionStatus.status === 'connected' ? 'bg-profit' : 'bg-loss'
+                                }`}
+                              />
+                              <span
+                                className={
+                                  connectionStatus.status === 'connected'
+                                    ? 'text-profit-foreground'
+                                    : 'text-loss-foreground'
+                                }
+                              >
+                                {connectionStatus.status === 'connected' ? '연결됨' : '연결 끊김'}
+                              </span>
+                            </div>
                           </div>
+                          {connectionStatus.lastUpdate && (
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span>마지막 업데이트:</span>
+                              <span className="text-gray-400">
+                                {new Date(connectionStatus.lastUpdate).toLocaleTimeString('ko-KR')}
+                              </span>
+                            </div>
+                          )}
+                          {connectionStatus.reconnectAttempts > 0 && (
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span>재연결 시도:</span>
+                              <span className="text-amber-400">
+                                {connectionStatus.reconnectAttempts}회
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        {connectionStatus.lastUpdate && (
-                          <div className="flex justify-between items-center">
-                            <span>마지막 업데이트:</span>
-                            <span className="text-gray-400">
-                              {new Date(connectionStatus.lastUpdate).toLocaleTimeString('ko-KR')}
-                            </span>
-                          </div>
-                        )}
-                        {connectionStatus.reconnectAttempts > 0 && (
-                          <div className="flex justify-between items-center">
-                            <span>재연결 시도:</span>
-                            <span className="text-amber-400">
-                              {connectionStatus.reconnectAttempts}회
-                            </span>
-                          </div>
-                        )}
-                      </div>
 
-                      {/* System Status */}
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span>WebSocket:</span>
-                          <span className={connectionStatus.status === 'connected' ? 'text-profit-foreground' : 'text-loss-foreground'}>
-                            {connectionStatus.status}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Backend API:</span>
-                          <span className="text-blue-400">
-                            {process.env.NEXT_PUBLIC_API_URL || 'localhost:8000'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Account Info:</span>
-                          <span className={accountBalance ? 'text-profit-foreground' : 'text-amber-400'}>
-                            {accountBalance ? 'Connected' : 'Pending'}
-                          </span>
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-gray-300">
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-gray-400">WebSocket:</span>
+                            <span
+                              className={
+                                connectionStatus.status === 'connected'
+                                  ? 'text-profit-foreground'
+                                  : 'text-loss-foreground'
+                              }
+                            >
+                              {connectionStatus.status}
+                            </span>
+                          </div>
+                          <span className="text-gray-600">|</span>
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-gray-400">Backend API:</span>
+                            <span className="text-blue-400">
+                              {process.env.NEXT_PUBLIC_API_URL || 'localhost:8000'}
+                            </span>
+                          </div>
+                          <span className="text-gray-600">|</span>
+                          <div className="flex items-center gap-1">
+                            <span className="font-medium text-gray-400">Account Info:</span>
+                            <span className={accountBalance ? 'text-profit-foreground' : 'text-amber-400'}>
+                              {accountBalance ? 'Connected' : 'Pending'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* 하단 패딩 추가 - 모든 내용이 완전히 보이도록 */}
-              <div className="pb-8"></div>
+                )}
+                <div className="pb-4" />
+              </div>
             </div>
           </div>
         </main>
-
-        {/* Right Panel - Quick Action Panel */}
-        <QuickActionPanel className="hidden xl:flex" />
       </div>
+
+      {/* Mobile Quick Action FAB */}
+      <div className="fixed bottom-6 right-6 z-50 xl:hidden">
+        <button
+          type="button"
+          onClick={() => setBottomSheetOpen(true)}
+          className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-[0_20px_40px_rgba(37,99,235,0.35)] transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-[#1a1a1a]"
+          aria-label="빠른 작업 열기"
+        >
+          <Target className="h-6 w-6" />
+          {unreadNotifications > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-semibold text-white">
+              {unreadNotifications > 9 ? '9+' : unreadNotifications}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {bottomSheetOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/55 backdrop-blur-[2px] xl:hidden"
+            onClick={() => setBottomSheetOpen(false)}
+          />
+          <FocusTrap
+            active={bottomSheetOpen}
+            focusTrapOptions={{ clickOutsideDeactivates: true, escapeDeactivates: true }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="빠른 작업 패널"
+              className="fixed inset-x-0 bottom-0 z-50 max-h-[82vh] xl:hidden"
+            >
+              <div className="flex h-full flex-col overflow-hidden rounded-t-3xl bg-[#1c1c1c] pb-[calc(env(safe-area-inset-bottom)+1rem)] shadow-[0_-18px_32px_rgba(0,0,0,0.45)]">
+                <QuickActionPanel isSheet onClose={() => setBottomSheetOpen(false)} />
+              </div>
+            </div>
+          </FocusTrap>
+        </>
+      )}
     </div>
   );
 }

@@ -37,7 +37,7 @@ const createYScale = (yDomain: [number, number], chartHeight: number, margin: nu
 const createCandlestickDot = (yDomain: [number, number], chartHeight: number, dataCount: number, chartWidth: number = 950) => {
   const yScale = createYScale(yDomain, chartHeight);
 
-  return (props: any) => {
+  const CandlestickDotComponent = (props: any) => {
     const { cx, cy, payload, index, height, width } = props;
 
     if (!payload) {
@@ -129,6 +129,10 @@ const createCandlestickDot = (yDomain: [number, number], chartHeight: number, da
       </g>
     );
   };
+
+  CandlestickDotComponent.displayName = 'CandlestickDot';
+
+  return CandlestickDotComponent;
 };
 
 // 커스텀 툴팁
@@ -139,17 +143,17 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     const timeStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
 
     return (
-      <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 text-sm">
-        <p className="text-gray-300 mb-2">
+      <div className="rounded-lg border border-gray-600 bg-gray-800 p-2 text-xs font-medium text-gray-100">
+        <p className="mb-1 font-medium text-gray-200">
           {timeStr}
         </p>
-        <div className="space-y-1">
+        <div className="space-y-1 text-[11px]">
           <p><span className="text-gray-400">시가:</span> <span className="text-white">{data.open.toLocaleString()}</span></p>
-          <p><span className="text-gray-400">고가:</span> <span className="text-red-400">{data.high.toLocaleString()}</span></p>
-          <p><span className="text-gray-400">저가:</span> <span className="text-blue-400">{data.low.toLocaleString()}</span></p>
+          <p><span className="text-gray-400">고가:</span> <span className="text-rose-300">{data.high.toLocaleString()}</span></p>
+          <p><span className="text-gray-400">저가:</span> <span className="text-blue-300">{data.low.toLocaleString()}</span></p>
           <p><span className="text-gray-400">종가:</span> <span className="text-white">{data.close.toLocaleString()}</span></p>
           {data.volume && (
-            <p><span className="text-gray-400">거래량:</span> <span className="text-yellow-400">{data.volume.toLocaleString()}</span></p>
+            <p><span className="text-gray-400">거래량:</span> <span className="text-amber-300">{data.volume.toLocaleString()}</span></p>
           )}
         </div>
       </div>
@@ -477,10 +481,9 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
               return `${hours}:${minutes.toString().padStart(2, '0')}`;
             }}
             stroke={KOREAN_CHART_THEME.textColor}
-            fontSize={12}
             axisLine={false}
             tickLine={false}
-            tick={{ fontSize: 10 }}
+            tick={{ fontSize: 11, fill: KOREAN_CHART_THEME.textColor, fontFamily: 'Inter, ui-sans-serif, system-ui' }}
           />
 
           <YAxis
@@ -491,12 +494,12 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
               return roundedValue.toLocaleString();
             }}
             stroke={KOREAN_CHART_THEME.textColor}
-            fontSize={12}
             axisLine={false}
             tickLine={false}
             orientation="right"
             tickCount={8}
-            width={80}
+            width={72}
+            tick={{ fontSize: 11, fill: KOREAN_CHART_THEME.textColor, fontFamily: 'Inter, ui-sans-serif, system-ui' }}
           />
 
           <Tooltip

@@ -5,6 +5,8 @@ export interface QuickActionPanelProps {
   className?: string;
   defaultTab?: 'watch' | 'trade' | 'alerts';
   onStockSelect?: (stock: Stock) => void;
+  isSheet?: boolean;
+  onClose?: () => void;
 }
 
 // TradingQuick Props

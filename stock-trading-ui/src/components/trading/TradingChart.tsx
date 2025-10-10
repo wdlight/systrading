@@ -13,7 +13,9 @@ import {
   CrosshairMode,
   LineStyle,
   PriceScaleMode,
-  Time
+  Time,
+  CandlestickSeries,
+  HistogramSeries,
 } from 'lightweight-charts';
 import {
   BarChart3,
@@ -103,7 +105,7 @@ export function TradingChart({ className, height = 400 }: TradingChartProps) {
     });
 
     // Add candlestick series
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10b981',
       downColor: '#ef4444',
       borderDownColor: '#ef4444',
@@ -116,7 +118,7 @@ export function TradingChart({ className, height = 400 }: TradingChartProps) {
     });
 
     // Add volume series
-    const volumeSeries = chart.addHistogramSeries({
+    const volumeSeries = chart.addSeries(HistogramSeries, {
       color: 'rgba(59, 130, 246, 0.3)',
       priceFormat: {
         type: 'volume',

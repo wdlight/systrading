@@ -3,19 +3,35 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Menu, Bell, Settings, Home, TrendingUp } from 'lucide-react';
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { SimpleConnectionStatus } from '@/components/common/ConnectionStatus';
 import { useRealtimeData } from '@/hooks/useRealtimeData';
 import { cn } from '@/lib/utils';
+import { useLocalStorage } from '@/lib/hooks/useLocalStorage';
+import { mockUserNotifications } from '@/lib/mock/userNotifications';
+import { UserNotification } from '@/lib/types';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { UserNotificationDropdown } from '@/components/common/UserNotificationDropdown';
 
 interface HeaderProps {
   onMenuClick?: () => void;
   className?: string;
 }
 
+function useUserNotifications() {
+  return useLocalStorage<UserNotification[]>('user-notifications', mockUserNotifications);
+}
+
 export function Header({ onMenuClick, className }: HeaderProps) {
   const { connectionStatus } = useRealtimeData();
   const pathname = usePathname();
+  const [notifications, setNotifications] = useUserNotifications();
+
+  const unreadCount = useMemo(
+    () => notifications.filter((notification) => !notification.read).length,
+    [notifications],
+  );
 
   const navItems = [
     { href: '/', label: '대시보드', icon: Home },
@@ -23,45 +39,52 @@ export function Header({ onMenuClick, className }: HeaderProps) {
     { href: '/exchange', label: 'Exchange', icon: TrendingUp },
   ];
 
+  const handleMarkNotification = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((notification) =>
+        notification.id === id ? { ...notification, read: true } : notification,
+      ),
+    );
+  };
+
+  const handleMarkAll = () => {
+    setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })));
+  };
+
   return (
-    <header className={cn(
-      'bg-[#2a2a2a] border-b border-gray-700',
-      'px-7 py-4 flex items-center justify-between',
-      'sticky top-0 z-40 backdrop-blur-sm bg-[#2a2a2a]/95',
-      'shadow-professional',
-      className
-    )}>
+    <header
+      className={cn(
+        'bg-[#2a2a2a] border-b border-gray-700',
+        'px-7 py-4 flex items-center justify-between',
+        'sticky top-0 z-40 backdrop-blur-sm bg-[#2a2a2a]/95',
+        'shadow-professional',
+        className,
+      )}
+    >
       <div className="flex items-center gap-8">
-        {/* 모바일 메뉴 버튼 */}
         <Button
           variant="ghost"
           size="sm"
-          className="lg:hidden text-gray-300 hover:text-white hover:bg-gray-700 transition-colors duration-200"
+          className="text-gray-300 transition-colors duration-200 hover:bg-gray-700 hover:text-white lg:hidden"
           onClick={onMenuClick}
         >
           <Menu className="h-5 w-5" />
         </Button>
 
-        {/* Professional Logo & Title */}
         <Link href="/" className="flex items-center gap-5">
           <div className="relative">
-            <div className="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-professional">
-              <span className="text-white font-bold text-lg">🏛️</span>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-professional">
+              <span className="text-lg font-bold text-white">🏛️</span>
             </div>
-            <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-[#2a2a2a]" />
+            <div className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-[#2a2a2a] bg-green-500" />
           </div>
           <div className="space-y-0.5">
-            <h1 className="text-heading-md text-white">
-              Portfolio Manager
-            </h1>
-            <p className="text-caption-md text-gray-400">
-              Professional Trading Platform
-            </p>
+            <h1 className="text-heading-md text-white">Portfolio Manager</h1>
+            <p className="text-caption-md text-gray-400">Professional Trading Platform</p>
           </div>
         </Link>
 
-        {/* Navigation Menu */}
-        <nav className="hidden md:flex items-center gap-1">
+        <nav className="hidden items-center gap-1 md:flex">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -71,13 +94,13 @@ export function Header({ onMenuClick, className }: HeaderProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200',
+                  'flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-200',
                   isActive
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
-                    : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
+                    : 'text-gray-300 hover:bg-gray-700/50 hover:text-white',
                 )}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="h-4 w-4" />
                 {item.label}
               </Link>
             );
@@ -85,14 +108,33 @@ export function Header({ onMenuClick, className }: HeaderProps) {
         </nav>
       </div>
 
-      <div className="flex items-center gap-5">
-        {/* Connection Status */}
+      <div className="flex items-center gap-4">
         <SimpleConnectionStatus connectionState={connectionStatus} />
 
-        {/* Professional Add Position Button */}
-        <Button
-          className="button-professional bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-professional hover:shadow-professional-lg hover:scale-105"
-        >
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              className="relative text-gray-300 hover:bg-gray-700 hover:text-white"
+            >
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-semibold text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="border-gray-700 bg-[#1f1f1f]">
+            <UserNotificationDropdown
+              notifications={notifications}
+              onMarkAsRead={handleMarkNotification}
+              onMarkAllAsRead={handleMarkAll}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <Button className="button-professional bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-professional transition-transform hover:scale-105 hover:from-blue-600 hover:to-blue-700 hover:shadow-professional-lg">
           + Add Position
         </Button>
       </div>
@@ -100,47 +142,80 @@ export function Header({ onMenuClick, className }: HeaderProps) {
   );
 }
 
-// Mobile Header with Professional Styling
 export function MobileHeader({ onMenuClick, className }: HeaderProps) {
   const { connectionStatus } = useRealtimeData();
+  const [notifications, setNotifications] = useUserNotifications();
+
+  const unreadCount = useMemo(
+    () => notifications.filter((notification) => !notification.read).length,
+    [notifications],
+  );
+
+  const handleMarkNotification = (id: string) => {
+    setNotifications((prev) =>
+      prev.map((notification) =>
+        notification.id === id ? { ...notification, read: true } : notification,
+      ),
+    );
+  };
+
+  const handleMarkAll = () => {
+    setNotifications((prev) => prev.map((notification) => ({ ...notification, read: true })));
+  };
 
   return (
-    <header className={cn(
-      'bg-[#2a2a2a] border-b border-gray-700',
-      'px-5 py-3.5 flex items-center justify-between',
-      'sticky top-0 z-40 shadow-professional',
-      className
-    )}>
+    <header
+      className={cn(
+        'bg-[#2a2a2a] border-b border-gray-700',
+        'flex items-center justify-between px-5 py-3.5',
+        'sticky top-0 z-40 shadow-professional',
+        className,
+      )}
+    >
       <div className="flex items-center gap-4">
         <Button
           variant="ghost"
-          className="button-professional-sm text-gray-300 hover:text-white hover:bg-gray-700"
+          className="button-professional-sm text-gray-300 hover:bg-gray-700 hover:text-white"
           onClick={onMenuClick}
         >
           <Menu className="h-5 w-5" />
         </Button>
 
         <div className="flex items-center gap-4">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-lg">
-            <span className="text-white font-bold text-sm">🏛️</span>
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg">
+            <span className="text-sm font-bold text-white">🏛️</span>
           </div>
-          <span className="text-heading-sm text-white">
-            Portfolio Manager
-          </span>
+          <span className="text-heading-sm text-white">Portfolio Manager</span>
           <SimpleConnectionStatus connectionState={connectionStatus} />
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              className="relative text-gray-400 hover:bg-gray-700 hover:text-white"
+            >
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-[1.05rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="border-gray-700 bg-[#1f1f1f]">
+            <UserNotificationDropdown
+              notifications={notifications}
+              onMarkAsRead={handleMarkNotification}
+              onMarkAllAsRead={handleMarkAll}
+            />
+          </PopoverContent>
+        </Popover>
         <Button
           variant="ghost"
-          className="button-professional-sm text-gray-400 hover:text-white hover:bg-gray-700"
-        >
-          <Bell className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          className="button-professional-sm text-gray-400 hover:text-white hover:bg-gray-700"
+          className="button-professional-sm text-gray-400 hover:bg-gray-700 hover:text-white"
         >
           <Settings className="h-4 w-4" />
         </Button>

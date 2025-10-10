@@ -254,6 +254,20 @@ export interface PortfolioStats {
   risk_score: number;
 }
 
+export type PortfolioTimeRange = '1D' | '1W' | '1M' | '3M' | '6M' | '1Y' | 'ALL';
+
+export interface PortfolioHistoryPoint {
+  date: string;
+  portfolio: number;
+  benchmark: number;
+}
+
+export interface PortfolioPerformanceMetrics {
+  totalReturn: number;
+  maxDrawdown: number;
+  volatility: number;
+}
+
 // UI 상태 관련 타입
 export interface ConnectionState {
   status: 'connected' | 'disconnected' | 'connecting' | 'reconnecting';
@@ -272,18 +286,34 @@ export interface UIState {
   activeTab: 'portfolio' | 'watchlist' | 'trading' | 'analytics';
   sidebarOpen: boolean;
   darkMode: boolean;
-  notifications: Notification[];
+  notifications: UserNotification[];
 }
 
-export interface Notification {
+export type SystemNotificationType = 'info' | 'success' | 'warning' | 'error';
+
+export interface SystemNotification {
   id: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: SystemNotificationType;
+  message: string;
+  duration?: number;
+}
+
+export type UserNotificationType = 'order' | 'alert' | 'system';
+
+export interface UserNotification {
+  id: string;
+  type: UserNotificationType;
   title: string;
   message: string;
-  timestamp: Date;
+  timestamp: Date | string;
   read: boolean;
   actionable?: boolean;
   action?: () => void;
+  metadata?: {
+    stockCode?: string;
+    orderType?: 'buy' | 'sell';
+    amount?: number;
+  };
 }
 
 // 설정 타입
