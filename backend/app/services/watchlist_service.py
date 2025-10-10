@@ -6,7 +6,7 @@ PyQt5 rsimacd_trading.py의 워치리스트 관련 기능을 서비스로 분리
 import asyncio
 from typing import Dict, List, Optional, Set, Any
 from datetime import datetime
-import logging
+from loguru import logger
 import pandas as pd
 import numpy as np
 from copy import deepcopy
@@ -27,7 +27,7 @@ from app.models.watchlist_models import (
 from app.core.korea_invest import KoreaInvestAPIService
 from app.services.technical_analysis_service import TechnicalAnalysisService
 
-logger = logging.getLogger(__name__)
+
 
 class WatchlistService:
     """워치리스트 관련 서비스"""

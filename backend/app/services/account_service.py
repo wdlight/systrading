@@ -4,18 +4,13 @@
 """
 
 from typing import List, Optional, Dict, Any
-import logging
-try:
-    from loguru import logger
-except ImportError:
-    import logging
-    logger = logging.getLogger(__name__)
+from loguru import logger
 from datetime import datetime
 
 from app.models.schemas import AccountBalance, AccountSummary, Position
 from app.core.korea_invest import KoreaInvestAPIService
 
-logger = logging.getLogger(__name__)
+
 
 class AccountService:
     """계좌 관련 서비스"""

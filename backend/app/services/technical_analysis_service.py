@@ -8,12 +8,12 @@ import pandas as pd
 import numpy as np
 import talib as ta
 from typing import Tuple, Optional, Dict, Any
-import logging
+from loguru import logger
 from datetime import datetime
 
 from app.models.watchlist_models import TechnicalIndicators
 
-logger = logging.getLogger(__name__)
+
 
 
 class TechnicalAnalysisService:

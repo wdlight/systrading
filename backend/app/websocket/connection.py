@@ -7,10 +7,10 @@ from fastapi import WebSocket, WebSocketDisconnect
 import asyncio
 import json
 from typing import List, Dict, Any
-import logging
+from loguru import logger
 from datetime import datetime
 
-logger = logging.getLogger(__name__)
+
 
 class ConnectionManager:
     """WebSocket 연결 관리자"""

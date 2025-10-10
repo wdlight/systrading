@@ -4,11 +4,7 @@
 """
 
 from typing import List, Dict, Any, Optional
-try:
-    from loguru import logger
-except ImportError:
-    import logging
-    logger = logging.getLogger(__name__)
+from loguru import logger
 from datetime import datetime, timedelta
 import json
 import os

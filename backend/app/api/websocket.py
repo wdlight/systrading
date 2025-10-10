@@ -7,11 +7,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
 from typing import List, Dict, Set
 import asyncio
 import json
-try:
-    from loguru import logger
-except ImportError:
-    import logging
-    logger = logging.getLogger(__name__)
+from loguru import logger
 from datetime import datetime
 
 from app.models.watchlist_models import WatchlistItem, PriceUpdateEvent

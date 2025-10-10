@@ -23,13 +23,12 @@ from app.core.config import get_settings
 from app.core.korea_invest import KoreaInvestAPIService
 from app.domestic_websocket import run_websocket
 
+from app.core.logging_config import setup_logging
+from loguru import logger
+
 # --- 로거 설정 ---
-try:
-    from loguru import logger
-except ImportError:
-    import logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
+# 애플리케이션 시작 시 로깅 설정 적용
+setup_logging()
 # --- 로거 설정 끝 ---
 
 from app.api.account import router as account_router
@@ -140,7 +139,7 @@ app.include_router(watchlist_router, prefix="/api", tags=["watchlist"])
 app.include_router(stocks_router, prefix="/api/stocks", tags=["stocks"])
 app.include_router(chart_router, prefix="/api/chart", tags=["chart"])
 
-print(f"DEBUG: chart_router routes: {chart_router.routes}") # 이 줄을 추가해주세요.
+logger.debug(f"chart_router routes: {chart_router.routes}")
 
 @app.get("/")
 async def root():
@@ -190,5 +189,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=8000,
         reload=True,
-        log_level="info"
+        log_level=settings.LOG_LEVEL.lower(),
+        log_config=None
     )

@@ -17,13 +17,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(o
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-try:
-    from loguru import logger
-except ImportError:
-    # Fallback logger if loguru is not available
-    import logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     from brokers.korea_investment.ki_api import KoreaInvestAPI

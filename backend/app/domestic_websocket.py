@@ -4,9 +4,14 @@ import asyncio
 from multiprocessing import Queue
 
 from loguru import logger
+from app.core.logging_config import setup_logging
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from base64 import b64decode
+
+
+# 자식 프로세스에서도 중앙 로깅 설정 적용
+setup_logging()
 
 
 def aes_cbc_base64_dec(key, iv, cipher_text):

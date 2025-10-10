@@ -48,7 +48,8 @@ class Settings(BaseSettings):
     
     # 로깅 설정
     LOG_LEVEL: str = "INFO"
-    LOG_FILE: str = "trading_api.log"
+    LOG_FORMAT: str = "console"
+    LOG_ENQUEUE: bool = False
     
     # WebSocket 설정
     WS_HEARTBEAT_INTERVAL: int = 30  # 초
