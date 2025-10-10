@@ -3,9 +3,8 @@
 분봉 데이터를 로컬 파일에 저장하여 빠른 조회 및 무한 스크롤 지원
 """
 
-import os
 import json
-from typing import List, Optional, Callable
+from typing import List, Optional, Tuple, Dict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -80,6 +79,96 @@ class ChartCacheService:
         except Exception as e:
             logger.error(f"캐시 로드 실패: {cache_file}, 오류: {e}")
             return None
+
+    async def _sanitize_cached_candles_for_date(
+        self,
+        cached_candles: List[ChartCandle],
+        stock_code: str,
+        target_date: datetime,
+        korea_invest_service,
+        skip_cache_save: bool = False
+    ) -> List[ChartCandle]:
+        """Filter cache to the target date and refill when the date is missing."""
+        if not cached_candles:
+            return []
+
+        target_date_str = target_date.strftime("%Y-%m-%d")
+        same_day, others = self._partition_candles_by_date(cached_candles, target_date_str)
+
+        if others:
+            summary = ", ".join(
+                f"{date}({len(items)}개)" for date, items in others.items()
+            )
+            logger.warning(
+                f"캐시에 다른 날짜 데이터 포함: {stock_code}, target={target_date_str} → {summary}"
+            )
+
+        if same_day:
+            if others and not skip_cache_save:
+                self._save_to_cache(stock_code, target_date, same_day)
+            return same_day
+
+        if others:
+            logger.warning(
+                f"캐시에 대상 날짜({target_date_str}) 데이터가 없어 전체 재조회 시도: {stock_code}"
+            )
+            refetched = await self._fetch_full_day_candles(
+                stock_code=stock_code,
+                target_date=target_date,
+                korea_invest_service=korea_invest_service
+            )
+
+            if refetched and not skip_cache_save:
+                self._save_to_cache(stock_code, target_date, refetched)
+
+            return refetched
+
+        return []
+
+    def _partition_candles_by_date(
+        self,
+        candles: List[ChartCandle],
+        target_date_str: str
+    ) -> Tuple[List[ChartCandle], Dict[str, List[ChartCandle]]]:
+        """Split candles into target date entries and grouped extras."""
+        same_day: List[ChartCandle] = []
+        others: Dict[str, List[ChartCandle]] = {}
+
+        for candle in candles:
+            candle_date = candle.timestamp[:10]
+            if candle_date == target_date_str:
+                same_day.append(candle)
+            else:
+                others.setdefault(candle_date, []).append(candle)
+
+        return same_day, others
+
+    async def _fetch_full_day_candles(
+        self,
+        stock_code: str,
+        target_date: datetime,
+        korea_invest_service
+    ) -> List[ChartCandle]:
+        """Retrieve the entire minute series for the specified date."""
+        target_date_str = target_date.strftime("%Y-%m-%d")
+        is_today = target_date.date() == datetime.now().date()
+
+        try:
+            if is_today:
+                logger.info(f"전체 재조회(당일): {stock_code}, {target_date_str}")
+                candles = await korea_invest_service.get_minute_chart_data(stock_code) or []
+            else:
+                logger.info(f"전체 재조회(과거): {stock_code}, {target_date_str}")
+                df = await korea_invest_service.get_daily_minute_chart_data(stock_code, target_date)
+                if df is None or (hasattr(df, 'empty') and df.empty):
+                    return []
+                candles = self._convert_df_to_candles(df, target_date)
+        except Exception as e:
+            logger.error(f"전체 분봉 재조회 실패: {stock_code}, {target_date_str}, 오류: {e}")
+            return []
+
+        filtered, _ = self._partition_candles_by_date(candles, target_date_str)
+        return filtered
 
     def _save_to_cache(self, stock_code: str, date: datetime, candles: List[ChartCandle]):
         """
@@ -181,16 +270,42 @@ class ChartCacheService:
         Returns:
             Gap이 채워진 완전한 데이터
         """
+        target_date_str = target_date.strftime("%Y-%m-%d")
+        base_candles, extras = self._partition_candles_by_date(cached_candles, target_date_str)
+
+        if extras:
+            summary = ", ".join(
+                f"{date}({len(items)}개)" for date, items in extras.items()
+            )
+            logger.warning(
+                f"Gap fill 이전 캐시에 다른 날짜 데이터 발견: {stock_code} → {summary}. 대상 날짜만 사용합니다."
+            )
+
+        if not base_candles:
+            logger.warning(
+                f"Gap fill을 위한 대상 날짜 데이터가 없어 전체 재조회 시도: {stock_code}, {target_date_str}"
+            )
+            base_candles = await self._fetch_full_day_candles(
+                stock_code=stock_code,
+                target_date=target_date,
+                korea_invest_service=korea_invest_service
+            )
+            if not base_candles:
+                logger.error(
+                    f"Gap fill 실패: {stock_code}, {target_date_str} 대상 데이터 확보 불가"
+                )
+                return []
+
         # 1. Cache의 마지막 시간
         try:
             latest_cached = max(
-                cached_candles,
+                base_candles,
                 key=lambda c: datetime.fromisoformat(c.timestamp)
             )
             gap_start_time = datetime.fromisoformat(latest_cached.timestamp)
         except (ValueError, AttributeError) as e:
             logger.error(f"캔들 timestamp 파싱 실패: {e}")
-            return cached_candles
+            return base_candles
 
         # 2. Gap 시작 시간 계산 (마지막 캔들 + 1분)
         gap_start = gap_start_time + timedelta(minutes=1)
@@ -210,9 +325,8 @@ class ChartCacheService:
 
         if not gap_candles:
             logger.warning(f"Gap 데이터 없음: {stock_code}, {gap_start_hhmmss}~")
-            return cached_candles
+            return base_candles
 
-        target_date_str = target_date.strftime("%Y-%m-%d")
         valid_gap_candles: List[ChartCandle] = []
         discarded_counts = {}
 
@@ -232,7 +346,7 @@ class ChartCacheService:
             logger.warning(
                 f"유효한 Gap 데이터 없음: {stock_code}, target={target_date_str}. 기존 캐시를 유지합니다."
             )
-            return cached_candles
+            return base_candles
 
         logger.info(
             f"Gap 채우기: {len(valid_gap_candles)}개 추가 "
@@ -240,18 +354,22 @@ class ChartCacheService:
         )
 
         # 4. 병합 및 중복 제거 (timestamp를 key로 사용)
-        all_candles = cached_candles + valid_gap_candles
+        all_candles = base_candles + valid_gap_candles
         unique_map = {candle.timestamp: candle for candle in all_candles}
 
         # 5. 시간순 정렬
-        sorted_candles = sorted(
-            unique_map.values(),
-            key=lambda c: datetime.fromisoformat(c.timestamp)
-        )
+        sorted_candles = [
+            candle
+            for candle in sorted(
+                unique_map.values(),
+                key=lambda c: datetime.fromisoformat(c.timestamp)
+            )
+            if candle.timestamp[:10] == target_date_str
+        ]
 
         logger.info(
-            f"Gap fill 완료: {len(cached_candles)}개 → {len(sorted_candles)}개 "
-            f"(+{len(sorted_candles) - len(cached_candles)}개)"
+            f"Gap fill 완료: {len(base_candles)}개 → {len(sorted_candles)}개 "
+            f"(+{len(sorted_candles) - len(base_candles)}개)"
         )
 
         return sorted_candles
@@ -277,6 +395,14 @@ class ChartCacheService:
         """
         # 1. 캐시에서 조회 시도
         cached_data = self._load_from_cache(stock_code, target_date)
+        if cached_data:
+            cached_data = await self._sanitize_cached_candles_for_date(
+                cached_candles=cached_data,
+                stock_code=stock_code,
+                target_date=target_date,
+                korea_invest_service=korea_invest_service,
+                skip_cache_save=skip_cache_save
+            )
         
         # 2. Gap 감지 및 채우기 (최적화)
         if cached_data and self._needs_gap_fill(cached_data, target_date):
