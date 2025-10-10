@@ -1,7 +1,7 @@
 // components/trading/TRViewChart.tsx
 'use client';
 
-import { useEffect, useRef, useMemo, useState } from 'react';
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import {
   createChart,
   IChartApi,
@@ -32,6 +32,8 @@ interface TRViewChartProps {
   }) => void;
   onLoadPrevious?: () => void;
   isLoadingMore?: boolean;
+  initialVisibleCandles?: number;
+  hasExtendedRange?: boolean;
 }
 
 export function TRViewChart({
@@ -45,13 +47,29 @@ export function TRViewChart({
   onReady,
   onLoadPrevious,
   isLoadingMore,
-}: TRViewChartProps) {  const [legendData, setLegendData] = useState<any>(null);
+  initialVisibleCandles,
+  hasExtendedRange = false,
+}: TRViewChartProps) {
+  const [legendData, setLegendData] = useState<any>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const lastCandleRef = useRef<ChartCandle | null>(null);
   const loadingIndicatorRef = useRef<HTMLDivElement>(null);
+
+  const formatKST = useCallback(
+    (
+      date: Date,
+      options: Intl.DateTimeFormatOptions
+    ) =>
+      new Intl.DateTimeFormat('ko-KR', {
+        timeZone: 'Asia/Seoul',
+        hour12: false,
+        ...options,
+      }).format(date),
+    []
+  );
 
   const onReadyRef = useRef(onReady);
   useEffect(() => {
@@ -70,6 +88,18 @@ export function TRViewChart({
       height,
     });
     chartRef.current = chart;
+    chart.applyOptions({
+      localization: {
+        timeFormatter: (timestamp: number) =>
+          formatKST(new Date(timestamp * 1000), {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+      },
+    });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: CHART_COLORS.CANDLE_UP,
@@ -124,7 +154,7 @@ export function TRViewChart({
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [height, showVolume]);
+  }, [height, showVolume, formatKST]);
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -157,33 +187,39 @@ export function TRViewChart({
         const date = new Date(time * 1000);
         
         if (isDay) {
-          // 일봉: YYYY-MM-DD 형식
-          const year = date.getUTCFullYear();
-          const month = ('0' + (date.getUTCMonth() + 1)).slice(-2);
-          const day = ('0' + date.getUTCDate()).slice(-2);
-          return `${year}-${month}-${day}`;
+          return formatKST(date, {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          });
         } else {
-          // 분봉: HH:mm 형식 (현지 시간 기준)
-          const hours = ('0' + date.getHours()).slice(-2);
-          const minutes = ('0' + date.getMinutes()).slice(-2);
-          return `${hours}:${minutes}`;
+          return formatKST(date, {
+            hour: '2-digit',
+            minute: '2-digit',
+          });
         }
       },
     });
-  }, [timeframe]);
+  }, [timeframe, formatKST]);
 
   useEffect(() => {
-    if (candleSeriesRef.current) {
-      const isInitialData = chartData.length > 0 && candleSeriesRef.current.data.length === 0;
-      
+    const chart = chartRef.current;
+    const candleSeries = candleSeriesRef.current;
+    if (candleSeries && chart) {
       if (candleData && candleData.length > 0) {
-        candleSeriesRef.current.setData(candleData);
-        if (isInitialData) {
-          chartRef.current?.timeScale().fitContent();
-        }
+        candleSeries.setData(candleData);
         lastCandleRef.current = chartData[chartData.length - 1];
+
+        if (!hasExtendedRange) {
+          const total = candleData.length;
+          const targetCount = initialVisibleCandles ?? total;
+          const visibleCount = Math.min(targetCount, total);
+          const from = Math.max(0, total - visibleCount);
+          const to = total;
+          chart.timeScale().setVisibleLogicalRange({ from, to });
+        }
       } else {
-        candleSeriesRef.current.setData([]);
+        candleSeries.setData([]);
       }
     }
     if (volumeSeriesRef.current) {
@@ -194,7 +230,7 @@ export function TRViewChart({
             volumeSeriesRef.current.setData([]);
         }
     }
-  }, [candleData, volumeData, chartData]);
+  }, [candleData, volumeData, chartData, hasExtendedRange, initialVisibleCandles]);
 
   useEffect(() => {
     if (!chartRef.current || !onLoadPrevious) return;
@@ -268,7 +304,14 @@ export function TRViewChart({
           }}
         >
           <div style={{ marginBottom: '4px', fontWeight: 'bold' }}>
-            {new Date(legendData.time * 1000).toLocaleString()}
+            {formatKST(new Date(legendData.time * 1000), {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            })}
           </div>
           <div>O: <span style={{ color: '#22c55e' }}>{legendData.open}</span></div>
           <div>H: <span style={{ color: '#ef4444' }}>{legendData.high}</span></div>

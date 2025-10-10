@@ -1,7 +1,7 @@
 // hooks/useTRViewChart.ts
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChartCandle } from '@/lib/types/korean-stocks';
 import { chartAPI } from '@/lib/chart-api';
 
@@ -13,6 +13,20 @@ interface UseTRViewChartProps {
 
 // Helper to get YYYY-MM-DD format
 const toYYYYMMDD = (date: Date) => date.toISOString().split('T')[0];
+const MAX_INITIAL_CANDLES = 100;
+
+const mergeCandles = (existing: ChartCandle[], incoming: ChartCandle[]) => {
+  const map = new Map<string, ChartCandle>();
+  for (const candle of existing) {
+    map.set(candle.timestamp, candle);
+  }
+  for (const candle of incoming) {
+    map.set(candle.timestamp, candle);
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+};
 
 export function useTRViewChart({
   stockCode,
@@ -25,13 +39,32 @@ export function useTRViewChart({
   const [error, setError] = useState<string | null>(null);
   const [oldestDate, setOldestDate] = useState<string | null>(null);
   const [canLoadMore, setCanLoadMore] = useState(true);
+  const [hasExtendedRange, setHasExtendedRange] = useState(false);
 
-  const fetchInitialData = useCallback(async () => {
+  const chartDataRef = useRef<ChartCandle[]>([]);
+  const hasExtendedRef = useRef(false);
+
+  useEffect(() => {
+    chartDataRef.current = chartData;
+  }, [chartData]);
+
+  useEffect(() => {
+    hasExtendedRef.current = hasExtendedRange;
+  }, [hasExtendedRange]);
+
+  useEffect(() => {
+    setHasExtendedRange(false);
+    hasExtendedRef.current = false;
+  }, [stockCode, timeframe]);
+
+  const fetchData = useCallback(async ({ silent = false } = {}) => {
     if (!enabled || !stockCode) return;
 
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
     setError(null);
-    setChartData([]);
+    // ✅ 수정: setChartData([]) 제거 - 기존 데이터 유지하여 깜빡임 방지
     setCanLoadMore(true);
 
     try {
@@ -41,22 +74,30 @@ export function useTRViewChart({
 
       if (timeframe === 'minute') {
         data = await chartAPI.getMinuteCandles(stockCode, { date: todayStr });
-        if (data.length > 0) {
-          setOldestDate(todayStr);
-        }
       } else if (timeframe === 'day') {
         const oneYearAgo = new Date(today);
         oneYearAgo.setFullYear(today.getFullYear() - 1);
         const oneYearAgoStr = toYYYYMMDD(oneYearAgo);
         data = await chartAPI.getDayCandles(stockCode, oneYearAgoStr, todayStr);
-        if (data.length > 0) {
-          // The oldest date is the start of the fetched range
-          setOldestDate(oneYearAgoStr);
-        }
       }
-      
-      setChartData(data);
-      if (data.length === 0) {
+
+      let nextData = hasExtendedRef.current
+        ? mergeCandles(chartDataRef.current, data)
+        : data;
+
+      if (!hasExtendedRef.current && nextData.length > MAX_INITIAL_CANDLES) {
+        nextData = nextData.slice(-MAX_INITIAL_CANDLES);
+      }
+
+      chartDataRef.current = nextData;
+      setChartData(nextData);
+
+      if (nextData.length > 0) {
+        const firstTimestamp = nextData[0].timestamp;
+        setOldestDate(firstTimestamp.slice(0, 10));
+        setCanLoadMore(true);
+      } else {
+        setOldestDate(null);
         setCanLoadMore(false);
       }
 
@@ -65,13 +106,25 @@ export function useTRViewChart({
       setError(message);
       console.error(`[${timeframe}] TRView 차트 데이터 로드 오류:`, err);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, [enabled, stockCode, timeframe]);
 
   useEffect(() => {
-    fetchInitialData();
-  }, [fetchInitialData]);
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (!enabled || timeframe !== 'day') return;
+
+    const intervalId = setInterval(() => {
+      fetchData({ silent: true });
+    }, 60000);
+
+    return () => clearInterval(intervalId);
+  }, [enabled, timeframe, fetchData]);
 
   const loadPrevious = useCallback(async () => {
     if (isLoadingMore || !canLoadMore || !oldestDate) return;
@@ -110,12 +163,16 @@ export function useTRViewChart({
         }
 
         if (prevData.length > 0) {
-            setChartData(currentData => {
-                const newData = [...prevData, ...currentData];
-                const uniqueData = Array.from(new Map(newData.map(item => [item.timestamp, item])).values())
-                .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-                return uniqueData;
-            });
+            const combined = mergeCandles(prevData, chartDataRef.current);
+            chartDataRef.current = combined;
+            setChartData(combined);
+            setHasExtendedRange(true);
+            hasExtendedRef.current = true;
+            const earliest = combined[0]?.timestamp;
+            if (earliest) {
+              setOldestDate(earliest.slice(0, 10));
+            }
+            setCanLoadMore(true);
         } else {
             setCanLoadMore(false);
         }
@@ -126,13 +183,16 @@ export function useTRViewChart({
     }
   }, [isLoadingMore, canLoadMore, oldestDate, stockCode, timeframe]);
 
+  const refetch = useCallback(() => fetchData(), [fetchData]);
+
   return { 
     chartData, 
     isLoading, 
     error, 
-    refetch: fetchInitialData, 
+    refetch, 
     loadPrevious, // Renamed from loadPreviousDay
     isLoadingMore, 
-    canLoadMore 
+    canLoadMore,
+    hasExtendedRange
   };
 }

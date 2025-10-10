@@ -166,7 +166,8 @@ class ChartCacheService:
         self,
         cached_candles: List[ChartCandle],
         stock_code: str,
-        korea_invest_service
+        korea_invest_service,
+        target_date: datetime  # ✅ 추가: 대상 날짜
     ) -> List[ChartCandle]:
         """
         Cache gap을 API로 채움 (최적화: Gap 구간만 조회)
@@ -175,6 +176,7 @@ class ChartCacheService:
             cached_candles: 기존 cache 데이터
             stock_code: 종목 코드
             korea_invest_service: KoreaInvestAPIService 인스턴스
+            target_date: 대상 날짜 (datetime)
 
         Returns:
             Gap이 채워진 완전한 데이터
@@ -195,27 +197,50 @@ class ChartCacheService:
         gap_start_hhmmss = gap_start.strftime("%H%M%S")
 
         logger.info(
-            f"Gap 구간만 조회: {stock_code}, "
+            f"Gap 구간만 조회: {stock_code}, {target_date.strftime('%Y-%m-%d')} "
             f"{gap_start.strftime('%H:%M')}~현재 (start_time={gap_start_hhmmss})"
         )
 
-        # 3. ✨ Gap 구간만 API 호출 (최적화)
+        # 3. ✨ Gap 구간만 API 호출 (최적화) - ✅ target_date 전달
         gap_candles = await korea_invest_service.get_minute_chart_data_from(
             stock_code=stock_code,
-            start_time=gap_start_hhmmss
+            start_time=gap_start_hhmmss,
+            target_date=target_date  # ✅ 추가: 날짜 지정
         )
 
         if not gap_candles:
             logger.warning(f"Gap 데이터 없음: {stock_code}, {gap_start_hhmmss}~")
             return cached_candles
 
+        target_date_str = target_date.strftime("%Y-%m-%d")
+        valid_gap_candles: List[ChartCandle] = []
+        discarded_counts = {}
+
+        for candle in gap_candles:
+            candle_date = candle.timestamp[:10]
+            if candle_date == target_date_str:
+                valid_gap_candles.append(candle)
+            else:
+                discarded_counts[candle_date] = discarded_counts.get(candle_date, 0) + 1
+
+        if discarded_counts:
+            extra_summary = ", ".join(f"{date}({count}개)" for date, count in discarded_counts.items())
+            logger.info(f"Gap 데이터에서 다른 날짜 발견: {stock_code} → {extra_summary}")
+
+        if not valid_gap_candles:
+            # 다른 날짜 데이터만 반환된 경우 기존 캐시 유지
+            logger.warning(
+                f"유효한 Gap 데이터 없음: {stock_code}, target={target_date_str}. 기존 캐시를 유지합니다."
+            )
+            return cached_candles
+
         logger.info(
-            f"Gap 채우기: {len(gap_candles)}개 추가 "
+            f"Gap 채우기: {len(valid_gap_candles)}개 추가 "
             f"({gap_start_hhmmss}~현재)"
         )
 
         # 4. 병합 및 중복 제거 (timestamp를 key로 사용)
-        all_candles = cached_candles + gap_candles
+        all_candles = cached_candles + valid_gap_candles
         unique_map = {candle.timestamp: candle for candle in all_candles}
 
         # 5. 시간순 정렬
@@ -255,14 +280,15 @@ class ChartCacheService:
         
         # 2. Gap 감지 및 채우기 (최적화)
         if cached_data and self._needs_gap_fill(cached_data, target_date):
-            logger.info(f"Gap 감지, 구간만 조회: {stock_code}")
-            
+            logger.info(f"Gap 감지, 구간만 조회: {stock_code}, {target_date.strftime('%Y-%m-%d')}")
+
             try:
-                # ✅ Gap 구간만 조회 (전체 조회 X)
+                # ✅ Gap 구간만 조회 (전체 조회 X) - target_date 전달
                 filled_data = await self._fill_gap(
                     cached_candles=cached_data,
                     stock_code=stock_code,
-                    korea_invest_service=korea_invest_service
+                    korea_invest_service=korea_invest_service,
+                    target_date=target_date  # ✅ 추가
                 )
                 
                 # 캐시 저장

@@ -9,11 +9,11 @@ Next.js 개발 서버를 시작합니다.
 
 #### 사용법
 ```bash
-# 기본 포트 3000으로 시작
+# 기본 포트 9000으로 시작
 ./scripts/start-server.sh
 
 # 특정 포트로 시작
-./scripts/start-server.sh 3001
+./scripts/start-server.sh 9001
 
 # 도움말 확인
 ./scripts/start-server.sh --help
@@ -32,11 +32,11 @@ Next.js 개발 서버를 시작합니다.
 
 #### 사용법
 ```bash
-# 기본 포트 3000 종료
+# 기본 포트 9000 종료
 ./scripts/stop-server.sh
 
 # 특정 포트 종료
-./scripts/stop-server.sh 3001
+./scripts/stop-server.sh 9001
 
 # 모든 Next.js 프로세스 종료
 ./scripts/stop-server.sh --all
@@ -45,7 +45,7 @@ Next.js 개발 서버를 시작합니다.
 ./scripts/stop-server.sh --scan
 
 # 강제 종료 (확인 없이)
-./scripts/stop-server.sh --force 3000
+./scripts/stop-server.sh --force 9000
 
 # 도움말 확인
 ./scripts/stop-server.sh --help
@@ -101,14 +101,14 @@ Next.js 개발 서버를 시작합니다.
 ./scripts/start-server.sh
 
 # 또는 미리 포트를 정리합니다
-./scripts/stop-server.sh 3000
-./scripts/start-server.sh 3000
+./scripts/stop-server.sh 9000
+./scripts/start-server.sh 9000
 ```
 
 ### 개발 포트 관리
 여러 개발 서버가 실행 중일 때:
 ```bash
-# 포트 3000-3010 스캔
+# 포트 9000-9010 스캔
 ./scripts/stop-server.sh --scan
 
 # 모든 Next.js 프로세스 종료
@@ -120,7 +120,7 @@ Next.js 개발 서버를 시작합니다.
 #!/bin/bash
 # 개발 환경 초기화
 ./scripts/stop-server.sh --all
-./scripts/start-server.sh 3000
+./scripts/start-server.sh 9000
 ```
 
 ---
@@ -130,11 +130,11 @@ Next.js 개발 서버를 시작합니다.
 ### 포트를 찾을 수 없는 경우
 ```bash
 # 수동으로 프로세스 확인
-lsof -i :3000
-netstat -tulnp | grep :3000
+lsof -i :9000
+netstat -tulnp | grep :9000
 
 # 강제 종료
-./scripts/stop-server.sh --force 3000
+./scripts/stop-server.sh --force 9000
 ```
 
 ### 권한 문제
@@ -168,17 +168,17 @@ npm install
 [SUCCESS] Node.js: v18.17.0
 [SUCCESS] npm: 9.6.7
 [SUCCESS] 의존성이 이미 설치되어 있습니다.
-[INFO] Next.js Frontend 서버를 포트 3000에서 시작합니다...
+[INFO] Next.js Frontend 서버를 포트 9000에서 시작합니다...
 [INFO] 서버 시작 중...
-[INFO] 브라우저에서 http://localhost:3000 에 접속하세요
+[INFO] 브라우저에서 http://localhost:9000 에 접속하세요
 ```
 
 ### 포트 충돌 해결
 ```
-[WARNING] 포트 3000가 이미 사용 중입니다.
+[WARNING] 포트 9000가 이미 사용 중입니다.
 기존 프로세스를 종료하고 새로 시작하시겠습니까? (y/N): y
-[WARNING] 포트 3000에서 실행 중인 프로세스를 종료합니다...
-[SUCCESS] 포트 3000의 프로세스들을 종료했습니다.
+[WARNING] 포트 9000에서 실행 중인 프로세스를 종료합니다...
+[SUCCESS] 포트 9000의 프로세스들을 종료했습니다.
 ```
 
 ---

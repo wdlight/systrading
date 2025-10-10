@@ -327,7 +327,8 @@ class KoreaInvestAPIService:
     async def get_minute_chart_data_from(
         self,
         stock_code: str,
-        start_time: str  # HHMMSS 형식
+        start_time: str,  # HHMMSS 형식
+        target_date: Optional[datetime] = None  # ✅ 추가: 대상 날짜
     ) -> Optional[List[ChartCandle]]:
         """
         특정 시간부터 현재까지 분봉 데이터 조회 (Gap-fill 최적화)
@@ -335,29 +336,51 @@ class KoreaInvestAPIService:
         Args:
             stock_code: 종목 코드 (예: "005930")
             start_time: 시작 시간 HHMMSS 형식 (예: "113000" = 11:30:00)
+            target_date: 대상 날짜 (datetime). None이면 오늘
 
         Returns:
             start_time 이후 분봉 데이터만 반환
 
         Example:
             # 11:30부터 현재까지만 조회 (Gap-fill 최적화)
-            candles = await service.get_minute_chart_data_from("005930", "113000")
+            candles = await service.get_minute_chart_data_from("005930", "113000", target_date)
         """
         if not self.is_connected or not self.api_instance:
             logger.error("API가 연결되지 않았습니다.")
             return None
 
         try:
-            logger.info(f"Gap 구간 조회: {stock_code}, {start_time}~현재")
+            # ✅ 날짜 정보 추가
+            date_str = target_date.strftime('%Y-%m-%d') if target_date else "오늘"
+            logger.info(f"Gap 구간 조회: {stock_code}, {date_str} {start_time}~현재")
 
-            # API 호출 (start_time 지정) - functools.partial 사용
-            func = partial(
-                self.api_instance.get_minute_chart_data,
-                stock_code,
-                start_time=start_time,  # 🔑 Gap 시작 시간
-                max_count=None
-            )
-            df = await self._run_in_executor(func)
+            # ✅ 오늘 날짜인지 과거 날짜인지 판단
+            is_today = target_date is None or target_date.date() == datetime.now().date()
+
+            if is_today:
+                # 오늘 데이터: 기존 방식 (start_time 사용)
+                func = partial(
+                    self.api_instance.get_minute_chart_data,
+                    stock_code,
+                    start_time=start_time,  # 🔑 Gap 시작 시간
+                    max_count=None
+                )
+                df = await self._run_in_executor(func)
+            else:
+                # ✅ 과거 날짜: get_daily_minute_chart_data 사용 후 시간 필터링
+                logger.info(f"과거 날짜 Gap fill: {stock_code}, {target_date.strftime('%Y-%m-%d')}")
+                df = await self._run_in_executor(
+                    self.api_instance.get_daily_minute_chart_data,
+                    stock_code,
+                    target_date
+                )
+
+                # 시간 필터링: start_time 이후 데이터만
+                if df is not None and not df.empty:
+                    df['시간_int'] = df['시간'].astype(str).str.zfill(6).astype(int)
+                    start_time_int = int(start_time)
+                    df = df[df['시간_int'] >= start_time_int].drop(columns=['시간_int'])
+                    logger.info(f"시간 필터링 완료: {start_time} 이후 {len(df)}개")
 
             if df is None or df.empty:
                 logger.info(f"Gap 구간 데이터 없음: {stock_code}, {start_time}~")

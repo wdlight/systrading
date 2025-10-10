@@ -182,10 +182,76 @@ class TradingService:
                 end_date=end_date,
                 korea_invest_service=self.korea_invest_service
             )
+            if daily_candles is None:
+                daily_candles = []
+
+            today = datetime.now().date()
+            if start_date.date() <= today <= end_date.date():
+                intraday_candle = await self._build_daily_candle_from_minutes(
+                    stock_code,
+                    datetime.combine(today, datetime.min.time())
+                )
+                if intraday_candle:
+                    today_str = intraday_candle.timestamp[:10]
+                    daily_candles = [
+                        candle for candle in daily_candles
+                        if candle.timestamp[:10] != today_str
+                    ]
+                    daily_candles.append(intraday_candle)
+                    daily_candles.sort(key=lambda c: c.timestamp)
+
             return daily_candles
         except Exception as e:
             logger.error(f"일봉 데이터 서비스 처리 중 오류 발생: {e}")
             return None
+
+    async def _build_daily_candle_from_minutes(
+        self,
+        stock_code: str,
+        target_date: datetime
+    ) -> Optional[ChartCandle]:
+        """
+        분봉 데이터를 기반으로 당일 일봉을 실시간 생성
+        """
+        minute_candles = await self.get_minute_chart_data(
+            stock_code=stock_code,
+            target_date=target_date,
+            include_extended_hours=False,
+            regular_hours_only=True
+        )
+
+        if not minute_candles:
+            logger.info(
+                f"실시간 일봉 생성 실패: 분봉 데이터 없음 ({stock_code}, {target_date.strftime('%Y-%m-%d')})"
+            )
+            return None
+
+        minute_candles = sorted(
+            minute_candles,
+            key=lambda c: datetime.fromisoformat(c.timestamp)
+        )
+
+        open_price = minute_candles[0].open
+        close_price = minute_candles[-1].close
+        high_price = max(c.high for c in minute_candles)
+        low_price = min(c.low for c in minute_candles)
+        total_volume = sum(c.volume or 0 for c in minute_candles)
+
+        intraday_candle = ChartCandle(
+            timestamp=target_date.strftime("%Y-%m-%dT00:00:00"),
+            open=open_price,
+            high=high_price,
+            low=low_price,
+            close=close_price,
+            volume=int(total_volume),
+        )
+
+        logger.info(
+            f"실시간 일봉 생성: {stock_code} {intraday_candle.timestamp} "
+            f"O:{open_price} H:{high_price} L:{low_price} C:{close_price} V:{total_volume}"
+        )
+
+        return intraday_candle
 
     async def get_full_day_candles(
         self,

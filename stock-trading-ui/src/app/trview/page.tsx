@@ -46,6 +46,7 @@ export default function TRViewPage() {
     refetch: refetchMinute,
     loadPrevious: loadPreviousMinute,
     isLoadingMore: isLoadingMoreMinute,
+    hasExtendedRange: hasExtendedRangeMinute,
   } = useTRViewChart({
     stockCode,
     timeframe: 'minute',
@@ -60,6 +61,7 @@ export default function TRViewPage() {
     refetch: refetchDay,
     loadPrevious: loadPreviousDay,
     isLoadingMore: isLoadingMoreDay,
+    hasExtendedRange: hasExtendedRangeDay,
   } = useTRViewChart({
     stockCode,
     timeframe: 'day',
@@ -122,8 +124,9 @@ export default function TRViewPage() {
                     variant="ghost"
                     size="sm"
                     onClick={refetchMinute}
+                    disabled={isLoadingMinute}
                   >
-                    <RefreshCw className="w-4 h-4" />
+                    <RefreshCw className={`w-4 h-4 ${isLoadingMinute ? 'animate-spin' : ''}`} />
                   </Button>
                 </div>
               </CardHeader>
@@ -140,6 +143,8 @@ export default function TRViewPage() {
                     onLoadPrevious={loadPreviousMinute}
                     isLoadingMore={isLoadingMoreMinute}
                     timeframe="minute"
+                    initialVisibleCandles={100}
+                    hasExtendedRange={hasExtendedRangeMinute}
                   />
                 )}
               </CardContent>
@@ -156,8 +161,9 @@ export default function TRViewPage() {
                     variant="ghost"
                     size="sm"
                     onClick={refetchDay}
+                    disabled={isLoadingDay}
                   >
-                    <RefreshCw className="w-4 h-4" />
+                    <RefreshCw className={`w-4 h-4 ${isLoadingDay ? 'animate-spin' : ''}`} />
                   </Button>
                 </div>
               </CardHeader>
@@ -174,6 +180,8 @@ export default function TRViewPage() {
                     onLoadPrevious={loadPreviousDay}
                     isLoadingMore={isLoadingMoreDay}
                     timeframe="day"
+                    initialVisibleCandles={100}
+                    hasExtendedRange={hasExtendedRangeDay}
                   />
                 )}
               </CardContent>
