@@ -72,10 +72,10 @@ export default function TRViewPage() {
   const selectedStockName = stockList.find(s => s.value === stockCode)?.label || stockCode;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0b]">
-      {/* Header */}
-      <div className="bg-[#1a1a1b] border-b border-gray-700 px-6 py-4">
-        <div className="max-w-[1600px] mx-auto">
+    <div className="bg-[#1a1a1a] p-6">
+      <div className="max-w-[1600px] mx-auto">
+        {/* Page Title Section */}
+        <div className="mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <CandlestickChart className="w-8 h-8 text-blue-400" />
@@ -94,10 +94,8 @@ export default function TRViewPage() {
             </Badge>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto p-6">
+        {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Controls Panel */}
           <TRViewChartControls

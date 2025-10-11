@@ -2,7 +2,6 @@
 
 import FocusTrap from 'focus-trap-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Header } from '@/components/layout/Header';
 import { QuickActionPanel } from '@/components/layout/QuickActionPanel';
 import { PortfolioPerformance } from '@/components/trading/PortfolioPerformance';
 import { MarketOverview } from '@/components/trading/MarketOverview';
@@ -70,11 +69,7 @@ export default function Home() {
   }, [bottomSheetOpen]);
 
   return (
-    <div className="min-h-screen bg-[#1a1a1a]">
-      {/* Enhanced Professional Header */}
-      <Header />
-
-      <div className="flex min-h-[calc(100vh-64px)] overflow-hidden">
+    <div className="flex overflow-hidden bg-[#1a1a1a]">
         <QuickActionPanel className="hidden xl:flex" />
 
         <main className="flex-1 overflow-hidden bg-[#1a1a1a]">
@@ -188,7 +183,6 @@ export default function Home() {
             </div>
           </div>
         </main>
-      </div>
 
       {/* Mobile Quick Action FAB */}
       <div className="fixed bottom-6 right-6 z-50 xl:hidden">
