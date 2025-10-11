@@ -54,3 +54,4 @@ python-multipart==0.0.6
 
 # 한국거래소(KRX) 데이터를 스크래핑하는 오픈소스
 pykrx==1.0.51
+\n# 공휴일 계산\nholidays==0.41

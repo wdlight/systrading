@@ -1,180 +1,115 @@
 """
-한국 주식시장 거래일 계산 유틸리티
-주말 및 공휴일을 제외한 거래일 계산
+거래일 계산 유틸리티 v3.0 (Dynamic)
+
+한국 주식시장의 거래일을 동적으로 계산합니다.
+- 'holidays' 라이브러리를 사용하여 공휴일 및 대체공휴일 자동 계산
+- 연말 휴장일(12월 31일) 자동 포함
 """
 
 from datetime import datetime, timedelta
-from typing import Set
+from typing import List
+import holidays
 
 
 class TradingCalendar:
-    """한국 주식시장 거래일 관리"""
+    """
+    한국 주식 거래일 계산기.
+    'holidays' 라이브러리를 사용하여 공휴일을 동적으로 처리합니다.
+    """
 
-    # 2025년 한국 공휴일 (YYYYMMDD 형식)
-    HOLIDAYS_2025: Set[str] = {
-        "20250101",  # 신정
-        "20250128",  # 설날 연휴
-        "20250129",  # 설날
-        "20250130",  # 설날 연휴
-        "20250301",  # 삼일절
-        "20250505",  # 어린이날
-        "20250506",  # 석가탄신일
-        "20250606",  # 현충일
-        "20250815",  # 광복절
-        # "20251003",  # 개천절 (테스트를 위해 임시 제거)
-        "20251005",  # 추석 연휴
-        "20251006",  # 추석
-        "20251007",  # 추석 연휴
-        "20251009",  # 한글날
-        "20251225",  # 크리스마스
-    }
+    def __init__(self, years: List[int] = None):
+        """
+        TradingCalendar 초기화.
+        지정된 연도 범위의 공휴일 및 연말 휴장일을 로드합니다.
+        지정하지 않으면 현재 연도 기준 +- 5년으로 설정됩니다.
+        """
+        if years is None:
+            current_year = datetime.now().year
+            years = list(range(current_year - 5, current_year + 6))
 
-    # 2024년 한국 공휴일
-    HOLIDAYS_2024: Set[str] = {
-        "20240101",  # 신정
-        "20240209",  # 설날 연휴
-        "20240210",  # 설날
-        "20240211",  # 설날 연휴
-        "20240212",  # 대체공휴일
-        "20240301",  # 삼일절
-        "20240410",  # 총선
-        "20240505",  # 어린이날
-        "20240506",  # 대체공휴일
-        "20240515",  # 석가탄신일
-        "20240606",  # 현충일
-        "20240815",  # 광복절
-        "20240916",  # 추석 연휴
-        "20240917",  # 추석
-        "20240918",  # 추석 연휴
-        "20241003",  # 개천절
-        "20241009",  # 한글날
-        "20241225",  # 크리스마스
-    }
+        # 대한민국 공휴일 로드
+        self.holidays = holidays.KR(years=years)
 
-    @classmethod
-    def is_holiday(cls, date: datetime) -> bool:
-        """공휴일 여부 확인"""
-        date_str = date.strftime("%Y%m%d")
-        year = date.year
+        # 주식 시장의 연말 휴장일(12월 31일) 추가
+        for year in years:
+            # 12월 31일이 주말이 아닌 경우 휴장일로 추가
+            last_day = datetime(year, 12, 31)
+            if last_day.weekday() < 5:  # 0-4 (월-금)
+                self.holidays[last_day] = "연말 휴장일"
 
-        if year == 2025:
-            return date_str in cls.HOLIDAYS_2025
-        elif year == 2024:
-            return date_str in cls.HOLIDAYS_2024
-        else:
-            # 다른 연도는 기본 공휴일만 체크 (신정, 광복절 등)
-            return date_str[-4:] in {"0101", "0815", "1225"}
-
-    @classmethod
-    def is_trading_day(cls, date: datetime) -> bool:
-        """거래일 여부 확인 (주말 및 공휴일 제외)"""
+    def is_trading_day(self, date: datetime) -> bool:
+        """
+        특정 날짜가 거래일인지 확인합니다.
+        주말, 공휴일, 연말 휴장일을 제외합니다.
+        """
         # 주말 체크 (토요일=5, 일요일=6)
         if date.weekday() >= 5:
             return False
 
-        # 공휴일 체크
-        if cls.is_holiday(date):
+        # 공휴일 체크 (holidays 라이브러리 사용)
+        # date 객체의 날짜 부분만 비교하기 위해 date.date() 사용
+        if date.date() in self.holidays:
             return False
 
         return True
 
-    @classmethod
-    def get_previous_trading_day(cls, date: datetime) -> datetime:
-        """이전 거래일 반환"""
-        current = date - timedelta(days=1)
-
-        # 최대 10일 전까지 탐색 (연휴 대비)
-        for _ in range(10):
-            if cls.is_trading_day(current):
-                return current
-            current = current - timedelta(days=1)
-
-        # 10일 이내에 거래일이 없으면 그냥 1일 전 반환
-        return date - timedelta(days=1)
-
-    @classmethod
-    def get_next_trading_day(cls, date: datetime) -> datetime:
-        """다음 거래일 반환"""
-        current = date + timedelta(days=1)
-
-        # 최대 10일 후까지 탐색
-        for _ in range(10):
-            if cls.is_trading_day(current):
-                return current
-            current = current + timedelta(days=1)
-
-        # 10일 이내에 거래일이 없으면 그냥 1일 후 반환
-        return date + timedelta(days=1)
-
-    @classmethod
-    def get_trading_days_between(cls, start_date: datetime, end_date: datetime) -> int:
-        """두 날짜 사이의 거래일 수 계산"""
-        count = 0
-        current = start_date
-
-        while current <= end_date:
-            if cls.is_trading_day(current):
-                count += 1
-            current = current + timedelta(days=1)
-
-        return count
-
-    @classmethod
-    def get_previous_trading_days(cls, from_date: datetime, count: int) -> list[datetime]:
+    def get_next_trading_day(self, date: datetime, max_attempts: int = 30) -> datetime:
         """
-        특정 날짜로부터 이전 N개 거래일 반환 (from_date 제외)
-
-        Args:
-            from_date: 기준 날짜
-            count: 반환할 거래일 개수
-
-        Returns:
-            이전 거래일 리스트 (최신순, from_date는 제외)
-
-        Example:
-            >>> get_previous_trading_days(datetime(2025, 10, 6), 3)  # 월요일
-            [datetime(2025, 10, 3),  # 금요일
-             datetime(2025, 10, 2),  # 목요일
-             datetime(2025, 10, 1)]  # 수요일
+        주어진 날짜 이후의 가장 가까운 거래일을 반환합니다.
         """
-        trading_days = []
-        current = from_date - timedelta(days=1)
-        max_iterations = count * 3  # 최대 탐색 범위 (연휴 대비)
+        next_day = date + timedelta(days=1)
+        for _ in range(max_attempts):
+            if self.is_trading_day(next_day):
+                return next_day
+            next_day += timedelta(days=1)
+        raise ValueError(f"{max_attempts}일 내에 다음 거래일을 찾을 수 없습니다: {date}")
 
-        iteration = 0
-        while len(trading_days) < count and iteration < max_iterations:
-            if cls.is_trading_day(current):
-                trading_days.append(current)
-            current = current - timedelta(days=1)
-            iteration += 1
-
-        return trading_days
-
-    @classmethod
-    def get_trading_days_in_range(cls, start_date: datetime, end_date: datetime) -> list[datetime]:
+    def get_previous_trading_day(self, date: datetime, max_attempts: int = 30) -> datetime:
         """
-        날짜 범위 내의 모든 거래일 리스트 반환 (start_date와 end_date 포함)
-
-        Args:
-            start_date: 시작 날짜
-            end_date: 종료 날짜
-
-        Returns:
-            거래일 리스트 (시간순)
-
-        Example:
-            >>> get_trading_days_in_range(datetime(2025, 10, 1), datetime(2025, 10, 6))
-            [datetime(2025, 10, 1),  # 수요일
-             datetime(2025, 10, 2),  # 목요일
-             datetime(2025, 10, 3),  # 금요일 (10/6은 추석 연휴)
-             datetime(2025, 10, 6)]  # 월요일
+        주어진 날짜 이전의 가장 가까운 거래일을 반환합니다.
         """
-        trading_days = []
-        current = start_date
+        prev_day = date - timedelta(days=1)
+        for _ in range(max_attempts):
+            if self.is_trading_day(prev_day):
+                return prev_day
+            prev_day -= timedelta(days=1)
+        raise ValueError(f"{max_attempts}일 내에 이전 거래일을 찾을 수 없습니다: {date}")
 
-        while current <= end_date:
-            if cls.is_trading_day(current):
-                trading_days.append(current)
-            current = current + timedelta(days=1)
+    def get_trading_days(
+        self,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> List[datetime]:
+        """기간 내 거래일 리스트 반환"""
+        if start_date > end_date:
+            return []
 
-        return trading_days
+        days = []
+        current_day = start_date
+        while current_day <= end_date:
+            if self.is_trading_day(current_day):
+                days.append(current_day)
+            current_day += timedelta(days=1)
+        return days
+
+    def count_trading_days(
+        self,
+        start_date: datetime,
+        end_date: datetime
+    ) -> int:
+        """기간 내 거래일 수 계산"""
+        return len(self.get_trading_days(start_date, end_date))
+
+
+# --- Singleton 인스턴스 관리 ---
+_default_calendar = None
+
+
+def get_default_calendar() -> "TradingCalendar":
+    """
+    기본 TradingCalendar 싱글톤 인스턴스를 반환합니다.
+    """
+    global _default_calendar
+    if _default_calendar is None:
+        _default_calendar = TradingCalendar()
+    return _default_calendar
