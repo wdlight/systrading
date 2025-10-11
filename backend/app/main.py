@@ -38,6 +38,9 @@ from app.api.stocks import router as stocks_router
 from app.api.chart import router as chart_router
 from app.api.portfolio import router as portfolio_router
 
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from app.scheduler.portfolio_snapshot import save_portfolio_snapshot
+
 # 전역 변수
 connection_manager = ConnectionManager()
 realtime_service = None
@@ -45,6 +48,8 @@ korea_invest_service = None
 websocket_process = None
 ws_result_queue = None
 ws_req_queue = None
+scheduler = AsyncIOScheduler()
+
 
 
 # 추가적인 CORS 헤더 설정을 위한 미들웨어
@@ -92,12 +97,21 @@ async def lifespan(app: FastAPI):
         logger.error("KoreaInvestAPI 인스턴스가 없어 domestic_websocket 프로세스를 시작할 수 없습니다.")
 
     asyncio.create_task(realtime_service.start())
+
+    # 스케줄러 시작 (5분마다 스냅샷 저장)
+    scheduler.add_job(save_portfolio_snapshot, 'interval', minutes=5, id='portfolio_snapshot_job')
+    scheduler.start()
+    logger.info("✅ 스케줄러 시작: 5분마다 포트폴리오 스냅샷을 저장합니다.")
     
     logger.info("FastAPI 애플리케이션이 성공적으로 시작되었습니다.")
     
     yield
     
     logger.info("FastAPI 애플리케이션 종료를 시작합니다.")
+    if scheduler.running:
+        scheduler.shutdown()
+        logger.info("스케줄러가 중지되었습니다.")
+
     if realtime_service:
         await realtime_service.stop()
         logger.info("RealtimeDataService가 중지되었습니다.")

@@ -6,9 +6,15 @@ import requests
 from datetime import datetime, timedelta
 import pandas as pd
 import os
+import sys
 import time
 from loguru import logger
-from core.interfaces.broker_interface import BrokerInterface
+
+# 프로젝트 루트의 backend 디렉토리를 sys.path에 추가
+backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+if backend_path not in sys.path:
+    sys.path.append(backend_path)
+
 from .ki_env import KoreaInvestEnv
 
 class APIResponse:
@@ -35,7 +41,7 @@ class APIResponse:
         if not self.is_ok():
             logger.error(f"API Error: {self._body}")
 
-class KoreaInvestAPI(BrokerInterface):
+class KoreaInvestAPI:
     """한국투자증권 API 클라이언트"""
     
     def __init__(self, config, base_headers=None):
@@ -130,6 +136,46 @@ class KoreaInvestAPI(BrokerInterface):
         """계좌 잔고 조회"""
         return self.get_acct_balance()
 
+    def get_acct_balance_tuple(self):
+        """계좌 잔고를 조회하여 (총평가금액, DataFrame) 튜플로 반환하는 레거시 메소드"""
+        t1 = self.get_acct_balance()
+        if t1 is None or not t1.is_ok():
+            return 0, pd.DataFrame()
+
+        body = t1.get_body()
+        output1 = getattr(body, 'output1', [])
+        output2 = getattr(body, 'output2', [{}])[0]
+
+        total_eval = int(output2.get('tot_evlu_amt', 0) or 0)
+
+        if not output1:
+            return total_eval, pd.DataFrame()
+
+        df = pd.DataFrame(output1)
+        # 숫자형 변환 및 컬럼명 변경
+        numeric_cols = ['pchs_avg_pric', 'hldg_qty', 'prpr', 'evlu_amt', 'pchs_amt', 'evlu_pfls_amt']
+        for col in numeric_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+
+        column_mapping = {
+            'pdno': '종목코드',
+            'prdt_name': '종목명',
+            'hldg_qty': '보유수량',
+            'ord_psbl_qty': '매도가능수량',
+            'pchs_avg_pric': '매입단가',
+            'evlu_pfls_rt': '수익률',
+            'prpr': '현재가',
+            'evlu_amt': '평가금액',
+            'pchs_amt': '매입금액',
+            'bfdy_cprs_icdc': '전일대비',
+            'fltt_rt': '전일대비 등락률'
+        }
+        df = df.rename(columns=column_mapping)
+
+        return total_eval, df
+
+
     def get_acct_balance(self):
         """
         계좌 balance 조회 : https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/trading/inquire-balance
@@ -152,47 +198,7 @@ class KoreaInvestAPI(BrokerInterface):
         }
 
         t1 = self._url_fetch(url, tr_id, params)
-        out_columns   = ["종목코드", "종목명",    "보유수량",   "매도가능수량", "매입단가", "수익률",         "현재가", "전일대비", "전일대비 등락률" ]
-        
-        if t1 is None:
-            return 0, pd.DataFrame(columns=out_columns)
-        
-        try:
-            output1 = t1.get_body().output1
-            logger.info(f' account info output : {output1}')
-        except Exception as e:
-            logger.info(f"account balance Fetch Exception: {e}, t1: {t1.get_body()}")
-            return 0, pd.DataFrame(columns=out_columns)
-
-        if t1 is not None and t1.is_ok() and output1:
-            # 연속조회 키 저장 (다음 조회를 위해)
-            try:
-                response_body = t1.get_body()
-                self.balance_ctx_fk100 = getattr(response_body, 'ctx_area_fk100', "")
-                self.balance_ctx_nk100 = getattr(response_body, 'ctx_area_nk100', "")
-                logger.info(f"연속조회 키 저장: FK100={self.balance_ctx_fk100}, NK100={self.balance_ctx_nk100}")
-            except Exception as e:
-                logger.warning(f"연속조회 키 저장 실패: {e}")
-            
-            df = pd.DataFrame(output1)
-            target_columns = [ 'pdno',  'prdt_name', 'hldg_qty', 'ord_psbl_qty', 'pchs_avg_pric', 'evlu_pfls_rt','prpr', 'bfdy_cprs_icdc', 'fltt_rt' ]
-            df = df[target_columns]
-            df[target_columns[2:]] = df[target_columns[2:]].apply(pd.to_numeric) # 종목코드, 종목명 제외하고 형변환
-            column_name_map = dict( zip(target_columns, out_columns))
-            df.rename(columns=column_name_map, inplace=True)
-            df = df[df['보유수량'] !=0]
-            r2 = t1.get_body().output2
-
-            return int( r2[0]['tot_evlu_amt']), df      # body2.tot_evlu_amt - 총평가금액
-
-        else:
-            logger.info(f"t1.is_ok(): {t1.is_ok()}, output1: {output1}")
-            tot_evlu_amt = 0
-            if t1.is_ok():
-                r2 = t1.get_body().output2
-                tot_evlu_amt = int(r2[0]['tot_evlu_amt'])
-                return tot_evlu_amt, pd.DataFrame(columns=out_columns)
-            return 0, pd.DataFrame(columns=out_columns)
+        return t1
 
     def get_minute_chart_data(self, stock_code, start_time=None, max_count=None):
         """
@@ -692,7 +698,8 @@ class KoreaInvestAPI(BrokerInterface):
             "CTX_AREA_NK100": ""
         }
         t1 = self._url_fetch(url, tr_id, params)
-        output_columns = ['주문일자', '주문번호', '원주문번호', '매매구분', '종목코드', '종목명', '주문수량', '주문단가', '총체결수량', '평균체결가', '총체결금액']
+        output_columns = ['ord_dt', 'ord_gno_brno', 'odno', 'orgn_odno', 'ord_dvsn_name', 'sll_buy_dvsn_cd', 'sll_buy_dvsn_cd_name', 'pdno', 'prdt_name', 'ord_qty', 'ord_unpr', 'ord_tmd', 'tot_ccld_qty', 'avg_prvs', 'cncl_yn', 'tot_ccld_amt', 'loan_dt', 'ord_dvsn_cd', 'cncl_cfrm_qty', 'rmn_qty', 'rjct_qty', 'ccld_cndt_name', 'infm_tmd', 'ctac_tlno', 'prdt_type_cd', 'excg_dvsn_cd']
+        
         if t1 is None:
             return pd.DataFrame(columns=output_columns)
 
@@ -704,12 +711,59 @@ class KoreaInvestAPI(BrokerInterface):
 
         if t1.is_ok() and output1:
             df = pd.DataFrame(output1)
-            target_columns = ['ord_dt', 'odno', 'orgn_odno', 'ord_dvsn_name', 'pdno', 'prdt_name', 'ord_qty', 'ord_unpr', 'tot_ccld_qty', 'avg_prvs', 'tot_ccld_amt']
+            # 숫자형으로 변환해야 할 컬럼들
+            numeric_cols = ['ord_qty', 'ord_unpr', 'tot_ccld_qty', 'avg_prvs', 'tot_ccld_amt', 'cncl_cfrm_qty', 'rmn_qty', 'rjct_qty']
+            for col in numeric_cols:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            return df
+        else:
+            return pd.DataFrame(columns=output_columns)
+
+    def get_index_chart_data(self, market_code: str, index_code: str, start_date: str, end_date: str, period_code: str = 'D'):
+        """
+        국내 지수 차트 데이터 조회
+        TR_ID: FHKUP03500100
+        URL: /uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice
+        """
+        url = "/uapi/domestic-stock/v1/quotations/inquire-daily-indexchartprice"
+        tr_id = "FHKUP03500100"
+
+        params = {
+            "FID_COND_MRKT_DIV_CODE": market_code, # U: 업종
+            "FID_INPUT_ISCD": index_code, # 0001: KOSPI
+            "FID_INPUT_DATE_1": start_date,
+            "FID_INPUT_DATE_2": end_date,
+            "FID_PERIOD_DIV_CODE": period_code, # D: 일봉
+        }
+
+        t1 = self._url_fetch(url, tr_id, params)
+        output_columns = ['일자', '시가', '고가', '저가', '종가', '거래량']
+        if t1 is None:
+            return pd.DataFrame(columns=output_columns)
+
+        try:
+            output2 = t1.get_body().output2
+        except Exception as e:
+            logger.info(f"Exception: {e}, t1: {t1}")
+            return pd.DataFrame(columns=output_columns)
+
+        if t1.is_ok() and output2:
+            df = pd.DataFrame(output2)
+            target_columns = [
+                'stck_bsop_date',
+                'bstp_nmix_oprc',
+                'bstp_nmix_hgpr',
+                'bstp_nmix_lwpr',
+                'bstp_nmix_prpr',
+                'acml_vol',
+            ]
+            
             df = df[target_columns]
-            df[target_columns[6:]] = df[target_columns[6:]].apply(pd.to_numeric)
+            df[target_columns[1:]] = df[target_columns[1:]].apply(pd.to_numeric, errors='coerce').fillna(0)
             column_name_map = dict(zip(target_columns, output_columns))
             df.rename(columns=column_name_map, inplace=True)
-            return df
+            return df[::-1].reset_index(drop=True)
         else:
             return pd.DataFrame(columns=output_columns)
 

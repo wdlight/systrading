@@ -108,54 +108,74 @@ class KoreaInvestAPIService:
             return None
         
         try:
-            # 동기 함수를 비동기로 실행
-            result = await self._run_in_executor(self.api_instance.get_acct_balance)
-            
-            if result and len(result) >= 2:
-                total_value, df = result[0], result[1]
-                
-                # DataFrame을 JSON 직렬화 가능한 형태로 변환
-                positions = []
-                total_unrealized_pnl = 0
-                total_invested_amount = 0
-                
-                if isinstance(df, pd.DataFrame) and not df.empty:
-                    for idx, row in df.iterrows():
-                        # ki_api.py DataFrame 컬럼명 매핑 (정확한 컬럼명 사용)
-                        stock_code = str(row.get("종목코드", str(idx)))
-                        quantity = int(row.get("보유수량", 0))
-                        avg_price = int(row.get("매입단가", 0))
-                        current_price = int(row.get("현재가", 0))
-                        
-                        # 평가손익 계산 (실제 컬럼이 없을 경우)
-                        unrealized_pnl = (current_price - avg_price) * quantity if avg_price > 0 else 0
-                        total_unrealized_pnl += unrealized_pnl
-                        total_invested_amount += avg_price * quantity
-                        
-                        position = {
-                            "stock_code": stock_code,
-                            "stock_name": str(row.get("종목명", "")),
-                            "quantity": quantity,
-                            "sellable_quantity": int(row.get("매도가능수량", quantity)),
-                            "avg_price": avg_price,
-                            "current_price": current_price,
-                            "unrealized_pnl": unrealized_pnl,
-                            "profit_rate": float(row.get("수익률", 0.0)),
-                            "day_change": int(row.get("전일대비", 0)),
-                            "day_change_rate": float(row.get("전일대비 등락률", 0.0))
-                        }
-                        positions.append(position)
-                
-                # 가용현금 계산 (총평가금액 - 투자원금)
-                available_cash = max(0, int(total_value) - total_invested_amount) if total_value and total_invested_amount else 0
-                
-                return {
-                    "total_value": int(total_value) if total_value else 0,
-                    "total_unrealized_pnl": total_unrealized_pnl,
-                    "available_cash": available_cash,
-                    "positions": positions,
-                    "dataframe": df  # 내부 처리용
+            # 동기 함수를 비동기로 실행하고 APIResponse 객체를 받음
+            api_response = await self._run_in_executor(self.api_instance.get_acct_balance)
+
+            if not api_response or not api_response.is_ok():
+                logger.error(f"계좌 잔고 API 호출 실패: {api_response.get_body() if api_response else 'No response'}")
+                return None
+
+            body = api_response.get_body()
+            output1 = getattr(body, 'output1', [])  # 포지션 목록
+            output2 = getattr(body, 'output2', [{}])[0]  # 계좌 요약
+
+            # 현금 및 총 평가금액 추출
+            total_value = int(output2.get('tot_evlu_amt', 0) or 0)
+            available_cash = int(output2.get('dnca_tot_amt', 0) or 0)
+
+            positions = []
+            total_unrealized_pnl = 0
+
+            if output1:
+                df = pd.DataFrame(output1)
+                column_mapping = {
+                    'pdno': '종목코드',
+                    'prdt_name': '종목명',
+                    'hldg_qty': '보유수량',
+                    'pchs_avg_pric': '매입단가',
+                    'evlu_pfls_rt': '수익률',
+                    'prpr': '현재가',
+                    'evlu_amt': '평가금액',
+                    'pchs_amt': '매입금액',
+                    'bfdy_cprs_icdc': '전일대비',
+                    'ord_psbl_qty': '매도가능수량',
+                    'fltt_rt': '전일대비 등락률'
                 }
+                df = df.rename(columns=column_mapping)
+
+                for _, row in df.iterrows():
+                    current_price = int(float(row.get('현재가', 0) or 0))
+                    avg_price = int(float(row.get('매입단가', 0) or 0))
+                    quantity = int(float(row.get('보유수량', 0) or 0))
+                    
+                    # 손익 재계산
+                    unrealized_pnl = (current_price - avg_price) * quantity
+                    total_unrealized_pnl += unrealized_pnl
+
+                    positions.append({
+                        "stock_code": str(row.get("종목코드", "")),
+                        "stock_name": str(row.get("종목명", "")),
+                        "quantity": quantity,
+                        "sellable_quantity": int(float(row.get("매도가능수량", 0) or 0)),
+                        "avg_price": avg_price,
+                        "current_price": current_price,
+                        "unrealized_pnl": unrealized_pnl,
+                        "profit_rate": float(row.get("수익률", 0.0) or 0.0),
+                        "day_change": int(float(row.get("전일대비", 0) or 0)),
+                        "day_change_rate": float(row.get("전일대비 등락률", 0.0) or 0.0)
+                    })
+            else:
+                df = pd.DataFrame() # output1이 비어있을 경우 빈 데이터프레임 생성
+            
+            return {
+                "total_value": total_value,
+                "available_cash": available_cash,
+                "total_unrealized_pnl": total_unrealized_pnl,
+                "positions": positions,
+                "dataframe": df  # dataframe 키 다시 추가
+            }
+
+
             
         except Exception as e:
             self.last_error = str(e)
@@ -943,36 +963,22 @@ class KoreaInvestAPIService:
     ) -> Optional[pd.DataFrame]:
         """
         국내 지수 차트 데이터 조회 (비동기 래퍼)
-
-        ✅ v2.0: 동기 메서드를 _run_in_executor로 래핑
-
-        Args:
-            market_code: "U" (업종) 또는 "V" (기타)
-            index_code: "0001" (KOSPI), "1001" (KOSDAQ)
-            start_date: "YYYYMMDD"
-            end_date: "YYYYMMDD"
-            period_code: "D" (일봉)
-
-        Returns:
-            지수 차트 DataFrame
         """
         if not self.is_connected or not self.api_instance:
             logger.error("API 연결 안됨")
             return None
 
         try:
-            # ✅ _run_in_executor로 동기 메서드 호출
-            df = await self._run_in_executor(
+            func = partial(
                 self.api_instance.get_index_chart_data,
-                market_code,
-                index_code,
-                start_date,
-                end_date,
-                period_code
+                market_code=market_code,
+                index_code=index_code,
+                start_date=start_date,
+                end_date=end_date,
+                period_code=period_code
             )
-
+            df = await self._run_in_executor(func)
             return df
-
         except Exception as e:
             logger.error(f"지수 차트 조회 실패: {e}")
             return None
@@ -984,29 +990,20 @@ class KoreaInvestAPIService:
     ) -> Optional[List[Dict[str, Any]]]:
         """
         일별 체결 내역 조회 (비동기 래퍼)
-
-        TR_ID: TTTC8001R
-
-        Args:
-            start_date: "YYYYMMDD"
-            end_date: "YYYYMMDD"
-
-        Returns:
-            거래 내역 리스트
         """
         if not self.is_connected or not self.api_instance:
             return None
 
         try:
-            # ✅ _run_in_executor로 동기 메서드 호출
-            result = await self._run_in_executor(
+            func = partial(
                 self.api_instance.get_daily_ccld,
-                start_date,
-                end_date
+                start_date=start_date,
+                end_date=end_date,
+                stock_code="",
+                sll_buy_dvsn_cd="00"
             )
-
+            result = await self._run_in_executor(func)
             return result
-
         except Exception as e:
             logger.error(f"거래 내역 조회 실패: {e}")
             return None

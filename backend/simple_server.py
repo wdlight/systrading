@@ -175,7 +175,7 @@ async def get_account_balance():
         try:
             # 실제 API 호출
             print(f"[DEBUG] Calling real_api.get_acct_balance()...")
-            result = real_api.get_acct_balance()
+            result = real_api.get_acct_balance_tuple()
             print(f"[DEBUG] real_api.get_acct_balance() result type: {type(result)}")
             if isinstance(result, tuple) and len(result) >= 2:
                 print(f"[DEBUG] Account Balance - Total Value: {result[0]}, DataFrame Shape: {result[1].shape if hasattr(result[1], 'shape') else 'N/A'}")
@@ -404,8 +404,7 @@ async def get_watchlist():
     if real_api:
         try:
             print(f"[DEBUG] get_acct_balance() 호출 시작...")
-            account_result = real_api.get_acct_balance()
-
+            account_result = real_api.get_acct_balance_tuple()
             print(f"[DEBUG] get_acct_balance() 반환값 타입: {type(account_result)}")
             print(f"[DEBUG] get_acct_balance() 반환값 길이: {len(account_result) if account_result else 'None'}")
 
@@ -486,8 +485,7 @@ async def debug_account_info():
 
     try:
         print(f"[DEBUG] get_acct_balance() 호출...")
-        account_result = real_api.get_acct_balance()
-
+        account_result = real_api.get_acct_balance_tuple()
         result = {
             "api_available": True,
             "result_type": str(type(account_result)),
@@ -942,7 +940,7 @@ async def websocket_endpoint(websocket: WebSocket):
             if real_api:
                 try:
                     print(f"[DEBUG] WebSocket에서 get_acct_balance() 호출...")
-                    account_result = real_api.get_acct_balance()
+                    account_result = real_api.get_acct_balance_tuple()
 
                     print(f"[DEBUG] WebSocket account_result 타입: {type(account_result)}")
 

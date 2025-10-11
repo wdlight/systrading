@@ -3,21 +3,5 @@ Core 패키지
 핵심 설정, 의존성, API 서비스 등을 정의
 """
 
-from .config import get_settings, Settings
-from .dependencies import (
-    get_korea_invest_service,
-    get_account_service,
-    get_trading_service,
-    get_watchlist_service
-)
-from .korea_invest import KoreaInvestAPIService
-
-__all__ = [
-    "get_settings",
-    "Settings",
-    "get_korea_invest_service",
-    "get_account_service", 
-    "get_trading_service",
-    "get_watchlist_service",
-    "KoreaInvestAPIService"
-]
+# 순환 참조를 방지하기 위해 __init__.py에서는 내부 모듈을 import하지 않습니다.
+# 각 모듈은 필요한 모듈을 직접 import해야 합니다.

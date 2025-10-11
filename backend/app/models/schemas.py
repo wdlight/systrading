@@ -41,18 +41,14 @@ class Position(BaseModel):
 
 # ===== 계좌 관련 모델 =====
 
-class AccountSummary(BaseModel):
-    """계좌 요약 정보"""
-    account_number: str = Field(..., description="계좌번호")
-    total_asset: int = Field(..., description="총 자산")
-    total_evaluation: int = Field(..., description="총 평가금액")
-    available_cash: int = Field(..., description="주문가능현금")
-    total_profit_loss: int = Field(..., description="총 손익")
-    total_profit_rate: float = Field(..., description="총 수익률 (%)")
-
 class AccountBalance(BaseModel):
     """계좌 잔고 정보"""
-    summary: AccountSummary
+    total_value: int = Field(..., description="총 자산 (Deprecated, total_evaluation_amount 사용 권장)")
+    available_cash: int = Field(..., description="주문가능현금")
+    total_purchase_amount: int = Field(..., description="총 매입금액")
+    total_evaluation_amount: int = Field(..., description="총 평가금액")
+    total_profit_loss: int = Field(..., description="총 평가손익")
+    total_profit_loss_rate: float = Field(..., description="총 수익률 (%)")
     positions: List[Position] = Field(default_factory=list, description="보유 종목 목록")
 
 # ===== 매매 조건 모델 =====

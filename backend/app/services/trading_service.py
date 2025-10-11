@@ -323,6 +323,8 @@ class TradingService:
 
             # 거래일인 경우: 전체 거래시간 타임라인 생성
             trading_start = query_date.replace(hour=9, minute=0, second=0, microsecond=0)
+            if trading_start.tzinfo is None:
+                trading_start = KST.localize(trading_start) if hasattr(KST, 'localize') else trading_start.replace(tzinfo=KST)
 
             now = datetime.now(KST)
             is_today = query_date.date() == now.date()

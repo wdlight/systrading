@@ -2,7 +2,7 @@
 
 import asyncio
 from app.core.config import Settings
-from app.core.dependencies import get_korea_invest_service
+from app.core.korea_invest import KoreaInvestAPIService
 from app.services.benchmark_service import BenchmarkService
 from app.services.portfolio_analytics_service import PortfolioAnalyticsService
 
@@ -14,7 +14,7 @@ async def main():
 
     # 1. 서비스 초기화
     settings = Settings()
-    korea_invest = await get_korea_invest_service()
+    korea_invest = KoreaInvestAPIService(settings)
 
     if not korea_invest.is_connected:
         print("❌ 한투 API 연결 실패")

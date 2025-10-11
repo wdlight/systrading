@@ -60,7 +60,9 @@ class Settings(BaseSettings):
     MAX_WATCHLIST_SIZE: int = 50        # 최대 워치리스트 크기
     
     class Config:
-        env_file = ".env"
+        # 실행 위치에 상관없이 backend/.env 파일을 참조하도록 경로를 동적으로 설정
+        from pathlib import Path
+        env_file = Path(__file__).parent.parent.parent / ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
         extra = "ignore"

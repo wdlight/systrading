@@ -9,7 +9,6 @@ from loguru import logger
 
 from app.models.schemas import (
     AccountBalance, 
-    AccountSummary, 
     Position,
     ApiResponse,
     ErrorResponse
@@ -37,22 +36,6 @@ async def get_account_balance(
         logger.error(f"계좌 잔고 조회 실패: {str(e)}")
         raise HTTPException(status_code=500, detail=f"계좌 잔고 조회 중 오류가 발생했습니다: {str(e)}")
 
-@router.get(
-    "/summary",
-    response_model=AccountSummary,
-    summary="계좌 요약 정보",
-    description="계좌의 요약 정보만 조회합니다."
-)
-async def get_account_summary(
-    account_service: AccountService = Depends(get_account_service)
-) -> AccountSummary:
-    """계좌 요약 정보 조회"""
-    try:
-        summary = await account_service.get_summary()
-        return summary
-    except Exception as e:
-        logger.error(f"계좌 요약 조회 실패: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"계좌 요약 조회 중 오류가 발생했습니다: {str(e)}")
 
 @router.get(
     "/positions",

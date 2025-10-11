@@ -35,6 +35,7 @@ export function Header({ onMenuClick, className }: HeaderProps) {
 
   const navItems = [
     { href: '/', label: '대시보드', icon: Home },
+    { href: '/trview', label: '주식관리', icon: TrendingUp },
     { href: '/trading', label: '매매', icon: TrendingUp },
     { href: '/exchange', label: 'Exchange', icon: TrendingUp },
   ];

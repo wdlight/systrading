@@ -97,7 +97,7 @@ function SummaryDivider() {
 }
 
 export function PortfolioPerformance({ className, stats, accountBalance }: PortfolioPerformanceProps) {
-  const [timeRange, setTimeRange] = useState<PortfolioTimeRange>('1M');
+  const [timeRange, setTimeRange] = useState<PortfolioTimeRange>('6M');
   const { history, metrics, isLoading, error, usingMock } = usePortfolioHistory(timeRange);
 
   const chartData = useMemo(() => history, [history]);

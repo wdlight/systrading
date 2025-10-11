@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from loguru import logger
 from datetime import datetime
 
-from app.models.schemas import AccountBalance, AccountSummary, Position
+from app.models.schemas import AccountBalance, Position
 from app.core.korea_invest import KoreaInvestAPIService
 
 
@@ -31,35 +31,34 @@ class AccountService:
             if "total_value" not in balance_data:
                 raise Exception("잘못된 계좌 데이터 형식입니다.")
             
-            # 요약 정보 생성
-            summary = AccountSummary(
-                account_number=self.korea_invest_service.settings.KI_ACCOUNT_NUMBER,
-                total_asset=balance_data["total_value"],
-                total_evaluation=balance_data["total_value"],
-                available_cash=balance_data.get("available_cash", 0),
-                total_profit_loss=balance_data.get("total_unrealized_pnl", 0) or sum(pos.get("unrealized_pnl", 0) for pos in balance_data.get("positions", [])),
-                total_profit_rate=self._calculate_total_profit_rate(balance_data)
-            )
-            
             # 포지션 정보 변환
             positions = []
-            for pos_data in balance_data["positions"]:
+            for pos_data in balance_data.get("positions", []):
                 position = Position(
                     stock_code=pos_data["stock_code"],
                     stock_name=pos_data["stock_name"],
                     quantity=pos_data["quantity"],
-                    sellable_quantity=pos_data["sellable_quantity"],
+                    sellable_quantity=pos_data.get("sellable_quantity", pos_data["quantity"]),
                     avg_price=pos_data["avg_price"],
                     current_price=pos_data["current_price"],
                     unrealized_pnl=pos_data["unrealized_pnl"],
                     profit_rate=pos_data["profit_rate"],
-                    day_change=pos_data["day_change"],
-                    day_change_rate=pos_data["day_change_rate"]
+                    day_change=pos_data.get("day_change", 0),
+                    day_change_rate=pos_data.get("day_change_rate", 0.0)
                 )
                 positions.append(position)
-            
+
+            total_pnl = balance_data.get("total_unrealized_pnl", 0) or sum(p.unrealized_pnl for p in positions)
+            total_eval = balance_data.get("total_value", 0)
+            total_purchase = total_eval - total_pnl
+
             account_balance = AccountBalance(
-                summary=summary,
+                total_value=total_eval,
+                available_cash=balance_data.get("available_cash", 0),
+                total_purchase_amount=total_purchase,
+                total_evaluation_amount=total_eval,
+                total_profit_loss=total_pnl,
+                total_profit_loss_rate=self._calculate_total_profit_rate(balance_data),
                 positions=positions
             )
             
@@ -72,11 +71,6 @@ class AccountService:
         except Exception as e:
             logger.error(f"계좌 잔고 조회 실패: {str(e)}")
             raise
-    
-    async def get_summary(self) -> AccountSummary:
-        """계좌 요약 정보만 조회"""
-        balance = await self.get_balance()
-        return balance.summary
     
     async def get_positions(self) -> List[Position]:
         """보유 종목 목록 조회"""

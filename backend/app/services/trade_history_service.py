@@ -37,7 +37,7 @@ class TradeHistoryService:
                 end_date.strftime("%Y%m%d")
             )
 
-            if not result:
+            if result is None or result.empty:
                 logger.warning("거래 내역 없음")
                 return []
 

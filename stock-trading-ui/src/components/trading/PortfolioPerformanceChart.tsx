@@ -35,8 +35,8 @@ function formatDateLabel(value: string, range: PortfolioTimeRange) {
 }
 
 const tooltipFormatter = (value: number, name: string) => {
-  const label = name === 'benchmark' ? 'KOSPI' : 'Portfolio';
-  return [formatCurrency(value), label];
+  // name은 Line 컴포넌트의 name prop 값 ("Portfolio" 또는 "KOSPI")
+  return [formatCurrency(value), name];
 };
 
 const PortfolioPerformanceChart = ({ data, timeRange }: PortfolioPerformanceChartProps) => (

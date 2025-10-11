@@ -83,7 +83,7 @@ def send_tr_process(korea_invest_api, tr_req_queue: Queue, tr_result_queue: Queu
                 
             elif data['action_id'] == "계좌조회":
                 logger.info("계좌조회 요청 처리 시작")
-                total_balance, per_code_balance_df = korea_invest_api.get_acct_balance()
+                total_balance, per_code_balance_df = korea_invest_api.get_acct_balance_tuple()
                 logger.info(f"계좌조회 API 호출 완료 - 총잔고: {total_balance}, 보유종목수: {len(per_code_balance_df) if per_code_balance_df is not None else 0}")
                 
                 result_data = dict(
