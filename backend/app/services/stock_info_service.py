@@ -2,6 +2,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
 from loguru import logger
 import pandas as pd
+import asyncio
 
 # pykrx는 vkis 가상환경에 설치되어 있어야 합니다.
 # pip install pykrx
@@ -121,6 +122,7 @@ class StockInfoService:
                         index_code=index_code,
                         market_code=market_code
                     )
+                    await asyncio.sleep(0.1)
 
                     raw = self.korea_invest_service.get_last_raw_response() or {}
                     if isinstance(raw, dict):

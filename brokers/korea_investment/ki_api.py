@@ -592,8 +592,8 @@ class KoreaInvestAPI(BrokerInterface):
         period_code: str = "D",
     ):
         """해외 지수/환율 기간별 시세 조회 (price-periodic)"""
-        url = "/uapi/overseas-price/v1/quotations/price-periodic"
-        tr_id = "FHKST03030100"
+        url = "/uapi/overseas-stock/v1/quotations/price-periodic"
+        tr_id = "CTRP6504R"
 
         params = {
             "fid_cond_mrkt_div_code": market_code,

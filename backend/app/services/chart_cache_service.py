@@ -12,7 +12,7 @@ from app.models.schemas import ChartCandle
 
 # KST = UTC+9
 KST = timezone(timedelta(hours=9))
-from app.utils.trading_calendar import TradingCalendar
+from app.utils.trading_calendar import get_default_calendar
 from loguru import logger
 
 
@@ -434,9 +434,10 @@ class ChartCacheService:
         logger.info(f"캐시 미스: {stock_code}, {target_date.strftime('%Y%m%d')}")
 
         # 4. 거래일이 아닌 경우 이전 거래일 데이터 반환
-        if not TradingCalendar.is_trading_day(target_date):
+        calendar = get_default_calendar()
+        if not calendar.is_trading_day(target_date):
             logger.info(f"비거래일: {target_date.strftime('%Y%m%d')}, 이전 거래일 조회")
-            previous_trading_day = TradingCalendar.get_previous_trading_day(target_date)
+            previous_trading_day = calendar.get_previous_trading_day(target_date)
             return await self.get_minute_candles(stock_code, previous_trading_day, korea_invest_service, skip_cache_save)
 
         # 5. API 호출하여 데이터 가져오기 (전체 조회)
@@ -503,9 +504,10 @@ class ChartCacheService:
             return cached_data
         
         # 2. 비거래일 체크
-        if not TradingCalendar.is_trading_day(target_date):
+        calendar = get_default_calendar()
+        if not calendar.is_trading_day(target_date):
             logger.info(f"⚠️ 비거래일: {target_date.strftime('%Y%m%d')}, 이전 거래일 조회")
-            previous_day = TradingCalendar.get_previous_trading_day(target_date)
+            previous_day = calendar.get_previous_trading_day(target_date)
             return await self.get_historical_minute_candles(
                 stock_code, previous_day, korea_invest_service
             )

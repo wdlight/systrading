@@ -18,7 +18,7 @@ from app.services.technical_analysis_service import TechnicalAnalysisService
 from app.services.chart_cache_service import ChartCacheService
 from app.core.korea_invest import KoreaInvestAPIService
 from app.utils.trading_hours import TradingHoursManager
-from app.utils.trading_calendar import TradingCalendar
+from app.utils.trading_calendar import get_default_calendar
 
 
 class TradingService:
@@ -67,9 +67,10 @@ class TradingService:
         query_date = target_date if target_date else datetime.now()
 
         # 오늘 데이터 요청 시 비거래일이면 최근 거래일로 변경
-        if target_date is None and not TradingCalendar.is_trading_day(query_date):
+        calendar = get_default_calendar()
+        if target_date is None and not calendar.is_trading_day(query_date):
             try:
-                last_trading_day = TradingCalendar.get_previous_trading_days(query_date, 1)[0]
+                last_trading_day = calendar.get_previous_trading_days(query_date, 1)[0]
                 logger.info(f"오늘은 비거래일입니다. 최근 거래일({last_trading_day.strftime('%Y-%m-%d')}) 데이터로 대체합니다.")
                 query_date = last_trading_day
             except IndexError:
@@ -182,7 +183,8 @@ class TradingService:
                 daily_candles = []
 
             today = datetime.now().date()
-            if start_date.date() <= today <= end_date.date():
+            calendar = get_default_calendar()
+            if calendar.is_trading_day(today) and start_date.date() <= today <= end_date.date():
                 intraday_candle = await self._build_daily_candle_from_minutes(
                     stock_code,
                     datetime.combine(today, datetime.min.time())
@@ -270,10 +272,18 @@ class TradingService:
         Returns:
             최근 N일치 전체 분봉 데이터
         """
-        from datetime import timedelta
+        from datetime import timedelta, timezone
         
-        # 날짜 설정
-        end_date = target_date if target_date else datetime.now()
+        KST = timezone(timedelta(hours=9))
+
+        # 날짜 설정 (timezone-aware)
+        if target_date:
+            if target_date.tzinfo is None:
+                end_date = target_date.replace(tzinfo=KST)
+            else:
+                end_date = target_date.astimezone(KST)
+        else:
+            end_date = datetime.now(KST)
         
         # ✅ N일치 데이터 수집
         all_candles = []
@@ -314,7 +324,7 @@ class TradingService:
             # 거래일인 경우: 전체 거래시간 타임라인 생성
             trading_start = query_date.replace(hour=9, minute=0, second=0, microsecond=0)
 
-            now = datetime.now()
+            now = datetime.now(KST)
             is_today = query_date.date() == now.date()
 
             if is_today:
@@ -1026,11 +1036,12 @@ class TradingService:
         trading_days = []
 
         # 종료일이 거래일이면 포함
-        if TradingCalendar.is_trading_day(target_end_date):
+        calendar = get_default_calendar()
+        if calendar.is_trading_day(target_end_date):
             trading_days.append(target_end_date)
 
         # 이전 거래일들 추가
-        previous_days = TradingCalendar.get_previous_trading_days(target_end_date, max_days - 1)
+        previous_days = calendar.get_previous_trading_days(target_end_date, max_days - 1)
         trading_days.extend(previous_days)
 
         logger.info(f"   거래일 {len(trading_days)}개: {[d.strftime('%Y-%m-%d') for d in trading_days]}")

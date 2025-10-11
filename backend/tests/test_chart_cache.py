@@ -14,7 +14,7 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from app.services.chart_cache_service import ChartCacheService
-from app.utils.trading_calendar import TradingCalendar
+from app.utils.trading_calendar import get_default_calendar
 from app.models.schemas import ChartCandle
 
 
@@ -136,6 +136,8 @@ def test_trading_calendar():
     print("Phase 1 테스트: TradingCalendar 검증")
     print("="*60)
 
+    calendar = get_default_calendar()
+
     # 1. 거래일 확인
     print("\n[1] 거래일 판별 테스트...")
     test_cases = [
@@ -148,8 +150,8 @@ def test_trading_calendar():
     ]
 
     for date in test_cases:
-        is_trading = TradingCalendar.is_trading_day(date)
-        is_holiday = TradingCalendar.is_holiday(date)
+        is_trading = calendar.is_trading_day(date)
+        is_holiday = date.weekday() < 5 and not is_trading
         weekday = ["월", "화", "수", "목", "금", "토", "일"][date.weekday()]
         status = "거래일" if is_trading else ("공휴일" if is_holiday else "주말")
         print(f"  {date.strftime('%Y-%m-%d')} ({weekday}): {status}")
@@ -157,13 +159,13 @@ def test_trading_calendar():
     # 2. 이전 거래일 조회
     print("\n[2] 이전 거래일 조회 테스트...")
     current_date = datetime(2025, 10, 6)  # 월요일 (개천절 다음날)
-    prev_trading = TradingCalendar.get_previous_trading_day(current_date)
+    prev_trading = calendar.get_previous_trading_day(current_date)
     print(f"  기준일: {current_date.strftime('%Y-%m-%d')}")
     print(f"  이전 거래일: {prev_trading.strftime('%Y-%m-%d')}")
 
     # 연휴 테스트 (추석)
     chuseok = datetime(2025, 10, 6)  # 추석
-    prev_trading = TradingCalendar.get_previous_trading_day(chuseok)
+    prev_trading = calendar.get_previous_trading_day(chuseok)
     print(f"\n  추석 연휴 테스트:")
     print(f"  기준일: {chuseok.strftime('%Y-%m-%d')}")
     print(f"  이전 거래일: {prev_trading.strftime('%Y-%m-%d')}")
@@ -171,7 +173,7 @@ def test_trading_calendar():
     # 3. 다음 거래일 조회
     print("\n[3] 다음 거래일 조회 테스트...")
     friday = datetime(2025, 10, 10)  # 금요일
-    next_trading = TradingCalendar.get_next_trading_day(friday)
+    next_trading = calendar.get_next_trading_day(friday)
     print(f"  금요일: {friday.strftime('%Y-%m-%d')}")
     print(f"  다음 거래일: {next_trading.strftime('%Y-%m-%d')}")
 
@@ -179,9 +181,10 @@ def test_trading_calendar():
     print("\n[4] 거래일 수 계산 테스트...")
     start = datetime(2025, 10, 1)
     end = datetime(2025, 10, 31)
-    trading_days = TradingCalendar.get_trading_days_between(start, end)
+    trading_days_list = calendar.get_trading_days(start, end)
+    trading_days_count = len(trading_days_list)
     print(f"  기간: {start.strftime('%Y-%m-%d')} ~ {end.strftime('%Y-%m-%d')}")
-    print(f"  거래일 수: {trading_days}일")
+    print(f"  거래일 수: {trading_days_count}일")
 
     print("\n" + "="*60)
     print("Phase 1 테스트 완료")

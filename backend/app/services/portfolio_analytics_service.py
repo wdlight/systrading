@@ -7,7 +7,7 @@
 """
 
 import asyncio
-from typing import List, Dict, Literal, Tuple
+from typing import List, Dict, Literal, Tuple, Optional
 from datetime import datetime, timedelta
 from loguru import logger
 import pandas as pd
