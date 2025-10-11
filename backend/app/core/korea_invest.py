@@ -932,3 +932,81 @@ class KoreaInvestAPIService:
         """소멸자"""
         if self.executor:
             self.executor.shutdown(wait=False)
+
+    async def get_index_chart_data(
+        self,
+        market_code: str,
+        index_code: str,
+        start_date: str,
+        end_date: str,
+        period_code: str = "D"
+    ) -> Optional[pd.DataFrame]:
+        """
+        국내 지수 차트 데이터 조회 (비동기 래퍼)
+
+        ✅ v2.0: 동기 메서드를 _run_in_executor로 래핑
+
+        Args:
+            market_code: "U" (업종) 또는 "V" (기타)
+            index_code: "0001" (KOSPI), "1001" (KOSDAQ)
+            start_date: "YYYYMMDD"
+            end_date: "YYYYMMDD"
+            period_code: "D" (일봉)
+
+        Returns:
+            지수 차트 DataFrame
+        """
+        if not self.is_connected or not self.api_instance:
+            logger.error("API 연결 안됨")
+            return None
+
+        try:
+            # ✅ _run_in_executor로 동기 메서드 호출
+            df = await self._run_in_executor(
+                self.api_instance.get_index_chart_data,
+                market_code,
+                index_code,
+                start_date,
+                end_date,
+                period_code
+            )
+
+            return df
+
+        except Exception as e:
+            logger.error(f"지수 차트 조회 실패: {e}")
+            return None
+
+    async def get_trade_history(
+        self,
+        start_date: str,
+        end_date: str
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        일별 체결 내역 조회 (비동기 래퍼)
+
+        TR_ID: TTTC8001R
+
+        Args:
+            start_date: "YYYYMMDD"
+            end_date: "YYYYMMDD"
+
+        Returns:
+            거래 내역 리스트
+        """
+        if not self.is_connected or not self.api_instance:
+            return None
+
+        try:
+            # ✅ _run_in_executor로 동기 메서드 호출
+            result = await self._run_in_executor(
+                self.api_instance.get_daily_ccld,
+                start_date,
+                end_date
+            )
+
+            return result
+
+        except Exception as e:
+            logger.error(f"거래 내역 조회 실패: {e}")
+            return None

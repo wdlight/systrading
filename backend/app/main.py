@@ -36,6 +36,7 @@ from app.api.trading import router as trading_router
 from app.api.watchlist import router as watchlist_router
 from app.api.stocks import router as stocks_router
 from app.api.chart import router as chart_router
+from app.api.portfolio import router as portfolio_router
 
 # 전역 변수
 connection_manager = ConnectionManager()
@@ -138,6 +139,7 @@ app.include_router(trading_router, prefix="/api", tags=["trading"])
 app.include_router(watchlist_router, prefix="/api", tags=["watchlist"])
 app.include_router(stocks_router, prefix="/api/stocks", tags=["stocks"])
 app.include_router(chart_router, prefix="/api/chart", tags=["chart"])
+app.include_router(portfolio_router, prefix="/api/portfolio", tags=["portfolio"])
 
 logger.debug(f"chart_router routes: {chart_router.routes}")
 

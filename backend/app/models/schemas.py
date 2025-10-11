@@ -220,3 +220,41 @@ class MarketOverview(BaseModel):
     usd_krw: MarketIndex
     top_gainers: List[TopStock]
     top_losers: List[TopStock]
+
+
+# ===== Portfolio History 모델 (v2.0) =====
+
+class PortfolioHistoryPoint(BaseModel):
+    """
+    포트폴리오 시계열 데이터 포인트
+
+    ⚠️ 중요: Frontend 타입과 정확히 일치
+    - date (not timestamp)
+    - portfolio (not portfolio_value)
+    - benchmark (not benchmark_value)
+    """
+    date: str = Field(..., description="ISO 8601 형식 (KST)")
+    portfolio: float = Field(..., description="포트폴리오 총자산 (KRW)")
+    benchmark: float = Field(..., description="KOSPI 벤치마크 (KRW, 정규화)")
+
+
+class Trade(BaseModel):
+    """거래 내역"""
+    trade_date: str = Field(..., description="거래일자 (YYYYMMDD)")
+    trade_time: str = Field("000000", description="체결시각 (HHMMSS)")  # ✅ 추가
+    stock_code: str = Field(..., description="종목코드")
+    stock_name: str = Field(..., description="종목명")
+    trade_type: Literal["buy", "sell"] = Field(..., description="매수/매도")
+    quantity: int = Field(..., description="체결수량")
+    price: int = Field(..., description="체결단가")
+    amount: int = Field(..., description="체결금액")
+    fee: int = Field(0, description="수수료")
+    tax: int = Field(0, description="거래세")
+
+
+class DailyPosition(BaseModel):
+    """특정 날짜의 포지션"""
+    date: str
+    stock_code: str
+    quantity: int
+    avg_price: float
