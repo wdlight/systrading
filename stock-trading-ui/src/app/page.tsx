@@ -128,11 +128,11 @@ export default function Home() {
                               </span>
                             </div>
                           </div>
-                          {connectionStatus.lastUpdate && (
+                          {connectionStatus.lastConnected && (
                             <div className="flex items-center justify-between text-[11px]">
-                              <span>마지막 업데이트:</span>
+                              <span>마지막 연결:</span>
                               <span className="text-gray-400">
-                                {new Date(connectionStatus.lastUpdate).toLocaleTimeString('ko-KR')}
+                                {new Date(connectionStatus.lastConnected).toLocaleTimeString('ko-KR')}
                               </span>
                             </div>
                           )}

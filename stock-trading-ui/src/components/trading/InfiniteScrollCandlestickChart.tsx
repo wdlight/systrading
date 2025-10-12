@@ -209,8 +209,10 @@ export default function InfiniteScrollCandlestickChart({
         chartData={candles}
         height={height}
         timeframe={timeframe}
-        onError={handleError}
-        onBrushChange={handleBrushChange}
+        events={{
+          onError: handleError,
+          onRangeChange: handleBrushChange
+        }}
       />
     </div>
   );

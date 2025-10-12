@@ -158,7 +158,7 @@ export function QuickActionPanel({
         {activeTab === 'watch' && <WatchlistQuick />}
         {activeTab === 'trade' && (
           <div className="space-y-2">
-            <TradingQuick onStockSelect={onStockSelect} />
+            <TradingQuick />
             <TradingConditions className="w-full shadow-none" />
           </div>
         )}

@@ -32,10 +32,13 @@ import {
   getMarketStatus
 } from '@/lib/types/korean-stocks';
 
+type ChartTimeframe = '1m' | '1D' | '1W' | '1M' | '3M' | '6M' | '1Y';
+
 export default function KoreanTradingPage() {
   const [selectedStock, setSelectedStock] = useState<KoreanStock | null>(POPULAR_KOREAN_STOCKS[0]);
   const [orders, setOrders] = useState<KoreanTradingOrder[]>([]);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  const [timeframe, setTimeframe] = useState<ChartTimeframe>('1D');
 
   // Update current time every second, only on the client
   useEffect(() => {
@@ -194,6 +197,8 @@ export default function KoreanTradingPage() {
                   showIndicators={true}
                   useRealData={true}
                   autoRefresh={true}
+                  timeframe={timeframe}
+                  setTimeframe={setTimeframe}
                   className="h-full"
                 />
               </div>

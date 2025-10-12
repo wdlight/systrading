@@ -42,6 +42,19 @@ interface KoreanStockWatchlistProps {
 type SortField = 'name' | 'currentPrice' | 'changeRate' | 'volume' | 'marketCap';
 type SortDirection = 'asc' | 'desc';
 
+const getSectorColor = (sector: StockSector) => {
+  const colorMap = {
+    '반도체': 'bg-blue-500/20 text-blue-400',
+    '인터넷': 'bg-purple-500/20 text-purple-400',
+    '자동차': 'bg-green-500/20 text-green-400',
+    '가전': 'bg-orange-500/20 text-orange-400',
+    'ETF': 'bg-gray-500/20 text-gray-400',
+    '화학': 'bg-red-500/20 text-red-400',
+    '지주회사': 'bg-cyan-500/20 text-cyan-400'
+  };
+  return colorMap[sector] || 'bg-gray-500/20 text-gray-400';
+};
+
 export function KoreanStockWatchlist({
   className,
   onStockSelect,
@@ -110,19 +123,6 @@ export function KoreanStockWatchlist({
     return sortDirection === 'asc'
       ? <SortAsc className="w-3 h-3" />
       : <SortDesc className="w-3 h-3" />;
-  };
-
-  const getSectorColor = (sector: StockSector) => {
-    const colorMap = {
-      '반도체': 'bg-blue-500/20 text-blue-400',
-      '인터넷': 'bg-purple-500/20 text-purple-400',
-      '자동차': 'bg-green-500/20 text-green-400',
-      '가전': 'bg-orange-500/20 text-orange-400',
-      'ETF': 'bg-gray-500/20 text-gray-400',
-      '화학': 'bg-red-500/20 text-red-400',
-      '지주회사': 'bg-cyan-500/20 text-cyan-400'
-    };
-    return colorMap[sector] || 'bg-gray-500/20 text-gray-400';
   };
 
   if (compact) {

@@ -1,4 +1,4 @@
-import { ChartCandle } from '@/types/korean-stocks';
+import { ChartCandle } from '@/lib/types/korean-stocks';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 

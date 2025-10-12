@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { TRViewChartControls } from '@/components/trading/TRViewChartControls';
+import { OrderForm } from '@/components/trading/OrderForm';
+import { OrdersList } from '@/components/trading/OrdersList';
 import { useTRViewChart } from '@/hooks/useTRViewChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   CandlestickChart,
   RefreshCw,
-  Github
+  TrendingUp
 } from 'lucide-react';
 import { useStockList } from '@/hooks/useStockList';
 
@@ -71,46 +73,53 @@ export default function TRViewPage() {
   const { stockList } = useStockList();
   const selectedStockName = stockList.find(s => s.value === stockCode)?.label || stockCode;
 
+  // 주문 성공 시 차트 새로고침
+  const handleOrderSuccess = () => {
+    refetchMinute();
+    refetchDay();
+  };
+
   return (
-    <div className="bg-[#1a1a1a] p-6">
-      <div className="max-w-[1600px] mx-auto">
+    <div className="bg-[#1a1a1a] p-6 min-h-screen">
+      <div className="max-w-[1800px] mx-auto">
         {/* Page Title Section */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <CandlestickChart className="w-8 h-8 text-blue-400" />
+              <TrendingUp className="w-8 h-8 text-blue-400" />
               <div>
                 <h1 className="text-xl font-bold text-white">
-                  TradingView Chart Demo (Minute & Daily)
+                  주식 관리
                 </h1>
                 <p className="text-sm text-gray-400">
-                  실시간 분봉 및 일봉 주식 차트
+                  차트 분석 및 매매
                 </p>
               </div>
             </div>
-            <Badge className="bg-blue-500">
-              <Github className="w-3 h-3 mr-1" />
-              TradingView
+            <Badge className="bg-green-500">
+              실시간 매매
             </Badge>
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Main Content - 3단 레이아웃 */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Controls Panel */}
-          <TRViewChartControls
-            selectedStockCode={stockCode}
-            onStockChange={setStockCode}
-            stocks={SAMPLE_STOCKS}
-            showVolume={showVolume}
-            onVolumeToggle={() => setShowVolume(!showVolume)}
-            showGrid={showGrid}
-            onGridToggle={() => setShowGrid(!showGrid)}
-            dataCount={minuteChartData.length + dayChartData.length}
-          />
+          <div className="lg:col-span-2">
+            <TRViewChartControls
+              selectedStockCode={stockCode}
+              onStockChange={setStockCode}
+              stocks={SAMPLE_STOCKS}
+              showVolume={showVolume}
+              onVolumeToggle={() => setShowVolume(!showVolume)}
+              showGrid={showGrid}
+              onGridToggle={() => setShowGrid(!showGrid)}
+              dataCount={minuteChartData.length + dayChartData.length}
+            />
+          </div>
 
-          {/* Chart Panels */}
-          <div className="lg:col-span-3 flex flex-col gap-6">
+          {/* Center Panel - Chart (6 cols) */}
+          <div className="lg:col-span-6 flex flex-col gap-6">
             {/* Minute Chart */}
             <Card className="bg-[#1a1a1b] border-gray-700">
               <CardHeader>
@@ -184,6 +193,30 @@ export default function TRViewPage() {
                 )}
               </CardContent>
             </Card>
+          </div>
+
+          {/* Right Panel - Trading (4 cols) */}
+          <div className="lg:col-span-4 flex flex-col gap-6">
+            {/* Order Form */}
+            <OrderForm
+              stockCode={stockCode}
+              stockName={selectedStockName}
+              currentPrice={
+                minuteChartData.length > 0
+                  ? minuteChartData[minuteChartData.length - 1].close
+                  : 0
+              }
+              availableCash={10000000} // TODO: 실제 계좌 잔고 연동
+              availableQuantity={0}     // TODO: 실제 보유 수량 연동
+              onOrderSuccess={handleOrderSuccess}
+            />
+
+            {/* Orders List */}
+            <OrdersList
+              stockCode={stockCode}
+              autoRefresh={true}
+              refreshInterval={5000}
+            />
           </div>
         </div>
       </div>

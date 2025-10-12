@@ -108,7 +108,7 @@ export default function BrushDebugChart({
           chartData={chartData}
           height={height}
           timeframe="1m"
-          onBrushChange={handleBrushChange}
+          events={{ onRangeChange: handleBrushChange }}
         />
       </div>
 

@@ -228,7 +228,7 @@ export function ResponsiveTradingLayout({
       <div className={cn(
         'border-l border-gray-700 transition-all duration-300 flex-shrink-0',
         rightPanelCollapsed ? 'w-12' : getOptimalPanelWidth(),
-        (layoutMode === 'tablet' || layoutMode === 'mobile') && rightPanelCollapsed && 'hidden'
+        layoutMode === 'tablet' && rightPanelCollapsed && 'hidden'
       )}>
         <div className="h-full flex flex-col">
           {/* Panel Header */}
@@ -281,7 +281,6 @@ export function ResponsiveTradingLayout({
           <div>Mode: {layoutMode}</div>
           <div>Left: {leftPanelCollapsed ? 'Collapsed' : 'Open'}</div>
           <div>Right: {rightPanelCollapsed ? 'Collapsed' : 'Open'}</div>
-          {layoutMode === 'mobile' && <div>Focus: {mobilePanelFocus}</div>}
         </div>
       )}
     </div>

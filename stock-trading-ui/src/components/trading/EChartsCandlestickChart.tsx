@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { ChartCandle } from '@/types/korean-stocks';
+import { ChartCandle } from '@/lib/types/korean-stocks';
 
 interface EChartsCandlestickChartProps {
   chartData: ChartCandle[];
