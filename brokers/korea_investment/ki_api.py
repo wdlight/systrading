@@ -674,7 +674,14 @@ class KoreaInvestAPI:
         }
 
 
-    def get_daily_ccld(self, start_date: str, end_date: str, stock_code: str = "", sll_buy_dvsn_cd: str = "00"):
+    def get_daily_ccld(
+        self,
+        start_date: str,
+        end_date: str,
+        stock_code: str = "",
+        sll_buy_dvsn_cd: str = "00",
+        ccld_dvsn: str = "00"
+    ):
         """
         일별 주문 체결 조회 (KIS-04)
         https://apiportal.koreainvestment.com/apiservice-apiservice?/uapi/domestic-stock/v1/trading/inquire-daily-ccld
@@ -689,7 +696,7 @@ class KoreaInvestAPI:
             "SLL_BUY_DVSN_CD": sll_buy_dvsn_cd, # 00:전체, 01:매도, 02:매수
             "INQR_DVSN": "00", # 종목별
             "PDNO": stock_code,
-            "CCLD_DVSN": "00", # 00:전체, 01:체결, 02:미체결
+            "CCLD_DVSN": ccld_dvsn, # 00:전체, 01:체결, 02:미체결
             "ORD_GNO_BRNO": "",
             "ODNO": "",
             "INQR_DVSN_3": "00",

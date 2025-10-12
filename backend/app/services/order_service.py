@@ -4,8 +4,10 @@
 """
 
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, date
+import pandas as pd
 from loguru import logger
+from fastapi import HTTPException
 
 from app.core.korea_invest import KoreaInvestAPIService
 from app.models.order_models import (
@@ -24,359 +26,162 @@ from app.models.order_models import (
 
 
 class OrderService:
-    """주문 서비스 클래스"""
+    """주문 서비스 클래스 (API 연동)"""
 
     def __init__(self, korea_invest_service: KoreaInvestAPIService):
         self.korea_invest = korea_invest_service
-        # 실제 운영에서는 데이터베이스나 Redis 사용
-        # 현재는 메모리에 저장 (테스트용)
-        self._pending_orders: List[OrderDetail] = []
-        self._order_history: List[OrderDetail] = []
 
     async def place_buy_order(self, request: OrderRequest) -> OrderResponse:
-        """
-        매수 주문 실행
-
-        Args:
-            request: 주문 요청 데이터
-
-        Returns:
-            OrderResponse: 주문 응답
-        """
+        """매수 주문 (유효성 검증, 응답 파싱, 에러 처리 강화)"""
+        if request.order_type == OrderType.LIMIT.value and (request.price is None or request.price <= 0):
+            return OrderResponse(success=False, status="rejected", message="지정가 주문은 반드시 0보다 큰 가격을 입력해야 합니다.")
+        
         try:
-            logger.info(f"매수 주문 시작: {request.stock_name}({request.stock_code}), "
-                       f"수량: {request.quantity}, 가격: {request.price}")
+            adjusted_price = adjust_price_to_tick(request.price) if request.order_type == OrderType.LIMIT.value else 0
 
-            # 가격 호가 단위 조정
-            adjusted_price = request.price
-            # use_enum_values=True이므로 문자열로 비교
-            if request.order_type != OrderType.MARKET.value and request.price:
-                adjusted_price = adjust_price_to_tick(request.price)
-                if adjusted_price != request.price:
-                    logger.info(f"가격 호가 단위 조정: {request.price} → {adjusted_price}")
-
-            # 한국투자증권 API 호출
-            result = await self.korea_invest.buy_order(
+            api_response_obj = await self.korea_invest.buy_order(
                 stock_code=request.stock_code,
                 order_qty=request.quantity,
-                order_price=adjusted_price if adjusted_price else 0,
-                order_type=request.order_type
+                order_price=adjusted_price,
+                order_type="00" if request.order_type == OrderType.LIMIT.value else "01"
             )
+            
+            if not api_response_obj or not api_response_obj.is_ok():
+                body = api_response_obj.get_body() if api_response_obj else None
+                error_message = getattr(body, 'msg1', 'API 호출에 실패했습니다.') if body else "API 응답 없음"
+                logger.warning(f"매수 주문 실패: {error_message} (stock_code: {request.stock_code})")
+                
+                user_message = error_message
+                if "잔고" in error_message:
+                    user_message = "증거금 또는 잔고가 부족합니다."
+                
+                return OrderResponse(success=False, status="rejected", message=user_message)
 
-            if not result.get("success"):
-                return OrderResponse(
-                    success=False,
-                    order_number=None,
-                    status=OrderStatus.REJECTED,
-                    message=result.get("message", "매수 주문이 거부되었습니다."),
-                    stock_code=request.stock_code,
-                    stock_name=request.stock_name,
-                    order_side=OrderSide.BUY,
-                    quantity=request.quantity,
-                    price=adjusted_price
-                )
-
-            # API 응답에서 주문번호 추출
-            api_data = result.get("data", {})
-            order_number = api_data.get("주문번호") or api_data.get("order_no") or f"BUY{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
-            # 주문 상세 정보 저장 (미체결 주문 목록에 추가)
-            order_detail = OrderDetail(
-                order_number=order_number,
-                stock_code=request.stock_code,
-                stock_name=request.stock_name,
-                order_type=request.order_type,
-                order_side=OrderSide.BUY,
-                order_status=OrderStatus.ACCEPTED,
-                quantity=request.quantity,
-                filled_quantity=0,
-                remaining_quantity=request.quantity,
-                order_price=adjusted_price if adjusted_price else 0,
-                filled_price=None,
-                order_time=datetime.now(),
-                filled_time=None,
-                order_amount=adjusted_price * request.quantity if adjusted_price else 0,
-                filled_amount=0,
-                commission=0,
-                tax=0
-            )
-            self._pending_orders.append(order_detail)
-
-            logger.info(f"매수 주문 성공: 주문번호 {order_number}")
-
+            response_body = api_response_obj.get_body()
+            order_number = getattr(response_body.output, 'ODNO', None) if hasattr(response_body, 'output') else None
+            
             return OrderResponse(
-                success=True,
-                order_number=order_number,
-                status=OrderStatus.ACCEPTED,
-                message="매수 주문이 성공적으로 접수되었습니다.",
-                stock_code=request.stock_code,
-                stock_name=request.stock_name,
-                order_side=OrderSide.BUY,
-                quantity=request.quantity,
-                price=adjusted_price,
-                order_time=datetime.now()
+                success=True, status="accepted", order_number=order_number,
+                message="매수 주문이 정상적으로 접수되었습니다."
             )
-
         except Exception as e:
-            logger.error(f"매수 주문 실행 중 오류 발생: {str(e)}", exc_info=True)
-            return OrderResponse(
-                success=False,
-                order_number=None,
-                status=OrderStatus.REJECTED,
-                message=f"매수 주문 실행 중 오류가 발생했습니다: {str(e)}",
-                stock_code=request.stock_code,
-                stock_name=request.stock_name
-            )
+            logger.error(f"place_buy_order 시스템 오류: {e}", exc_info=True)
+            return OrderResponse(success=False, status="rejected", message=f"시스템 오류가 발생했습니다: {e}")
 
     async def place_sell_order(self, request: OrderRequest) -> OrderResponse:
-        """
-        매도 주문 실행
+        """매도 주문 (유효성 검증, 응답 파싱, 에러 처리 강화)"""
+        if request.order_type == OrderType.LIMIT.value and (request.price is None or request.price <= 0):
+            return OrderResponse(success=False, status="rejected", message="지정가 주문은 반드시 0보다 큰 가격을 입력해야 합니다.")
 
-        Args:
-            request: 주문 요청 데이터
-
-        Returns:
-            OrderResponse: 주문 응답
-        """
         try:
-            logger.info(f"매도 주문 시작: {request.stock_name}({request.stock_code}), "
-                       f"수량: {request.quantity}, 가격: {request.price}")
+            adjusted_price = adjust_price_to_tick(request.price) if request.order_type == OrderType.LIMIT.value else 0
 
-            # 가격 호가 단위 조정
-            adjusted_price = request.price
-            # use_enum_values=True이므로 문자열로 비교
-            if request.order_type != OrderType.MARKET.value and request.price:
-                adjusted_price = adjust_price_to_tick(request.price)
-                if adjusted_price != request.price:
-                    logger.info(f"가격 호가 단위 조정: {request.price} → {adjusted_price}")
-
-            # 한국투자증권 API 호출
-            result = await self.korea_invest.sell_order(
+            api_response_obj = await self.korea_invest.sell_order(
                 stock_code=request.stock_code,
                 order_qty=request.quantity,
-                order_price=adjusted_price if adjusted_price else 0,
-                order_type=request.order_type
+                order_price=adjusted_price,
+                order_type="00" if request.order_type == OrderType.LIMIT.value else "01"
             )
 
-            if not result.get("success"):
-                return OrderResponse(
-                    success=False,
-                    order_number=None,
-                    status=OrderStatus.REJECTED,
-                    message=result.get("message", "매도 주문이 거부되었습니다."),
-                    stock_code=request.stock_code,
-                    stock_name=request.stock_name,
-                    order_side=OrderSide.SELL,
-                    quantity=request.quantity,
-                    price=adjusted_price
-                )
+            if not api_response_obj or not api_response_obj.is_ok():
+                body = api_response_obj.get_body() if api_response_obj else None
+                error_message = getattr(body, 'msg1', 'API 호출에 실패했습니다.') if body else "API 응답 없음"
+                logger.warning(f"매도 주문 실패: {error_message} (stock_code: {request.stock_code})")
+                
+                user_message = error_message
+                if "잔고" in error_message or "수량" in error_message:
+                    user_message = "보유 수량이 부족합니다."
 
-            # API 응답에서 주문번호 추출
-            api_data = result.get("data", {})
-            order_number = api_data.get("주문번호") or api_data.get("order_no") or f"SELL{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                return OrderResponse(success=False, status="rejected", message=user_message)
 
-            # 주문 상세 정보 저장 (미체결 주문 목록에 추가)
-            order_detail = OrderDetail(
-                order_number=order_number,
-                stock_code=request.stock_code,
-                stock_name=request.stock_name,
-                order_type=request.order_type,
-                order_side=OrderSide.SELL,
-                order_status=OrderStatus.ACCEPTED,
-                quantity=request.quantity,
-                filled_quantity=0,
-                remaining_quantity=request.quantity,
-                order_price=adjusted_price if adjusted_price else 0,
-                filled_price=None,
-                order_time=datetime.now(),
-                filled_time=None,
-                order_amount=adjusted_price * request.quantity if adjusted_price else 0,
-                filled_amount=0,
-                commission=0,
-                tax=0
-            )
-            self._pending_orders.append(order_detail)
-
-            logger.info(f"매도 주문 성공: 주문번호 {order_number}")
+            response_body = api_response_obj.get_body()
+            order_number = getattr(response_body.output, 'ODNO', None) if hasattr(response_body, 'output') else None
 
             return OrderResponse(
-                success=True,
-                order_number=order_number,
-                status=OrderStatus.ACCEPTED,
-                message="매도 주문이 성공적으로 접수되었습니다.",
-                stock_code=request.stock_code,
-                stock_name=request.stock_name,
-                order_side=OrderSide.SELL,
-                quantity=request.quantity,
-                price=adjusted_price,
-                order_time=datetime.now()
+                success=True, status="accepted", order_number=order_number,
+                message="매도 주문이 정상적으로 접수되었습니다."
             )
-
         except Exception as e:
-            logger.error(f"매도 주문 실행 중 오류 발생: {str(e)}", exc_info=True)
-            return OrderResponse(
-                success=False,
-                order_number=None,
-                status=OrderStatus.REJECTED,
-                message=f"매도 주문 실행 중 오류가 발생했습니다: {str(e)}",
-                stock_code=request.stock_code,
-                stock_name=request.stock_name
-            )
+            logger.error(f"place_sell_order 시스템 오류: {e}", exc_info=True)
+            return OrderResponse(success=False, status="rejected", message=f"시스템 오류가 발생했습니다: {e}")
 
-    async def modify_order(self, request: OrderModifyRequest) -> OrderResponse:
-        """
-        주문 정정
+    def _parse_order_df(self, df: pd.DataFrame, is_history: bool) -> List[OrderDetail]:
+        """주문/체결내역 DataFrame을 OrderDetail 리스트로 파싱"""
+        orders = []
+        if df is None or df.empty:
+            return orders
 
-        Args:
-            request: 주문 정정 요청 데이터
+        df = df.astype(object).where(pd.notnull(df), None) # NaN을 None으로 변환
+        records = df.to_dict('records')
 
-        Returns:
-            OrderResponse: 주문 응답
-        """
+        for item in records:
+            try:
+                # 시간 파싱
+                ord_dt_str = item.get('ord_dt')
+                ord_tmd_str = item.get('ord_tmd')
+                ccld_tmd_str = item.get('ccld_tmd')
+
+                order_time = None
+                if ord_dt_str and ord_tmd_str:
+                    order_time = datetime.strptime(f"{ord_dt_str} {ord_tmd_str}", "%Y%m%d %H%M%S")
+                elif ord_tmd_str: # 미체결 내역은 오늘 날짜 사용
+                    order_time = datetime.strptime(f"{date.today()} {ord_tmd_str}", "%Y-%m-%d %H%M%S")
+                else:
+                    order_time = datetime.now()
+
+                filled_time = None
+                if ord_dt_str and ccld_tmd_str:
+                    filled_time = datetime.strptime(f"{ord_dt_str} {ccld_tmd_str}", "%Y%m%d %H%M%S")
+
+                # 수량/가격 숫자 변환
+                order_price = int(float(item.get('ord_unpr', 0) or 0))
+                order_qty = int(float(item.get('ord_qty', 0) or 0))
+                filled_qty = int(float(item.get('tot_ccld_qty', 0) or 0))
+                filled_price = int(float(item.get('avg_prvs', 0) or 0))
+
+                # 기본 필드 보정
+                item['ord_unpr'] = order_price
+                item['ord_qty'] = order_qty
+                item['tot_ccld_qty'] = filled_qty
+                item['avg_prvs'] = filled_price if filled_price > 0 else None
+                item['rmn_qty'] = int(float(item.get('rmn_qty', order_qty - filled_qty) or 0))
+
+                if item['rmn_qty'] < 0:
+                    item['rmn_qty'] = 0
+
+                total_filled_amount = filled_price * filled_qty
+                item['tot_ccld_amt'] = total_filled_amount
+                item['fee'] = int(float(item.get('fee', 0) or 0))
+                item['tax'] = int(float(item.get('tax', 0) or 0))
+
+                # 데이터 가공
+                item['order_side'] = 'buy' if item.get('sll_buy_dvsn_cd') == '02' else 'sell'
+                item['order_time'] = order_time
+                item['filled_time'] = filled_time
+                item['order_amount'] = order_price * order_qty
+                
+                if is_history:
+                    item['order_status'] = OrderStatus.FILLED
+                else:
+                    item['order_status'] = OrderStatus.PARTIAL if int(item.get('tot_ccld_qty', 0)) > 0 else OrderStatus.ACCEPTED
+
+                # 모델 생성
+                order_detail = OrderDetail.parse_obj(item)
+                orders.append(order_detail)
+            except (ValueError, TypeError) as e:
+                logger.warning(f"주문 내역 항목 파싱 오류: {e}, 항목: {item}")
+                continue
+        return orders
+
+    async def get_pending_orders(self, stock_code: Optional[str]) -> PendingOrdersResponse:
+        """미체결 주문 조회 (실제 API 연동 및 파싱)"""
         try:
-            logger.info(f"주문 정정 시작: 주문번호 {request.order_number}, "
-                       f"수량: {request.quantity}, 가격: {request.price}")
-
-            # 가격 호가 단위 조정
-            adjusted_price = adjust_price_to_tick(request.price)
-
-            # TODO: 실제 API 연동 필요
-            # 현재는 한국투자증권 API에 정정 메서드가 없으므로 mock 응답
-
-            # 미체결 주문 목록에서 찾아서 수정
-            order_found = False
-            for order in self._pending_orders:
-                if order.order_number == request.order_number:
-                    order.quantity = request.quantity
-                    order.remaining_quantity = request.quantity
-                    order.order_price = adjusted_price
-                    order.order_amount = adjusted_price * request.quantity
-                    order_found = True
-                    break
-
-            if not order_found:
-                return OrderResponse(
-                    success=False,
-                    order_number=request.order_number,
-                    status=OrderStatus.REJECTED,
-                    message="정정할 주문을 찾을 수 없습니다."
-                )
-
-            logger.info(f"주문 정정 성공: 주문번호 {request.order_number}")
-
-            return OrderResponse(
-                success=True,
-                order_number=request.order_number,
-                status=OrderStatus.ACCEPTED,
-                message="주문이 성공적으로 정정되었습니다.",
-                stock_code=request.stock_code,
-                quantity=request.quantity,
-                price=adjusted_price,
-                order_time=datetime.now()
-            )
-
+            df = await self.korea_invest.inquire_pending_orders(stock_code or "")
+            orders = self._parse_order_df(df, is_history=False)
+            return PendingOrdersResponse(success=True, message="미체결 주문 조회 성공", orders=orders, total_count=len(orders))
         except Exception as e:
-            logger.error(f"주문 정정 중 오류 발생: {str(e)}", exc_info=True)
-            return OrderResponse(
-                success=False,
-                order_number=request.order_number,
-                status=OrderStatus.REJECTED,
-                message=f"주문 정정 중 오류가 발생했습니다: {str(e)}"
-            )
-
-    async def cancel_order(self, request: OrderCancelRequest) -> OrderResponse:
-        """
-        주문 취소
-
-        Args:
-            request: 주문 취소 요청 데이터
-
-        Returns:
-            OrderResponse: 주문 응답
-        """
-        try:
-            logger.info(f"주문 취소 시작: 주문번호 {request.order_number}")
-
-            # TODO: 실제 API 연동 필요
-            # 현재는 한국투자증권 API에 취소 메서드가 없으므로 mock 응답
-
-            # 미체결 주문 목록에서 제거
-            order_to_cancel = None
-            for i, order in enumerate(self._pending_orders):
-                if order.order_number == request.order_number:
-                    order_to_cancel = self._pending_orders.pop(i)
-                    order_to_cancel.order_status = OrderStatus.CANCELLED
-                    # 취소된 주문은 체결 내역으로 이동
-                    self._order_history.append(order_to_cancel)
-                    break
-
-            if not order_to_cancel:
-                return OrderResponse(
-                    success=False,
-                    order_number=request.order_number,
-                    status=OrderStatus.REJECTED,
-                    message="취소할 주문을 찾을 수 없습니다."
-                )
-
-            logger.info(f"주문 취소 성공: 주문번호 {request.order_number}")
-
-            return OrderResponse(
-                success=True,
-                order_number=request.order_number,
-                status=OrderStatus.CANCELLED,
-                message="주문이 성공적으로 취소되었습니다.",
-                stock_code=order_to_cancel.stock_code,
-                stock_name=order_to_cancel.stock_name,
-                order_time=datetime.now()
-            )
-
-        except Exception as e:
-            logger.error(f"주문 취소 중 오류 발생: {str(e)}", exc_info=True)
-            return OrderResponse(
-                success=False,
-                order_number=request.order_number,
-                status=OrderStatus.REJECTED,
-                message=f"주문 취소 중 오류가 발생했습니다: {str(e)}"
-            )
-
-    async def get_pending_orders(self, stock_code: Optional[str] = None) -> PendingOrdersResponse:
-        """
-        미체결 주문 조회
-
-        Args:
-            stock_code: 종목 코드 (선택, None이면 전체 조회)
-
-        Returns:
-            PendingOrdersResponse: 미체결 주문 목록
-        """
-        try:
-            logger.info(f"미체결 주문 조회: {stock_code or '전체'}")
-
-            # TODO: 실제 API 연동 필요
-            # 현재는 메모리에 저장된 주문 목록 반환
-
-            filtered_orders = self._pending_orders
-            if stock_code:
-                filtered_orders = [
-                    order for order in self._pending_orders
-                    if order.stock_code == stock_code
-                ]
-
-            return PendingOrdersResponse(
-                success=True,
-                message="미체결 주문 조회 성공",
-                orders=filtered_orders,
-                total_count=len(filtered_orders)
-            )
-
-        except Exception as e:
-            logger.error(f"미체결 주문 조회 중 오류 발생: {str(e)}", exc_info=True)
-            return PendingOrdersResponse(
-                success=False,
-                message=f"미체결 주문 조회 중 오류가 발생했습니다: {str(e)}",
-                orders=[],
-                total_count=0
-            )
+            logger.error(f"get_pending_orders 처리 중 오류: {e}", exc_info=True)
+            return PendingOrdersResponse(success=False, message=f"미체결 내역 조회 중 서버 오류 발생: {e}", orders=[], total_count=0)
 
     async def get_order_history(
         self,
@@ -384,62 +189,99 @@ class OrderService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> OrderHistoryResponse:
-        """
-        체결 내역 조회
-
-        Args:
-            stock_code: 종목 코드 (선택)
-            start_date: 시작일 (YYYYMMDD)
-            end_date: 종료일 (YYYYMMDD)
-
-        Returns:
-            OrderHistoryResponse: 체결 내역 목록
-        """
+        """체결 내역 조회 (실제 API 연동)"""
         try:
-            logger.info(f"체결 내역 조회: {stock_code or '전체'}, {start_date} ~ {end_date}")
-
-            # TODO: 실제 API 연동 필요
-            # 현재는 메모리에 저장된 체결 내역 반환
-
-            filtered_orders = self._order_history
-            if stock_code:
-                filtered_orders = [
-                    order for order in filtered_orders
-                    if order.stock_code == stock_code
-                ]
-
-            # 통계 계산
-            total_buy_amount = sum(
-                order.filled_amount for order in filtered_orders
-                if order.order_side == OrderSide.BUY and order.order_status == OrderStatus.FILLED
-            )
-            total_sell_amount = sum(
-                order.filled_amount for order in filtered_orders
-                if order.order_side == OrderSide.SELL and order.order_status == OrderStatus.FILLED
-            )
-            total_commission = sum(order.commission for order in filtered_orders)
-            total_tax = sum(order.tax for order in filtered_orders)
-
-            return OrderHistoryResponse(
-                success=True,
-                message="체결 내역 조회 성공",
-                orders=filtered_orders,
-                total_count=len(filtered_orders),
-                total_buy_amount=total_buy_amount,
-                total_sell_amount=total_sell_amount,
-                total_commission=total_commission,
-                total_tax=total_tax
-            )
-
+            s_date = start_date or (datetime.now() - pd.Timedelta(days=7)).strftime('%Y%m%d')
+            e_date = end_date or datetime.now().strftime('%Y%m%d')
+            
+            df = await self.korea_invest.inquire_order_history(start_date=s_date, end_date=e_date, stock_code=stock_code or "")
+            orders = self._parse_order_df(df, is_history=True)
+            return OrderHistoryResponse(success=True, message="체결 내역 조회 성공", orders=orders, total_count=len(orders))
         except Exception as e:
-            logger.error(f"체결 내역 조회 중 오류 발생: {str(e)}", exc_info=True)
-            return OrderHistoryResponse(
-                success=False,
-                message=f"체결 내역 조회 중 오류가 발생했습니다: {str(e)}",
-                orders=[],
-                total_count=0,
-                total_buy_amount=0,
-                total_sell_amount=0,
-                total_commission=0,
-                total_tax=0
+            logger.error(f"get_order_history 처리 중 오류: {e}", exc_info=True)
+            return OrderHistoryResponse(success=False, message=f"체결 내역 조회 중 서버 오류 발생: {e}", orders=[], total_count=0)
+
+    async def modify_order(self, request: OrderModifyRequest) -> OrderResponse:
+        """주문 정정 (미체결 조회 후 실행)"""
+        try:
+            pending_orders_resp = await self.get_pending_orders(stock_code=request.stock_code)
+            if not pending_orders_resp.success:
+                return OrderResponse(success=False, status="rejected", message="정정할 미체결 주문을 조회하지 못했습니다.")
+
+            target_order = next(
+                (
+                    o
+                    for o in pending_orders_resp.orders
+                    if o.order_number == request.order_number or o.org_order_no == request.order_number
+                ),
+                None
             )
+
+            if not target_order or not target_order.branch_code:
+                return OrderResponse(success=False, status="rejected", message=f"정정할 주문(원주문번호: {request.order_number})을 찾을 수 없거나, 주문 정보(지점코드)가 부족합니다.")
+
+            adjusted_price = adjust_price_to_tick(request.price)
+
+            effective_org_order_no = target_order.org_order_no or target_order.order_number
+
+            api_response_obj = await self.korea_invest.modify_order(
+                branch_code=target_order.branch_code,
+                org_order_no=effective_org_order_no,
+                new_quantity=request.quantity,
+                new_price=adjusted_price
+            )
+
+            if not api_response_obj or not api_response_obj.is_ok():
+                body = api_response_obj.get_body() if api_response_obj else None
+                error_message = getattr(body, 'msg1', 'API 호출에 실패했습니다.') if body else "API 응답 없음"
+                logger.warning(f"주문 정정 실패: {error_message} (원주문번호: {request.order_number})")
+                return OrderResponse(success=False, status="rejected", message=error_message)
+
+            response_body = api_response_obj.get_body()
+            order_number = getattr(response_body.output, 'ODNO', None) if hasattr(response_body, 'output') else None
+
+            return OrderResponse(success=True, status="accepted", order_number=order_number, message="주문이 성공적으로 정정되었습니다.")
+        except Exception as e:
+            logger.error(f"modify_order 시스템 오류: {e}", exc_info=True)
+            return OrderResponse(success=False, status="rejected", message=f"시스템 오류가 발생했습니다: {e}")
+
+    async def cancel_order(self, request: OrderCancelRequest) -> OrderResponse:
+        """주문 취소 (미체결 조회 후 실행)"""
+        try:
+            pending_orders_resp = await self.get_pending_orders(stock_code=request.stock_code)
+            if not pending_orders_resp.success:
+                return OrderResponse(success=False, status="rejected", message="취소할 미체결 주문을 조회하지 못했습니다.")
+
+            target_order = next(
+                (
+                    o
+                    for o in pending_orders_resp.orders
+                    if o.order_number == request.order_number or o.org_order_no == request.order_number
+                ),
+                None
+            )
+
+            if not target_order or not target_order.branch_code:
+                return OrderResponse(success=False, status="rejected", message=f"취소할 주문(원주문번호: {request.order_number})을 찾을 수 없거나, 주문 정보(지점코드)가 부족합니다.")
+
+            effective_org_order_no = target_order.org_order_no or target_order.order_number
+
+            api_response_obj = await self.korea_invest.cancel_order(
+                branch_code=target_order.branch_code,
+                org_order_no=effective_org_order_no,
+                cancel_quantity=request.quantity
+            )
+
+            if not api_response_obj or not api_response_obj.is_ok():
+                body = api_response_obj.get_body() if api_response_obj else None
+                error_message = getattr(body, 'msg1', 'API 호출에 실패했습니다.') if body else "API 응답 없음"
+                logger.warning(f"주문 취소 실패: {error_message} (원주문번호: {request.order_number})")
+                return OrderResponse(success=False, status="rejected", message=error_message)
+
+            response_body = api_response_obj.get_body()
+            order_number = getattr(response_body.output, 'ODNO', None) if hasattr(response_body, 'output') else None
+
+            return OrderResponse(success=True, status="cancelled", order_number=order_number, message="주문이 성공적으로 취소되었습니다.")
+        except Exception as e:
+            logger.error(f"cancel_order 시스템 오류: {e}", exc_info=True)
+            return OrderResponse(success=False, status="rejected", message=f"시스템 오류가 발생했습니다: {e}")

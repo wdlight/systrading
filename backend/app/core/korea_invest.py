@@ -183,49 +183,120 @@ class KoreaInvestAPIService:
         
         return None
     
-    async def buy_order(self, stock_code: str, order_qty: int, order_price: int, order_type: str = "00") -> Dict[str, Any]:
-        """매수 주문 (비동기)"""
+    async def buy_order(self, stock_code: str, order_qty: int, order_price: int, order_type: str = "00") -> Optional[Any]:
+        """매수 주문 (비동기) - APIResponse 객체를 직접 반환하도록 수정"""
         if not self.is_connected or not self.api_instance:
-            return {"success": False, "message": "API가 연결되지 않았습니다."}
+            logger.error("API가 연결되지 않았습니다.")
+            return None
         
         try:
-            result = await self._run_in_executor(
+            # self.api_instance.buy_order가 APIResponse 객체를 반환한다고 가정
+            api_response = await self._run_in_executor(
                 self.api_instance.buy_order, 
                 stock_code, order_qty, order_price, order_type
             )
-            
-            return {
-                "success": True,
-                "message": "매수 주문이 성공적으로 접수되었습니다.",
-                "data": result
-            }
+            return api_response
             
         except Exception as e:
             self.last_error = str(e)
-            logger.error(f"매수 주문 실패: {e}")
-            return {"success": False, "message": f"매수 주문 실패: {str(e)}"}
+            logger.error(f"매수 주문 실패: {e}", exc_info=True)
+            return None
     
-    async def sell_order(self, stock_code: str, order_qty: int, order_price: int, order_type: str = "00") -> Dict[str, Any]:
-        """매도 주문 (비동기)"""
+    async def sell_order(self, stock_code: str, order_qty: int, order_price: int, order_type: str = "00") -> Optional[Any]:
+        """매도 주문 (비동기) - APIResponse 객체를 직접 반환하도록 수정"""
         if not self.is_connected or not self.api_instance:
-            return {"success": False, "message": "API가 연결되지 않았습니다."}
+            logger.error("API가 연결되지 않았습니다.")
+            return None
         
         try:
-            result = await self._run_in_executor(
+            # self.api_instance.sell_order가 APIResponse 객체를 반환한다고 가정
+            api_response = await self._run_in_executor(
                 self.api_instance.sell_order,
                 stock_code, order_qty, order_price, order_type
             )
-            
-            return {
-                "success": True,
-                "message": "매도 주문이 성공적으로 접수되었습니다.",
-                "data": result
-            }
+            return api_response
             
         except Exception as e:
             self.last_error = str(e)
-            logger.error(f"매도 주문 실패: {e}")
-            return {"success": False, "message": f"매도 주문 실패: {str(e)}"}
+            logger.error(f"매도 주문 실패: {e}", exc_info=True)
+            return None
+
+    async def inquire_pending_orders(self, stock_code: str = "") -> Optional[pd.DataFrame]:
+        """미체결 내역 조회 (TR_ID: TTTC8001R, CCLD_DVSN: 02)"""
+        if not self.is_connected or not self.api_instance:
+            logger.error("API가 연결되지 않았습니다.")
+            return None
+        try:
+            # get_daily_ccld를 미체결(02) 조건으로 호출
+            result_df = await self._run_in_executor(
+                self.api_instance.get_daily_ccld,
+                start_date=datetime.now().strftime("%Y%m%d"),
+                end_date=datetime.now().strftime("%Y%m%d"),
+                stock_code=stock_code,
+                sll_buy_dvsn_cd="00", # 전체
+                ccld_dvsn="02" # 미체결
+            )
+            return result_df
+        except Exception as e:
+            logger.error(f"미체결 내역 조회 실패: {e}", exc_info=True)
+            return None
+
+    async def inquire_order_history(self, start_date: str, end_date: str, stock_code: str = "") -> Optional[pd.DataFrame]:
+        """기간별 체결 내역 조회 (TR_ID: TTTC8001R, CCLD_DVSN: 01)"""
+        if not self.is_connected or not self.api_instance:
+            logger.error("API가 연결되지 않았습니다.")
+            return None
+        try:
+            # get_daily_ccld를 체결(01) 조건으로 호출
+            result_df = await self._run_in_executor(
+                self.api_instance.get_daily_ccld,
+                start_date=start_date,
+                end_date=end_date,
+                stock_code=stock_code,
+                sll_buy_dvsn_cd="00", # 전체
+                ccld_dvsn="01" # 체결
+            )
+            return result_df
+        except Exception as e:
+            logger.error(f"기간별 체결 내역 조회 실패: {e}", exc_info=True)
+            return None
+
+    async def modify_order(self, branch_code: str, org_order_no: str, new_quantity: int, new_price: int) -> Optional[Any]:
+        """주문 정정 (TR_ID: TTTC0803U)"""
+        if not self.is_connected or not self.api_instance:
+            logger.error("API가 연결되지 않았습니다.")
+            return None
+        try:
+            # ki_api.revise_order 호출
+            result = await self._run_in_executor(
+                self.api_instance.revise_order,
+                org_branch_code=branch_code,
+                org_order_no=org_order_no,
+                order_qty=new_quantity,
+                order_price=new_price
+            )
+            return result
+        except Exception as e:
+            logger.error(f"주문 정정 실패: {e}", exc_info=True)
+            return None
+
+    async def cancel_order(self, branch_code: str, org_order_no: str, cancel_quantity: int) -> Optional[Any]:
+        """주문 취소 (TR_ID: TTTC0801U)"""
+        if not self.is_connected or not self.api_instance:
+            logger.error("API가 연결되지 않았습니다.")
+            return None
+        try:
+            # ki_api.cancel_order 호출
+            result = await self._run_in_executor(
+                self.api_instance.cancel_order,
+                org_branch_code=branch_code,
+                org_order_no=org_order_no,
+                order_qty=cancel_quantity
+            )
+            return result
+        except Exception as e:
+            logger.error(f"주문 취소 실패: {e}", exc_info=True)
+            return None
     
     async def get_minute_chart_data(self, stock_code: str) -> Optional[List[ChartCandle]]:
         """1분봉 차트 데이터 조회 (비동기)"""

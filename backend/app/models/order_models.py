@@ -110,21 +110,21 @@ class OrderResponse(BaseModel):
 
 class OrderDetail(BaseModel):
     """주문 상세 정보 모델"""
-    order_number: str = Field(..., description="주문 번호")
-    stock_code: str = Field(..., description="종목 코드")
-    stock_name: str = Field(..., description="종목명")
-    order_type: str = Field(..., description="주문 유형")
+    order_number: str = Field(..., description="주문 번호", alias='odno')
+    stock_code: str = Field(..., description="종목 코드", alias='pdno')
+    stock_name: str = Field(..., description="종목명", alias='prdt_name')
+    order_type: str = Field(..., description="주문 유형", alias='ord_dvsn_cd')
     order_side: str = Field(..., description="매수/매도")
     order_status: OrderStatus = Field(..., description="주문 상태")
 
     # 수량 정보
-    quantity: int = Field(..., description="주문 수량")
-    filled_quantity: int = Field(default=0, description="체결 수량")
-    remaining_quantity: int = Field(..., description="미체결 수량")
+    quantity: int = Field(..., description="주문 수량", alias='ord_qty')
+    filled_quantity: int = Field(default=0, description="체결 수량", alias='tot_ccld_qty')
+    remaining_quantity: int = Field(..., description="미체결 수량", alias='rmn_qty')
 
     # 가격 정보
-    order_price: int = Field(..., description="주문 가격")
-    filled_price: Optional[int] = Field(None, description="체결 가격")
+    order_price: int = Field(..., description="주문 가격", alias='ord_unpr')
+    filled_price: Optional[int] = Field(None, description="체결 가격", alias='avg_prvs')
 
     # 시간 정보
     order_time: datetime = Field(..., description="주문 시각")
@@ -132,12 +132,17 @@ class OrderDetail(BaseModel):
 
     # 금액 정보
     order_amount: int = Field(..., description="주문 금액")
-    filled_amount: int = Field(default=0, description="체결 금액")
-    commission: int = Field(default=0, description="수수료")
-    tax: int = Field(default=0, description="제세금")
+    filled_amount: int = Field(default=0, description="체결 금액", alias='tot_ccld_amt')
+    commission: int = Field(default=0, description="수수료", alias='fee')
+    tax: int = Field(default=0, description="제세금", alias='tax')
+    
+    # 정정/취소를 위한 정보
+    branch_code: Optional[str] = Field(None, description="주문채번지점번호", alias='ord_gno_brno')
+    org_order_no: Optional[str] = Field(None, description="원주문번호", alias='orgn_odno')
 
     class Config:
         use_enum_values = True
+        allow_population_by_field_name = True
 
 
 class PendingOrdersResponse(BaseModel):

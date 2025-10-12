@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { TRViewChartControls } from '@/components/trading/TRViewChartControls';
 import { OrderForm } from '@/components/trading/OrderForm';
@@ -15,6 +15,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useStockList } from '@/hooks/useStockList';
+import { AccountBalance } from '@/lib/types/account';
 
 const TRViewChart = dynamic(
   () => import('@/components/trading/TRViewChart').then(mod => mod.TRViewChart),
@@ -39,6 +40,7 @@ export default function TRViewPage() {
   const [stockCode, setStockCode] = useState('005930');
   const [showVolume, setShowVolume] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
+  const [balance, setBalance] = useState<AccountBalance | null>(null);
 
   // 1. Minute Chart Data Hook
   const {
@@ -70,14 +72,40 @@ export default function TRViewPage() {
     enabled: true,
   });
 
+  // 3. Account Balance Fetching
+  const fetchBalance = async () => {
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/account/balance`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch balance');
+      }
+      const data: AccountBalance = await response.json();
+      setBalance(data);
+    } catch (error) {
+      console.error('Error fetching account balance:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchBalance();
+    const interval = setInterval(fetchBalance, 10000); // 10초마다 잔고 갱신
+
+    return () => clearInterval(interval);
+  }, []);
+
   const { stockList } = useStockList();
   const selectedStockName = stockList.find(s => s.value === stockCode)?.label || stockCode;
 
-  // 주문 성공 시 차트 새로고침
+  // 주문 성공 시 차트와 잔고 새로고침
   const handleOrderSuccess = () => {
     refetchMinute();
     refetchDay();
+    fetchBalance(); // 잔고 즉시 갱신
   };
+
+  const availableCash = balance?.available_cash ?? 0;
+  const availableQuantity = balance?.positions.find(p => p.stock_code === stockCode)?.quantity ?? 0;
 
   return (
     <div className="bg-[#1a1a1a] p-6 min-h-screen">
@@ -206,8 +234,8 @@ export default function TRViewPage() {
                   ? minuteChartData[minuteChartData.length - 1].close
                   : 0
               }
-              availableCash={10000000} // TODO: 실제 계좌 잔고 연동
-              availableQuantity={0}     // TODO: 실제 보유 수량 연동
+              availableCash={availableCash}
+              availableQuantity={availableQuantity}
               onOrderSuccess={handleOrderSuccess}
             />
 

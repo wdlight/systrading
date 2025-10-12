@@ -63,14 +63,9 @@ export function useOrders() {
    */
   const placeBuyOrder = useCallback(
     async (request: Omit<OrderRequest, 'order_side'>): Promise<OrderResponse> => {
-      const fullRequest: OrderRequest = {
-        ...request,
-        order_side: OrderSide.BUY,
-      };
-
       return fetchAPI<OrderResponse>('/api/orders/buy', {
         method: 'POST',
-        body: JSON.stringify(fullRequest),
+        body: JSON.stringify(request),
       });
     },
     [fetchAPI]
@@ -81,14 +76,9 @@ export function useOrders() {
    */
   const placeSellOrder = useCallback(
     async (request: Omit<OrderRequest, 'order_side'>): Promise<OrderResponse> => {
-      const fullRequest: OrderRequest = {
-        ...request,
-        order_side: OrderSide.SELL,
-      };
-
       return fetchAPI<OrderResponse>('/api/orders/sell', {
         method: 'POST',
-        body: JSON.stringify(fullRequest),
+        body: JSON.stringify(request),
       });
     },
     [fetchAPI]
