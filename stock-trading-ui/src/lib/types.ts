@@ -130,7 +130,7 @@ export interface Order {
 
 // WebSocket 메시지 타입
 export interface RealtimeMessage {
-  type: 'account_update' | 'watchlist_update' | 'price_update' | 'trading_status' | 'order_update' | 'connection_status';
+  type: 'account_update' | 'watchlist_update' | 'price_update' | 'trading_status' | 'order_update' | 'connection_status' | 'market_index_update';
   timestamp: string;
   data: any;
 }
@@ -364,7 +364,11 @@ export interface UseRealtimeDataReturn {
 
 export interface UseTradingConditionsReturn {
   conditions: TradingConditions | null;
-  updateConditions: (conditions: Partial<TradingConditions>) => Promise<void>;
+  updateConditions: (conditions: Partial<TradingConditions>) => void;
+  startTrading: () => Promise<boolean>;
+  stopTrading: () => Promise<boolean>;
+  resetConditions: () => void;
+  loadConditions: () => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }

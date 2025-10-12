@@ -94,7 +94,27 @@ export function useRealChartData(
         url = `${API_BASE_URL}/api/chart/${stockCode}/${endpoint}?${params.toString()}`;
         console.log(`🔍 Using ${isTodayKST ? 'Full Day' : 'Minute Data'} API: ${url} (KST Today: ${todayKST})`);
       } else {
-        url = `${API_BASE_URL}/api/stocks/${stockCode}/chart?period=${timeframe}&format=frontend`;
+        // ✅ 일봉/주봉/월봉 데이터: /api/chart/{stock_code}/day 사용
+        // 기간 계산: 1D → 30일, 1W → 3개월, 1M → 6개월, 3M → 1년, 6M → 2년, 1Y → 3년
+        const today = new Date();
+        const endDate = today.toISOString().split('T')[0];
+
+        let daysBack = 30; // 기본값: 1개월
+        switch (timeframe) {
+          case '1D': daysBack = 30; break;
+          case '1W': daysBack = 90; break;
+          case '1M': daysBack = 180; break;
+          case '3M': daysBack = 365; break;
+          case '6M': daysBack = 730; break;
+          case '1Y': daysBack = 1095; break;
+        }
+
+        const startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - daysBack);
+        const startDateStr = startDate.toISOString().split('T')[0];
+
+        url = `${API_BASE_URL}/api/chart/${stockCode}/day?start_date=${startDateStr}&end_date=${endDate}`;
+        console.log(`🔍 Using Daily Chart API: ${url}`);
       }
       const response = await fetch(url, {
         method: 'GET',
@@ -137,17 +157,16 @@ export function useRealChartData(
           throw new Error('Invalid API response format: expected array');
         }
       } else {
-        // 일봉 API는 {output1, output2} 구조 반환
-        const result = responseData as any;
-        if (result.output2 && Array.isArray(result.output2)) {
-          // 한국투자증권 API 형식을 KoreanStockChart로 변환
-          chartData = result.output2.map((item: any) => ({
-            timestamp: `${item.stck_bsop_date.substring(0, 4)}-${item.stck_bsop_date.substring(4, 6)}-${item.stck_bsop_date.substring(6, 8)}T00:00:00`,
-            open: parseFloat(item.stck_oprc),
-            high: parseFloat(item.stck_hgpr),
-            low: parseFloat(item.stck_lwpr),
-            close: parseFloat(item.stck_clpr),
-            volume: parseInt(item.acml_vol),
+        // ✅ 일봉 API는 ChartCandle[] 배열 직접 반환
+        if (Array.isArray(responseData)) {
+          // ChartCandle을 KoreanStockChart 형식으로 변환
+          chartData = responseData.map((candle: any) => ({
+            timestamp: candle.timestamp,
+            open: candle.open,
+            high: candle.high,
+            low: candle.low,
+            close: candle.close,
+            volume: candle.volume || 0,
             tradingValue: null,
             foreignBuy: null,
             foreignSell: null,
@@ -157,6 +176,9 @@ export function useRealChartData(
             individualSell: null,
           }));
           console.log(`📊 일봉 데이터 수신: ${chartData.length}개`);
+        } else {
+          console.error('❌ 일봉 API 응답이 배열이 아닙니다:', responseData);
+          throw new Error('Invalid API response format for daily chart');
         }
       }
 

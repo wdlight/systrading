@@ -24,6 +24,7 @@ import { cn } from '@/lib/utils';
 import {
   KoreanStock,
   KoreanStockChart,
+  ChartCandle,
   formatStockPrice,
   formatPriceChange,
   getStockColorClass
@@ -55,6 +56,22 @@ function calculateTechnicalIndicators(data: KoreanStockChart[]) {
   const prices = data.map(d => d.close);
   const volumes = data.map(d => d.volume);
 
+  // 데이터가 충분하지 않으면 기본값 반환
+  if (prices.length < 20) {
+    return {
+      rsi: 50,
+      macd: 0,
+      macdSignal: 0,
+      macdHistogram: 0,
+      sma20: prices[prices.length - 1] || 0,
+      sma60: prices[prices.length - 1] || 0,
+      bollingerUpper: prices[prices.length - 1] || 0,
+      bollingerLower: prices[prices.length - 1] || 0,
+      volume: volumes[volumes.length - 1] || 0,
+      avgVolume: volumes.reduce((a, b) => a + b, 0) / volumes.length || 0
+    };
+  }
+
   // RSI calculation (simplified)
   const rsi = calculateRSI(prices, 14);
 
@@ -71,16 +88,16 @@ function calculateTechnicalIndicators(data: KoreanStockChart[]) {
   const bollingerLower = sma20[sma20.length - 1] - (2 * stdDev);
 
   return {
-    rsi: rsi[rsi.length - 1],
-    macd,
-    macdSignal,
-    macdHistogram: macd - macdSignal,
-    sma20: sma20[sma20.length - 1],
-    sma60: calculateSMA(prices, 60)[0],
-    bollingerUpper,
-    bollingerLower,
-    volume: volumes[volumes.length - 1],
-    avgVolume: volumes.reduce((a, b) => a + b, 0) / volumes.length
+    rsi: rsi[rsi.length - 1] || 50,
+    macd: macd || 0,
+    macdSignal: macdSignal || 0,
+    macdHistogram: (macd || 0) - (macdSignal || 0),
+    sma20: sma20[sma20.length - 1] || prices[prices.length - 1],
+    sma60: calculateSMA(prices, Math.min(60, prices.length))[0] || prices[prices.length - 1],
+    bollingerUpper: bollingerUpper || prices[prices.length - 1],
+    bollingerLower: bollingerLower || prices[prices.length - 1],
+    volume: volumes[volumes.length - 1] || 0,
+    avgVolume: volumes.reduce((a, b) => a + b, 0) / volumes.length || 0
   };
 }
 
@@ -339,7 +356,7 @@ export function KoreanTradingChart({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {useRealData && timeframe === '1m' ? (
+        {useRealData ? (
           <RealtimeCandlestickChart
             chartData={finalChartData}
             height={height - 100}
@@ -351,11 +368,7 @@ export function KoreanTradingChart({
             className="bg-[#0a0a0b] border border-gray-700 rounded-lg relative overflow-hidden flex items-center justify-center text-gray-400"
             style={{ height: height - 100 }}
           >
-            {useRealData ? (
-              <p>실시간 차트 데이터 준비 중...</p>
-            ) : (
-              <p>실시간 데이터가 아닙니다.</p>
-            )}
+            <p>실시간 데이터가 아닙니다.</p>
           </div>
         )}
 

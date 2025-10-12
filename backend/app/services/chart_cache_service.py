@@ -5,7 +5,7 @@
 
 import json
 from typing import List, Optional, Tuple, Dict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 from pathlib import Path
 
 from app.models.schemas import ChartCandle
@@ -638,47 +638,179 @@ class ChartCacheService:
         korea_invest_service
     ) -> Optional[List[ChartCandle]]:
         """
-        일봉 데이터 조회 (연도별 캐시 우선)
+        일봉 데이터 조회 (연도별 캐시 우선, stale 캐시 자동 갱신)
         """
-        all_candles = []
-        # 요청된 기간의 모든 연도를 순회
+        all_candles: List[ChartCandle] = []
+        calendar = get_default_calendar()
+        today_date = datetime.now().date()
+        start_date_date = start_date.date()
+        end_date_date = end_date.date()
+        current_year = datetime.now().year
+
         for year in range(start_date.year, end_date.year + 1):
             cached_candles = self._load_daily_from_cache(stock_code, year)
+            combined_year_candles = list(cached_candles) if cached_candles else []
 
+            year_start = date(year, 1, 1)
+            year_end = date(year, 12, 31)
+            range_start = max(start_date_date, year_start)
+            range_end = min(end_date_date, year_end, today_date)
+
+            if range_start > range_end:
+                if combined_year_candles:
+                    all_candles.extend(combined_year_candles)
+                continue
+
+            valid_cached_dates: List[date] = []
             if cached_candles:
-                all_candles.extend(cached_candles)
-                logger.info(f"일봉 캐시 히트: {stock_code}, {year}년")
-            else:
-                # 캐시 미스: 해당 연도 전체 데이터를 API로 조회
-                logger.info(f"일봉 캐시 미스: {stock_code}, {year}년. API 호출")
-                api_start_date = f"{year}0101"
-                api_end_date = f"{year}1231"
-                
-                try:
-                    year_candles = await korea_invest_service.get_daily_chart_data(
-                        stock_code, api_start_date, api_end_date
+                for candle in cached_candles:
+                    candle_date = self._get_candle_date(candle)
+                    if candle_date:
+                        valid_cached_dates.append(candle_date)
+
+            needs_refresh = False
+            last_cached_date: Optional[date] = None
+            if valid_cached_dates and year == current_year:
+                last_cached_date = max(valid_cached_dates)
+                days_old = (today_date - last_cached_date).days
+                if days_old >= 3 and last_cached_date < range_end:
+                    needs_refresh = True
+                    logger.warning(
+                        f"⚠️ Stale 캐시 감지: {stock_code}, {year}년 "
+                        f"(마지막 데이터: {last_cached_date}, {days_old}일 전)"
                     )
-                    if year_candles:
-                        self._save_daily_to_cache(stock_code, year, year_candles)
-                        all_candles.extend(year_candles)
-                except Exception as e:
-                    logger.error(f"{year}년 일봉 데이터 API 호출 실패: {e}")
-                    continue
-        
+
+            cached_dates_in_range = {
+                candle_date
+                for candle_date in valid_cached_dates
+                if range_start <= candle_date <= range_end
+            }
+            requested_trading_days = [
+                trading_day.date()
+                for trading_day in calendar.get_trading_days(
+                    datetime.combine(range_start, datetime.min.time()),
+                    datetime.combine(range_end, datetime.min.time()),
+                )
+            ]
+            missing_dates = [
+                trading_day for trading_day in requested_trading_days
+                if trading_day not in cached_dates_in_range
+            ]
+
+            fetch_start: Optional[date] = None
+            fetch_end: Optional[date] = None
+
+            if not cached_candles:
+                fetch_start = range_start
+                fetch_end = range_end
+            else:
+                if missing_dates:
+                    fetch_start = min(missing_dates)
+                    fetch_end = max(missing_dates)
+                    logger.info(
+                        f"📌 일봉 캐시 누락 발견: {stock_code}, {year}년 "
+                        f"{fetch_start}~{fetch_end} 재조회"
+                    )
+                if needs_refresh:
+                    refresh_start = max(
+                        (last_cached_date + timedelta(days=1)) if last_cached_date else range_start,
+                        range_start
+                    )
+                    if refresh_start <= range_end:
+                        logger.info(
+                            f"🔄 일봉 캐시 최신화: {stock_code}, {year}년 "
+                            f"{refresh_start}~{range_end} 재조회"
+                        )
+                        if fetch_start:
+                            fetch_start = min(fetch_start, refresh_start)
+                            fetch_end = max(fetch_end, range_end)
+                        else:
+                            fetch_start = refresh_start
+                            fetch_end = range_end
+
+            if fetch_start and fetch_end and fetch_start <= fetch_end:
+                api_start = fetch_start.strftime('%Y%m%d')
+                api_end = fetch_end.strftime('%Y%m%d')
+                try:
+                    fetched_candles = await korea_invest_service.get_daily_chart_data(
+                        stock_code, api_start, api_end
+                    )
+                except Exception as exc:
+                    logger.error(f"{year}년 일봉 데이터 API 호출 실패: {exc}")
+                    fetched_candles = []
+
+                if fetched_candles:
+                    combined_year_candles = self._merge_daily_candles(
+                        combined_year_candles,
+                        fetched_candles,
+                        year_filter=year
+                    )
+                    self._save_daily_to_cache(stock_code, year, combined_year_candles)
+                    logger.info(
+                        f"✅ 일봉 캐시 갱신 완료: {stock_code}, {year}년 "
+                        f"{fetch_start}~{fetch_end}, {len(fetched_candles)}개"
+                    )
+                elif cached_candles:
+                    logger.warning(
+                        f"⚠️ 일봉 데이터 갱신 실패, 기존 캐시 유지: {stock_code}, {year}년"
+                    )
+                else:
+                    logger.warning(
+                        f"❌ 일봉 데이터 없음: {stock_code}, {year}년 "
+                        f"{fetch_start}~{fetch_end}"
+                    )
+
+            if combined_year_candles:
+                all_candles.extend(combined_year_candles)
+                logger.info(f"일봉 캐시 히트/통합: {stock_code}, {year}년")
+            else:
+                logger.info(f"일봉 데이터 없음: {stock_code}, {year}년")
+
         if not all_candles:
             return None
 
-        # 전체 데이터에서 요청된 기간만큼 필터링
         filtered_candles = [
             candle for candle in all_candles
             if start_date.strftime('%Y-%m-%d') <= candle.timestamp[:10] <= end_date.strftime('%Y-%m-%d')
         ]
-        
-        # 시간순으로 정렬
         sorted_candles = sorted(filtered_candles, key=lambda c: c.timestamp)
         logger.info(f"최종 일봉 데이터 필터링 및 정렬: {len(sorted_candles)}개")
-        
         return sorted_candles
+
+    def _merge_daily_candles(
+        self,
+        existing: List[ChartCandle],
+        updates: List[ChartCandle],
+        year_filter: Optional[int] = None
+    ) -> List[ChartCandle]:
+        """기존/신규 일봉 데이터를 날짜 기준으로 병합"""
+        candle_map: Dict[str, ChartCandle] = {}
+        for candle in existing:
+            candle_date = self._get_candle_date(candle)
+            if candle_date is None:
+                continue
+            if year_filter and candle_date.year != year_filter:
+                continue
+            candle_map[candle.timestamp[:10]] = candle
+
+        for candle in updates:
+            candle_date = self._get_candle_date(candle)
+            if candle_date is None:
+                continue
+            if year_filter and candle_date.year != year_filter:
+                continue
+            candle_map[candle.timestamp[:10]] = candle
+
+        merged = sorted(candle_map.values(), key=lambda c: c.timestamp)
+        return merged
+
+    @staticmethod
+    def _get_candle_date(candle: ChartCandle) -> Optional[date]:
+        """ChartCandle의 날짜를 안전하게 추출"""
+        try:
+            return datetime.fromisoformat(candle.timestamp).date()
+        except (TypeError, ValueError):
+            return None
 
     def invalidate_cache(self, stock_code: str, date: Optional[datetime] = None):
         """

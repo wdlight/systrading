@@ -124,10 +124,6 @@ export function TradingChart({ className, height = 400 }: TradingChartProps) {
         type: 'volume',
       },
       priceScaleId: 'volume',
-      scaleMargins: {
-        top: 0.7,
-        bottom: 0,
-      },
     });
 
     // Configure volume price scale

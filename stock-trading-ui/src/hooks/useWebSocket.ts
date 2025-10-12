@@ -27,7 +27,7 @@ export function useWebSocket(): UseWebSocketReturn {
   useEffect(() => {
     if (!isInitialized.current) {
       isInitialized.current = true;
-      console.log('🚀 WebSocket 연결 시도 시작:', wsManager.url);
+      console.log('🚀 WebSocket 연결 시도 시작');
       wsManager.connect().catch(error => {
         console.error('❌ WebSocket 초기 연결 실패:', error);
       });

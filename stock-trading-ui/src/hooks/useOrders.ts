@@ -3,7 +3,7 @@
  * 주문 실행, 조회, 정정, 취소 API 연동
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   OrderRequest,
   OrderModifyRequest,

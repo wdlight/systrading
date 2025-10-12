@@ -221,7 +221,7 @@ function WatchlistRow({ item }: { item: WatchlistItem }) {
       setLogs([{
         timestamp: now,
         data: { ...item },
-        type: 'initial'
+        type: 'initial' as const
       }]);
     } else {
       // 데이터 변경 감지
@@ -231,7 +231,7 @@ function WatchlistRow({ item }: { item: WatchlistItem }) {
         setLogs(prev => [{
           timestamp: now,
           data: { ...item },
-          type: 'update'
+          type: 'update' as const
         }, ...prev].slice(0, 50)); // 최대 50개 로그 유지
       }
     }

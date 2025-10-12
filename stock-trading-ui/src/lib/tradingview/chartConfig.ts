@@ -5,7 +5,6 @@ export function getTRViewChartOptions(): DeepPartial<ChartOptions> {
   return {
     layout: {
       background: {
-        type: 'solid' as const,
         color: '#0a0a0b'  // 다크 배경
       },
       textColor: '#d1d5db',  // 텍스트 색상

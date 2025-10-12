@@ -37,11 +37,11 @@ const createYScale = (yDomain: [number, number], chartHeight: number, margin: nu
 const createCandlestickDot = (yDomain: [number, number], chartHeight: number, dataCount: number, chartWidth: number = 950) => {
   const yScale = createYScale(yDomain, chartHeight);
 
-  const CandlestickDotComponent = (props: any) => {
+  const CandlestickDotComponent = (props: any): React.JSX.Element => {
     const { cx, cy, payload, index, height, width } = props;
 
     if (!payload) {
-      return null;
+      return <></>;
     }
 
     const { open, high, low, close, timestamp, volume } = payload;
@@ -389,34 +389,56 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
     return domain;
   }, [chartData, calculator]); // chartData 변경 시에만 재계산
 
-  // ⚡ XAxis ticks 메모이제이션 (시간 기반, 30분 단위)
+  // ⚡ XAxis ticks 메모이제이션 (timeframe에 따라 다르게 생성)
   const xAxisTicks = useMemo(() => {
-    // 시간 기준으로 30분 단위 tick 생성 (9:00, 9:30, 10:00, ...)
     const ticks: number[] = [];
 
-    formattedData.forEach((candle, index) => {
-      const date = new Date(candle.time);
-      const minutes = date.getMinutes();
+    if (timeframe === '1m') {
+      // 분봉: 시간 기준으로 30분 단위 tick 생성 (9:00, 9:30, 10:00, ...)
+      formattedData.forEach((candle, index) => {
+        const date = new Date(candle.time);
+        const minutes = date.getMinutes();
 
-      // 30분 단위 (00분, 30분)에만 tick 표시
-      if (minutes === 0 || minutes === 30) {
-        // viewWindow가 있으면 범위 내에서만
+        // 30분 단위 (00분, 30분)에만 tick 표시
+        if (minutes === 0 || minutes === 30) {
+          // viewWindow가 있으면 범위 내에서만
+          if (viewWindow) {
+            if (index >= viewWindow.startIndex && index <= viewWindow.endIndex) {
+              ticks.push(candle.dataIndex);
+            }
+          } else {
+            // viewWindow 없으면 마지막 120개 범위에서
+            const start = Math.max(0, formattedData.length - 120);
+            if (index >= start) {
+              ticks.push(candle.dataIndex);
+            }
+          }
+        }
+      });
+    } else {
+      // 일봉/주봉/월봉: 데이터 간격에 따라 적절히 표시
+      const totalCandles = viewWindow
+        ? (viewWindow.endIndex - viewWindow.startIndex + 1)
+        : Math.min(120, formattedData.length);
+
+      const tickInterval = Math.max(1, Math.floor(totalCandles / 10)); // 약 10개의 tick 표시
+
+      formattedData.forEach((candle, index) => {
         if (viewWindow) {
-          if (index >= viewWindow.startIndex && index <= viewWindow.endIndex) {
+          if (index >= viewWindow.startIndex && index <= viewWindow.endIndex && index % tickInterval === 0) {
             ticks.push(candle.dataIndex);
           }
         } else {
-          // viewWindow 없으면 마지막 120개 범위에서
           const start = Math.max(0, formattedData.length - 120);
-          if (index >= start) {
+          if (index >= start && (index - start) % tickInterval === 0) {
             ticks.push(candle.dataIndex);
           }
         }
-      }
-    });
+      });
+    }
 
     return ticks;
-  }, [formattedData, viewWindow]);
+  }, [formattedData, viewWindow, timeframe]);
 
   // 조건부 렌더링은 훅 호출 후에
   if (formattedData.length === 0) {
@@ -468,10 +490,20 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
               if (!candle) return '';
 
               const date = new Date(candle.time);
+
+              // ✅ 일봉/주봉/월봉: 날짜만 표시
+              if (timeframe !== '1m') {
+                const year = date.getFullYear().toString().slice(2); // 2024 → 24
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                return `${year}/${month}/${day}`;
+              }
+
+              // ✅ 분봉: 시간 표시
               const hours = date.getHours();
               const minutes = date.getMinutes();
 
-              // ✅ 9:00이면 날짜 경계 표시 (줄바꿈으로 날짜와 시간 구분)
+              // 9:00이면 날짜 경계 표시 (줄바꿈으로 날짜와 시간 구분)
               if (hours === 9 && minutes === 0) {
                 const month = date.getMonth() + 1;
                 const day = date.getDate();
@@ -517,7 +549,6 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
 
           {/* Brush for infinite scroll (index-based) */}
           <Brush
-            data={formattedData}
             dataKey="dataIndex"
             height={30}
             stroke={KOREAN_CHART_THEME.gridColor}
@@ -538,10 +569,19 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
               if (!candle) return '';
 
               const date = new Date(candle.time);
+
+              // ✅ 일봉/주봉/월봉: 날짜만 표시
+              if (timeframe !== '1m') {
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                return `${month}/${day}`;
+              }
+
+              // ✅ 분봉: 시간 표시
               const hours = date.getHours();
               const minutes = date.getMinutes();
 
-              // ✅ 9:00이면 날짜 경계 표시 (Brush용 - 한 줄로 표시)
+              // 9:00이면 날짜 경계 표시 (Brush용 - 한 줄로 표시)
               if (hours === 9 && minutes === 0) {
                 const month = date.getMonth() + 1;
                 const day = date.getDate();
@@ -550,7 +590,6 @@ const RechartsAdapter: React.FC<ChartAdapterProps> = ({
 
               return `${hours}:${minutes.toString().padStart(2, '0')}`;
             }}
-            traveller={{width: 10}}
           />
         </ComposedChart>
       </ResponsiveContainer>

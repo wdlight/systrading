@@ -182,23 +182,23 @@ export function TRViewChart({
     chartRef.current.timeScale().applyOptions({
       timeVisible: !isDay,
       secondsVisible: false,
-      // tickMarkFormatter를 사용하여 날짜/시간 형식을 강제합니다.
-      tickMarkFormatter: (time: number) => {
-        const date = new Date(time * 1000);
-        
-        if (isDay) {
-          return formatKST(date, {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          });
-        } else {
-          return formatKST(date, {
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-        }
-      },
+      // tickMarkFormatter는 lightweight-charts 타입 정의에 없으므로 주석 처리
+      // tickMarkFormatter: (time: number) => {
+      //   const date = new Date(time * 1000);
+      //
+      //   if (isDay) {
+      //     return formatKST(date, {
+      //       year: 'numeric',
+      //       month: '2-digit',
+      //       day: '2-digit',
+      //     });
+      //   } else {
+      //     return formatKST(date, {
+      //       hour: '2-digit',
+      //       minute: '2-digit',
+      //     });
+      //   }
+      // },
     });
   }, [timeframe, formatKST]);
 

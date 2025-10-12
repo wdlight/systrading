@@ -150,10 +150,10 @@ export class VisibleRangeYAxisCalculator implements YAxisCalculator {
  * Y축 계산기 팩토리
  */
 export class YAxisCalculatorFactory {
-  private static calculators: Map<string, YAxisCalculator> = new Map([
-    ['daily-range', new DailyRangeYAxisCalculator()],
-    ['price-limit', new PriceLimitYAxisCalculator()],
-    ['visible-range', new VisibleRangeYAxisCalculator()],
+  private static calculators: Map<string, YAxisCalculator> = new Map<string, YAxisCalculator>([
+    ['daily-range', new DailyRangeYAxisCalculator() as YAxisCalculator],
+    ['price-limit', new PriceLimitYAxisCalculator() as YAxisCalculator],
+    ['visible-range', new VisibleRangeYAxisCalculator() as YAxisCalculator],
   ]);
 
   /**

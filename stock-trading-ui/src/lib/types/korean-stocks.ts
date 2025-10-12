@@ -436,7 +436,10 @@ export function formatKoreanWon(amount: number, compact: boolean = false, withUn
   return withUnit ? `${value}원` : value;
 }
 
-export function formatStockPrice(price: number, withUnit: boolean = true): string {
+export function formatStockPrice(price: number | undefined | null, withUnit: boolean = true): string {
+  if (price === undefined || price === null || isNaN(price)) {
+    return withUnit ? '-원' : '-';
+  }
   const value = price.toLocaleString('ko-KR');
   return withUnit ? `${value}원` : value;
 }

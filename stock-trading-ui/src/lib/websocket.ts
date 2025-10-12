@@ -107,7 +107,6 @@ export class WebSocketManager {
           console.error('❌ WebSocket 오류 발생:', error);
           console.error('에러 이벤트:', {
             type: error.type,
-            target: error.target?.url || 'unknown',
             readyState: this.ws?.readyState,
             url: this.url
           });
