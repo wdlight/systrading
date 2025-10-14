@@ -51,13 +51,13 @@ export function TRViewChartControls({
 
   return (
     <Card className="bg-[#1a1a1b] border-gray-700">
-      <CardHeader>
-        <CardTitle className="text-white">차트 설정</CardTitle>
+      <CardHeader className="pb-2 px-3 pt-3">
+        <CardTitle className="text-white text-sm">차트 설정</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-2 px-3 pb-3">
         {/* 종목 선택 */}
         <div>
-          <label className="text-sm text-gray-400 mb-2 block">
+          <label className="text-xs text-gray-400 mb-1 block">
             종목 검색
           </label>
           <Popover open={open} onOpenChange={setOpen}>
@@ -66,7 +66,8 @@ export function TRViewChartControls({
                 variant="outline"
                 role="combobox"
                 aria-expanded={open}
-                className="w-full justify-between"
+                size="sm"
+                className="w-full justify-between text-xs h-8"
                 disabled={isLoading || !!error}
               >
                 {displayValue}
@@ -117,15 +118,16 @@ export function TRViewChartControls({
             </PopoverContent>
           </Popover>
 
-          <div className="mt-4 space-y-2">
-             <label className="text-sm text-gray-400 mb-2 block">
-                주요 종목
-             </label>
+          <div className="mt-2 space-y-1">
+            <label className="text-xs text-gray-400 mb-1 block">
+              주요 종목
+            </label>
             {stocks.map((stock) => (
               <Button
                 key={stock.code}
                 variant={selectedStockCode === stock.code ? 'default' : 'outline'}
-                className="w-full justify-start"
+                size="sm"
+                className="w-full justify-start text-xs h-7 py-1"
                 onClick={() => onStockChange(stock.code)}
               >
                 {stock.name} ({stock.code})
@@ -136,13 +138,14 @@ export function TRViewChartControls({
 
         {/* 표시 옵션 */}
         <div>
-          <label className="text-sm text-gray-400 mb-2 block">
+          <label className="text-xs text-gray-400 mb-1 block">
             표시 옵션
           </label>
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Button
               variant={showVolume ? 'default' : 'outline'}
-              className="w-full justify-start"
+              size="sm"
+              className="w-full justify-start text-xs h-7 py-1"
               onClick={onVolumeToggle}
             >
               <BarChart3 className="w-4 h-4 mr-2" />
@@ -150,7 +153,8 @@ export function TRViewChartControls({
             </Button>
             <Button
               variant={showGrid ? 'default' : 'outline'}
-              className="w-full justify-start"
+              size="sm"
+              className="w-full justify-start text-xs h-7 py-1"
               onClick={onGridToggle}
             >
               <TrendingUp className="w-4 h-4 mr-2" />
@@ -160,11 +164,11 @@ export function TRViewChartControls({
         </div>
 
         {/* 정보 */}
-        <div className="pt-4 border-t border-gray-700">
-          <p className="text-xs text-gray-500">
+        <div className="pt-2 border-t border-gray-700">
+          <p className="text-[10px] text-gray-500">
             Backend API: {process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-[10px] text-gray-500">
             데이터: {dataCount}개 캔들
           </p>
         </div>

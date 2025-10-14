@@ -25,6 +25,7 @@ import {
 } from '@/lib/types/order';
 import { useOrders } from '@/hooks/useOrders';
 import { TrendingUp, TrendingDown, AlertCircle, Loader2 } from 'lucide-react';
+import { OrderBook } from './OrderBook';
 
 interface OrderFormProps {
   stockCode: string;
@@ -187,11 +188,11 @@ export function OrderForm({
 
   return (
     <Card className={cn('bg-[#1a1a1b] border-gray-700', className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-white text-base">주문하기</CardTitle>
+      <CardHeader className="pb-2 px-3 pt-3">
+        <CardTitle className="text-white text-sm">주문하기</CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-2 px-3 pb-3">
         {/* 매수/매도 탭 */}
         <Tabs value={orderSide} onValueChange={(v) => setOrderSide(v as 'buy' | 'sell')}>
           <TabsList className="grid w-full grid-cols-2 bg-[#2a2a2a]">
@@ -211,8 +212,8 @@ export function OrderForm({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="buy" className="space-y-4 mt-4">
-            <div className="text-xs text-gray-400">
+          <TabsContent value="buy" className="space-y-2 mt-2">
+            <div className="text-[10px] text-gray-400">
               매수 가능: <span className="text-white font-medium">{availableCash.toLocaleString()}원</span>
               {maxBuyQuantity > 0 && (
                 <span className="ml-2">
@@ -222,23 +223,24 @@ export function OrderForm({
             </div>
           </TabsContent>
 
-          <TabsContent value="sell" className="space-y-4 mt-4">
-            <div className="text-xs text-gray-400">
+          <TabsContent value="sell" className="space-y-2 mt-2">
+            <div className="text-[10px] text-gray-400">
               매도 가능: <span className="text-white font-medium">{availableQuantity.toLocaleString()}주</span>
             </div>
           </TabsContent>
         </Tabs>
 
         {/* 주문 유형 선택 */}
-        <div className="space-y-2">
-          <Label className="text-gray-300 text-xs">주문 유형</Label>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label className="text-gray-300 text-[10px]">주문 유형</Label>
+          <div className="grid grid-cols-2 gap-1">
             <Button
               type="button"
               variant={orderType === OrderType.LIMIT ? 'default' : 'outline'}
               size="sm"
               onClick={() => setOrderType(OrderType.LIMIT)}
               className={cn(
+                'text-xs h-7 py-1',
                 orderType === OrderType.LIMIT
                   ? 'bg-blue-600 text-white hover:bg-blue-700'
                   : 'bg-[#2a2a2a] text-gray-300 hover:bg-gray-700'
@@ -252,6 +254,7 @@ export function OrderForm({
               size="sm"
               onClick={() => setOrderType(OrderType.MARKET)}
               className={cn(
+                'text-xs h-7 py-1',
                 orderType === OrderType.MARKET
                   ? 'bg-blue-600 text-white hover:bg-blue-700'
                   : 'bg-[#2a2a2a] text-gray-300 hover:bg-gray-700'
@@ -264,18 +267,18 @@ export function OrderForm({
 
         {/* 가격 입력 (지정가만) */}
         {orderType === OrderType.LIMIT && (
-          <div className="space-y-2">
-            <Label className="text-gray-300 text-xs">
+          <div className="space-y-1">
+            <Label className="text-gray-300 text-[10px]">
               주문 가격
               <span className="ml-2 text-gray-500">(호가단위: {tickSize}원)</span>
             </Label>
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => changePrice(-1)}
-                className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700"
+                className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 w-8 p-0"
               >
                 -
               </Button>
@@ -285,20 +288,20 @@ export function OrderForm({
                 onChange={(e) => setPrice(e.target.value)}
                 onBlur={(e) => adjustPriceInput(e.target.value)}
                 placeholder="가격 입력"
-                className="bg-[#2a2a2a] text-white border-gray-600 text-right"
+                className="bg-[#2a2a2a] text-white border-gray-600 text-right h-8 text-sm"
               />
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => changePrice(1)}
-                className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700"
+                className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 w-8 p-0"
               >
                 +
               </Button>
             </div>
             {adjustedPrice > 0 && adjustedPrice !== parseInt(price) && (
-              <p className="text-xs text-yellow-500">
+              <p className="text-[10px] text-yellow-500">
                 호가 단위 조정: {adjustedPrice.toLocaleString()}원
               </p>
             )}
@@ -306,15 +309,15 @@ export function OrderForm({
         )}
 
         {/* 수량 입력 */}
-        <div className="space-y-2">
-          <Label className="text-gray-300 text-xs">주문 수량</Label>
-          <div className="flex gap-2">
+        <div className="space-y-1">
+          <Label className="text-gray-300 text-[10px]">주문 수량</Label>
+          <div className="flex gap-1">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => changeQuantity(-10)}
-              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700"
+              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
             >
               -10
             </Button>
@@ -323,7 +326,7 @@ export function OrderForm({
               variant="outline"
               size="sm"
               onClick={() => changeQuantity(-1)}
-              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700"
+              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
             >
               -1
             </Button>
@@ -332,14 +335,14 @@ export function OrderForm({
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="수량"
-              className="bg-[#2a2a2a] text-white border-gray-600 text-right"
+              className="bg-[#2a2a2a] text-white border-gray-600 text-right h-8 text-sm"
             />
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => changeQuantity(1)}
-              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700"
+              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
             >
               +1
             </Button>
@@ -348,7 +351,7 @@ export function OrderForm({
               variant="outline"
               size="sm"
               onClick={() => changeQuantity(10)}
-              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700"
+              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
             >
               +10
             </Button>
@@ -383,12 +386,26 @@ export function OrderForm({
           </Alert>
         )}
 
+        {/* Order Book - Show only for limit orders */}
+        {orderType === OrderType.LIMIT && currentPrice > 0 && (
+          <div className="border-t border-gray-700 pt-2 mt-2">
+            <div className="flex items-center justify-between mb-1">
+              <Label className="text-gray-300 text-[10px]">호가창</Label>
+              <Badge variant="outline" className="text-[9px] px-1 py-0">
+                실시간
+              </Badge>
+            </div>
+            <OrderBook stockCode={stockCode} currentPrice={currentPrice} />
+          </div>
+        )}
+
         {/* 주문 버튼 */}
         <Button
           onClick={handleSubmit}
           disabled={!!validationError || isLoading}
+          size="sm"
           className={cn(
-            'w-full font-bold',
+            'w-full font-bold h-9 text-sm',
             orderSide === 'buy'
               ? 'bg-red-500 hover:bg-red-600'
               : 'bg-blue-500 hover:bg-blue-600'

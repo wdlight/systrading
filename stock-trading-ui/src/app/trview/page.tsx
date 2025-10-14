@@ -108,30 +108,30 @@ export default function TRViewPage() {
   const availableQuantity = balance?.positions.find(p => p.stock_code === stockCode)?.quantity ?? 0;
 
   return (
-    <div className="bg-[#1a1a1a] p-6 min-h-screen">
+    <div className="bg-[#1a1a1a] p-2 min-h-screen">
       <div className="max-w-[1800px] mx-auto">
         {/* Page Title Section */}
-        <div className="mb-6">
+        <div className="mb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <TrendingUp className="w-8 h-8 text-blue-400" />
+              <TrendingUp className="w-6 h-6 text-blue-400" />
               <div>
-                <h1 className="text-xl font-bold text-white">
+                <h1 className="text-lg font-bold text-white">
                   주식 관리
                 </h1>
-                <p className="text-sm text-gray-400">
+                <p className="text-xs text-gray-400">
                   차트 분석 및 매매
                 </p>
               </div>
             </div>
-            <Badge className="bg-green-500">
+            <Badge className="bg-green-500 text-xs px-2 py-0.5">
               실시간 매매
             </Badge>
           </div>
         </div>
 
         {/* Main Content - 3단 레이아웃 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
           {/* Controls Panel */}
           <div className="lg:col-span-2">
             <TRViewChartControls
@@ -147,17 +147,18 @@ export default function TRViewPage() {
           </div>
 
           {/* Center Panel - Chart (6 cols) */}
-          <div className="lg:col-span-6 flex flex-col gap-6">
+          <div className="lg:col-span-6 flex flex-col gap-3">
             {/* Minute Chart */}
             <Card className="bg-[#1a1a1b] border-gray-700">
-              <CardHeader>
+              <CardHeader className="pb-2 px-3 pt-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-white">
+                  <CardTitle className="text-white text-sm">
                     {selectedStockName} 분봉 차트
                   </CardTitle>
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="h-7 w-7 p-0"
                     onClick={refetchMinute}
                     disabled={isLoadingMinute}
                   >
@@ -165,7 +166,7 @@ export default function TRViewPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 pb-3">
                 {isLoadingMinute && <div className="h-[400px] flex items-center justify-center text-gray-400">분봉 차트 로딩 중...</div>}
                 {errorMinute && <div className="h-[400px] flex items-center justify-center text-red-400">오류: {String(errorMinute)}</div>}
                 {!isLoadingMinute && !errorMinute && (
@@ -187,14 +188,15 @@ export default function TRViewPage() {
 
             {/* Daily Chart */}
             <Card className="bg-[#1a1a1b] border-gray-700">
-              <CardHeader>
+              <CardHeader className="pb-2 px-3 pt-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-white">
+                  <CardTitle className="text-white text-sm">
                     {selectedStockName} 일봉 차트
                   </CardTitle>
                   <Button
                     variant="ghost"
                     size="sm"
+                    className="h-7 w-7 p-0"
                     onClick={refetchDay}
                     disabled={isLoadingDay}
                   >
@@ -202,7 +204,7 @@ export default function TRViewPage() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 pb-3">
                 {isLoadingDay && <div className="h-[400px] flex items-center justify-center text-gray-400">일봉 차트 로딩 중...</div>}
                 {errorDay && <div className="h-[400px] flex items-center justify-center text-red-400">오류: {String(errorDay)}</div>}
                 {!isLoadingDay && !errorDay && (
@@ -224,7 +226,7 @@ export default function TRViewPage() {
           </div>
 
           {/* Right Panel - Trading (4 cols) */}
-          <div className="lg:col-span-4 flex flex-col gap-6">
+          <div className="lg:col-span-4 flex flex-col gap-3">
             {/* Order Form */}
             <OrderForm
               stockCode={stockCode}

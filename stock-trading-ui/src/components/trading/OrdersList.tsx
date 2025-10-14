@@ -126,22 +126,22 @@ export function OrdersList({
 
   return (
     <Card className={cn('bg-[#1a1a1b] border-gray-700', className)}>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-2 px-3 pt-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-white text-base">주문 내역</CardTitle>
+          <CardTitle className="text-white text-sm">주문 내역</CardTitle>
           <Button
             variant="ghost"
             size="sm"
             onClick={fetchOrders}
             disabled={isRefreshing}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-white h-7 w-7 p-0"
           >
             <RefreshCw className={cn('w-4 h-4', isRefreshing && 'animate-spin')} />
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="px-3 pb-3">
         <Tabs
           defaultValue="pending"
           value={tabValue}
@@ -169,7 +169,7 @@ export function OrdersList({
           {/* 미체결 주문 */}
           <TabsContent value="pending" className="space-y-2">
             {pendingOrders.length === 0 ? (
-              <div className="text-center py-8 text-gray-400 text-sm">
+              <div className="text-center py-4 text-gray-400 text-xs">
                 미체결 주문이 없습니다
               </div>
             ) : (
@@ -177,17 +177,17 @@ export function OrdersList({
                 {pendingOrders.map((order, index) => (
                   <div
                     key={order.order_number || index}
-                    className="bg-[#2a2a2a] rounded-lg p-3 space-y-2"
+                    className="bg-[#2a2a2a] rounded-lg p-2 space-y-1"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Badge className={getStatusBadgeColor(order.order_status)}>
+                        <Badge className={cn(getStatusBadgeColor(order.order_status), 'text-[9px] px-1 py-0')}>
                           {getOrderStatusName(order.order_status)}
                         </Badge>
-                        <span className={cn('font-medium text-sm', getOrderSideColor(order.order_side))}>
+                        <span className={cn('font-medium text-xs', getOrderSideColor(order.order_side))}>
                           {order.order_side === 'buy' ? '매수' : '매도'}
                         </span>
-                        <span className="text-white text-sm">{order.stock_name}</span>
+                        <span className="text-white text-xs">{order.stock_name}</span>
                       </div>
                       {onOrderCancel && (
                         <Button
@@ -201,7 +201,7 @@ export function OrdersList({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="grid grid-cols-2 gap-1 text-[11px]">
                       <div>
                         <span className="text-gray-400">주문가격:</span>
                         <span className="text-white ml-1">
@@ -246,17 +246,17 @@ export function OrdersList({
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Badge className={getStatusBadgeColor(order.order_status)}>
+                        <Badge className={cn(getStatusBadgeColor(order.order_status), 'text-[9px] px-1 py-0')}>
                           {getOrderStatusName(order.order_status)}
                         </Badge>
-                        <span className={cn('font-medium text-sm', getOrderSideColor(order.order_side))}>
+                        <span className={cn('font-medium text-xs', getOrderSideColor(order.order_side))}>
                           {order.order_side === 'buy' ? '매수' : '매도'}
                         </span>
-                        <span className="text-white text-sm">{order.stock_name}</span>
+                        <span className="text-white text-xs">{order.stock_name}</span>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="grid grid-cols-2 gap-1 text-[11px]">
                       {(() => {
                         const filledPrice = parseNumeric(order.filled_price);
                         const rawFilledPrice = parseNumeric(order.raw_filled_price);
