@@ -1,12 +1,13 @@
-import { 
-  RealtimeMessage, 
+import {
+  RealtimeMessage,
   ConnectionState,
   AccountUpdate,
   WatchlistUpdate,
   PriceUpdate,
   TradingStatusUpdate,
   OrderUpdate,
-  ConnectionStatus
+  ConnectionStatus,
+  OrderBookData
 } from './types';
 import { API_CONFIG, WS_MESSAGE_TYPES } from './constants';
 
@@ -56,11 +57,11 @@ export class WebSocketManager {
 
         this.ws = new WebSocket(this.url);
         console.log('📡 WebSocket 객체 생성됨');
-        
+
         this.ws.onopen = () => {
           console.log('WebSocket 연결됨');
           this.reconnectAttempts = 0;
-          this.updateConnectionState({ 
+          this.updateConnectionState({
             status: 'connected',
             lastConnected: new Date(),
             reconnectAttempts: 0,
@@ -73,7 +74,10 @@ export class WebSocketManager {
         this.ws.onmessage = (event) => {
           try {
             const message: RealtimeMessage = JSON.parse(event.data);
-            console.log('📥 WebSocket 메시지 수신:', message.type, message);
+
+            // WebSocket 로깅 (샘플링)
+            this.logWebSocketMessage(message, 'received');
+
             this.handleMessage(message);
           } catch (error) {
             console.error('WebSocket 메시지 파싱 오류:', error, event.data);
@@ -88,14 +92,14 @@ export class WebSocketManager {
             url: this.url
           });
           this.stopHeartbeat();
-          
+
           if (!this.isManualClose) {
             // 정상 종료가 아닌 경우만 재연결 시도
             if (event.code !== 1000 && event.code !== 1001) {
               this.updateConnectionState({ status: 'disconnected' });
               this.scheduleReconnect();
             } else {
-              this.updateConnectionState({ 
+              this.updateConnectionState({
                 status: 'disconnected',
                 error: '서버에 의해 연결이 정상 종료되었습니다.'
               });
@@ -110,15 +114,15 @@ export class WebSocketManager {
             readyState: this.ws?.readyState,
             url: this.url
           });
-          
+
           let errorMessage = 'WebSocket 연결 오류가 발생했습니다.';
           if (this.ws?.readyState === WebSocket.CLOSED) {
             errorMessage = '서버와의 연결이 끊어졌습니다.';
           } else if (this.ws?.readyState === WebSocket.CLOSING) {
             errorMessage = '연결을 종료하는 중입니다.';
           }
-          
-          this.updateConnectionState({ 
+
+          this.updateConnectionState({
             status: 'disconnected',
             error: errorMessage,
           });
@@ -145,12 +149,12 @@ export class WebSocketManager {
   disconnect(): void {
     this.isManualClose = true;
     this.stopHeartbeat();
-    
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
-    
+
     this.updateConnectionState({ status: 'disconnected' });
   }
 
@@ -221,7 +225,7 @@ export class WebSocketManager {
    */
   private handleMessage(message: RealtimeMessage): void {
     const { type, data } = message;
-    
+
     // 타입별 특수 처리
     switch (type) {
       case WS_MESSAGE_TYPES.CONNECTION_STATUS:
@@ -243,6 +247,12 @@ export class WebSocketManager {
         this.notifyListeners(type, data);
         break;
       case WS_MESSAGE_TYPES.MARKET_INDEX_UPDATE:
+        this.notifyListeners(type, data);
+        break;
+      case 'orderbook_update':
+        this.notifyListeners(type, data);
+        break;
+      case 'market_status_update':
         this.notifyListeners(type, data);
         break;
       default:
@@ -300,7 +310,7 @@ export class WebSocketManager {
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error(`최대 재연결 횟수 초과 (${this.maxReconnectAttempts}회)`);
-      this.updateConnectionState({ 
+      this.updateConnectionState({
         status: 'disconnected',
         error: `최대 재연결 횟수를 초과했습니다. (${this.maxReconnectAttempts}회)`,
       });
@@ -310,10 +320,10 @@ export class WebSocketManager {
     this.reconnectAttempts++;
     // 최대 30초까지만 지연
     const delay = Math.min(this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1), 30000);
-    
-    console.log(`${Math.round(delay/1000)}초 후 재연결 시도 (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-    
-    this.updateConnectionState({ 
+
+    console.log(`${Math.round(delay / 1000)}초 후 재연결 시도 (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+
+    this.updateConnectionState({
       status: 'reconnecting',
       reconnectAttempts: this.reconnectAttempts,
       error: `재연결 시도 중... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`,
@@ -349,6 +359,92 @@ export class WebSocketManager {
       this.heartbeatInterval = null;
     }
   }
+
+  /**
+   * 메시지 타입별 리스너 등록
+   */
+  subscribe(messageType: string, listener: (data: any) => void): void {
+    if (!this.listeners.has(messageType)) {
+      this.listeners.set(messageType, new Set());
+    }
+    this.listeners.get(messageType)!.add(listener);
+  }
+
+  /**
+   * 메시지 타입별 리스너 해제
+   */
+  unsubscribe(messageType: string, listener: (data: any) => void): void {
+    if (this.listeners.has(messageType)) {
+      this.listeners.get(messageType)!.delete(listener);
+    }
+  }
+
+  /**
+   * WebSocket 메시지 로깅 (샘플링)
+   */
+  private messageCounts: Map<string, number> = new Map();
+  private lastLogTimes: Map<string, number> = new Map();
+  private readonly LOG_INTERVAL_MS = 60000; // 1분
+  private readonly LOG_COUNT_THRESHOLD = 100; // 100개마다
+
+  private logWebSocketMessage(message: any, direction: 'received' | 'sent'): void {
+    const messageType = message.type || 'unknown';
+    const currentTime = Date.now();
+    const currentCount = (this.messageCounts.get(messageType) || 0) + 1;
+
+    this.messageCounts.set(messageType, currentCount);
+
+    // 로깅 조건 체크
+    const shouldLog = this.shouldLogMessage(messageType, currentTime, currentCount);
+
+    if (shouldLog) {
+      const logData = {
+        type: messageType,
+        direction,
+        count: currentCount,
+        timestamp: new Date().toISOString(),
+        data: this.truncateData(message)
+      };
+
+      console.log(`📡 WebSocket [${direction}] ${messageType} (${currentCount}번째):`, logData);
+
+      this.lastLogTimes.set(messageType, currentTime);
+    }
+  }
+
+  private shouldLogMessage(messageType: string, currentTime: number, currentCount: number): boolean {
+    // 첫 번째 메시지는 항상 로깅
+    if (currentCount === 1) {
+      return true;
+    }
+
+    // 시간 기반 샘플링 (1분마다)
+    const lastLogTime = this.lastLogTimes.get(messageType) || 0;
+    if (currentTime - lastLogTime >= this.LOG_INTERVAL_MS) {
+      return true;
+    }
+
+    // 카운트 기반 샘플링 (100개마다)
+    if (currentCount % this.LOG_COUNT_THRESHOLD === 0) {
+      return true;
+    }
+
+    return false;
+  }
+
+  private truncateData(data: any, maxLength: number = 500): any {
+    const jsonStr = JSON.stringify(data);
+    if (jsonStr.length <= maxLength) {
+      return data;
+    }
+
+    return {
+      ...data,
+      _truncated: true,
+      _original_length: jsonStr.length
+    };
+  }
+
 }
 
 // 싱글톤 인스턴스
@@ -397,6 +493,42 @@ export function subscribeToConnectionStatus(callback: (state: ConnectionState) =
 // 시장 지수 업데이트 구독
 export function subscribeToMarketIndexUpdates(callback: (data: any) => void): void {
   wsManager.on(WS_MESSAGE_TYPES.MARKET_INDEX_UPDATE, callback);
+}
+
+/**
+ * 호가 데이터 업데이트 구독
+ */
+export function subscribeToOrderBookUpdates(
+  stockCode: string,
+  callback: (data: OrderBookData) => void
+): () => void {
+  const listener = (message: RealtimeMessage) => {
+    if (message.type === 'orderbook_update' && message.stock_code === stockCode) {
+      callback(message.data as OrderBookData);
+    }
+  };
+
+  wsManager.subscribe('orderbook_update', listener);
+
+  return () => {
+    wsManager.unsubscribe('orderbook_update', listener);
+  };
+}
+
+export function subscribeToMarketStatusUpdates(
+  callback: (data: MarketStatusUpdate['data']) => void
+): () => void {
+  const listener = (message: RealtimeMessage) => {
+    if (message.type === 'market_status_update') {
+      callback(message.data as MarketStatusUpdate['data']);
+    }
+  };
+
+  wsManager.subscribe('market_status_update', listener);
+
+  return () => {
+    wsManager.unsubscribe('market_status_update', listener);
+  };
 }
 
 export function unsubscribeFromMarketIndexUpdates(callback: (data: any) => void): void {

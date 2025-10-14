@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/Header";
+import { MarketStatusBanner } from "@/components/trading/MarketStatusBanner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,6 +30,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#1a1a1a]`}
       >
         <Header />
+        <MarketStatusBanner />
         <main className="min-h-[calc(100vh-64px)]">
           {children}
         </main>

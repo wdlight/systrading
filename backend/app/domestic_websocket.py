@@ -2,12 +2,19 @@ import json
 import websockets
 import asyncio
 from multiprocessing import Queue
+import queue
+import time
+from datetime import datetime
 
 from loguru import logger
 from app.core.logging_config import setup_logging
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from base64 import b64decode
+
+# 성능 모니터링 임포트
+from app.utils.queue_monitor import QueueMonitor
+from app.utils.performance_metrics import get_global_metrics_collector
 
 
 # 자식 프로세스에서도 중앙 로깅 설정 적용
@@ -25,26 +32,156 @@ def aes_cbc_base64_dec(key, iv, cipher_text):
   return bytes.decode(unpad(cipher.decrypt(b64decode(cipher_text)), AES.block_size()))
 
 
+def parse_hoga_json(json_data: dict) -> dict:
+    """
+    KIS API JSON 형식 호가 데이터 파싱
+    
+    Args:
+        json_data: {
+            "header": {"tr_id": "H0STASP0", "tr_key": "005930"},
+            "body": {
+                "askp1": "71800", "askp_rsqn1": "100", ...
+                "bidp1": "71700", "bidp_rsqn1": "150", ...
+                "last": "71700", "time": "180015", ...
+            }
+        }
+    
+    Returns:
+        {
+            "stock_code": "005930",
+            "asks": [
+                {"price": 71800, "quantity": 100, "order_count": 0},
+                ...  # 10개
+            ],
+            "bids": [
+                {"price": 71700, "quantity": 150, "order_count": 0},
+                ...  # 10개
+            ],
+            "current_price": 71700,
+            "timestamp": "2025-10-14T18:00:15",
+            "market_data": {
+                "open": 71000, "high": 72500, "low": 70500,
+                "volume": 1234567, "value": 78900000000,
+                "sign": "2", "change": 500, "drate": 0.70
+            }
+        }
+    """
+    body = json_data.get("body", {})
+    header = json_data.get("header", {})
+    stock_code = header.get("tr_key", "")
+    
+    # 매도호가 파싱 (askp1~10, askp_rsqn1~10)
+    asks = []
+    for i in range(1, 11):
+        price = int(body.get(f"askp{i}", 0))
+        quantity = int(body.get(f"askp_rsqn{i}", 0))
+        asks.append({
+            "price": price,
+            "quantity": quantity,
+            "order_count": 0  # KIS API에서 제공하지 않음
+        })
+    
+    # 매수호가 파싱 (bidp1~10, bidp_rsqn1~10)
+    bids = []
+    for i in range(1, 11):
+        price = int(body.get(f"bidp{i}", 0))
+        quantity = int(body.get(f"bidp_rsqn{i}", 0))
+        bids.append({
+            "price": price,
+            "quantity": quantity,
+            "order_count": 0
+        })
+    
+    # 현재가 및 시간 정보
+    current_price = int(body.get("last", 0))
+    time_str = body.get("time", "000000")  # HHMMSS
+    date_str = body.get("date", datetime.now().strftime("%Y%m%d"))  # YYYYMMDD
+    
+    # ISO 8601 형식으로 변환
+    timestamp = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}T{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+    
+    return {
+        "stock_code": stock_code,
+        "asks": asks,
+        "bids": bids,
+        "current_price": current_price,
+        "timestamp": timestamp,
+        "market_data": {
+            "open": int(body.get("open", 0)),
+            "high": int(body.get("high", 0)),
+            "low": int(body.get("low", 0)),
+            "volume": int(body.get("vol", 0)),
+            "value": int(body.get("value", 0)),
+            "sign": body.get("sign", "3"),
+            "change": int(body.get("change", 0)),
+            "drate": float(body.get("drate", 0.0))
+        }
+    }
+
+
 def receive_realtime_hoga_domestic(data):
   """ 
-  https://wikidocs.net/170516
-  """ 
+  한국투자증권 실시간 호가 데이터 파싱 (파이프 구분자 형식 - 기존 호환성 유지)
+  데이터 형식: 종목코드^매수10호가^...^매수1호가^매도1호가^...^매도10호가^매수10호가수량^...^매수1호가수량^매도1호가수량^...^매도10호가수량
+  """
   values = data.split('^')
   data_dict = dict()
+  
+  if len(values) < 41:  # 최소 필요한 필드 수 확인
+    logger.warning(f"호가 데이터 길이 부족: {len(values)}")
+    return {"종목코드": values[0] if values else ""}
+  
   data_dict["종목코드"] = values[0]
-  for i in range(1,11):
-    data_dict[f"매수{i}호가"] = values[i + 12]
-    data_dict[f"매수{i}호가수량"] = values[i + 32]
-    data_dict[f"매수{i}호가"] = values[i + 2]
-    data_dict[f"매수{i}호가수량"] = values[i + 22]
+  
+  # 매수호가 (10호가부터 1호가까지, 역순)
+  for i in range(1, 11):
+    bid_price_idx = 11 - i  # 10호가=1, 9호가=2, ..., 1호가=10
+    bid_qty_idx = 30 + i    # 10호가수량=31, 9호가수량=32, ..., 1호가수량=40
+    
+    if bid_price_idx < len(values) and bid_qty_idx < len(values):
+      data_dict[f"매수{i}호가"] = values[bid_price_idx]
+      data_dict[f"매수{i}호가수량"] = values[bid_qty_idx]
+  
+  # 매도호가 (1호가부터 10호가까지)
+  for i in range(1, 11):
+    ask_price_idx = 10 + i  # 1호가=11, 2호가=12, ..., 10호가=20
+    ask_qty_idx = 20 + i    # 1호가수량=21, 2호가수량=22, ..., 10호가수량=30
+    
+    if ask_price_idx < len(values) and ask_qty_idx < len(values):
+      data_dict[f"매도{i}호가"] = values[ask_price_idx]
+      data_dict[f"매도{i}호가수량"] = values[ask_qty_idx]
+  
   return data_dict
 
 
 def run_websocket(korea_invest_api, ws_url, ws_req_queue, ws_result_queue):
   #이벤트 루프 초기화
   loop = asyncio.get_event_loop()
-  loop.run_until_complete(connect(korea_invest_api, ws_url, ws_req_queue, ws_result_queue))
+  loop.run_until_complete(connect_with_circuit_breaker(korea_invest_api, ws_url, ws_req_queue, ws_result_queue))
   loop.close()
+
+
+async def connect_with_circuit_breaker(korea_invest_api, url, ws_req_queue, ws_result_queue):
+  """Circuit Breaker를 적용한 WebSocket 연결"""
+  metrics_collector = get_global_metrics_collector()
+  circuit_breaker = metrics_collector.get_circuit_breaker("websocket_connection")
+  
+  while True:
+    if not circuit_breaker.can_attempt():
+      logger.warning("Circuit Breaker OPEN. 60초 대기...")
+      await asyncio.sleep(60)
+      continue
+    
+    try:
+      await connect(korea_invest_api, url, ws_req_queue, ws_result_queue)
+      circuit_breaker.record_success()
+      logger.info("WebSocket 연결 성공")
+      
+    except Exception as e:
+      logger.error(f"WebSocket 연결 오류: {e}")
+      circuit_breaker.record_failure()
+      metrics_collector.metrics.record_connection_error()
+      await asyncio.sleep(5)
   
 
 
@@ -53,6 +190,12 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
   running_account_number = korea_invest_api.stock_account_number
   aes_key = None
   aes_iv = None
+  
+  # 성능 모니터링 초기화
+  result_monitor = QueueMonitor(ws_result_queue, "ws_result_queue")
+  metrics_collector = get_global_metrics_collector()
+  dropped_messages_count = 0
+  last_warning_time = 0
 
   
   async with websockets.connect( url, ping_interval=None) as websocket:
@@ -118,23 +261,71 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
           data_cnt = int(recvstr[2])
           for cnt in range ( data_cnt):
             data_dict = receive_realtime_tick_domestic(recvstr[3])
-            ws_result_queue.put(
-              dict(
-                dict_id='실시간호가',
-                종목코드=data_dict["종목코드"],
-                data=data_dict
+            
+            # 백프레셔 처리: Queue 상태 확인
+            status = result_monitor.check_status()
+            if status == "critical":
+              # Queue가 가득 차면 데이터 수신 속도 조절
+              current_time = time.time()
+              if current_time - last_warning_time > 5:  # 5초마다 경고
+                logger.warning("Queue 가득 참. 100ms 대기...")
+                last_warning_time = current_time
+              await asyncio.sleep(0.1)
+              continue
+            
+            # Queue에 추가 (타임아웃 설정)
+            try:
+              ws_result_queue.put(
+                dict(
+                  action_id='실시간체결',
+                  종목코드=data_dict["종목코드"],
+                  data=data_dict
+                ), 
+                block=True, 
+                timeout=1.0
               )
-            )
+              metrics_collector.metrics.record_message_received()
+            except queue.Full:
+              logger.error("Queue 가득 참. 데이터 드롭!")
+              dropped_messages_count += 1
+              metrics_collector.metrics.record_message_dropped()
             
         elif trid0 == "H0STASP0":   # 주식호가 데이터 처리
-          data_dict = receive_realtime_hoga_domestic(recvstr[3])
-          ws_result_queue.put(
-            dict(
-              action_id="실시간호가",
-              종목코드=data_dict["종목코드"],
-              data=data_dict
+          # JSON 파싱으로 변경
+          try:
+            json_data = json.loads(recvstr[3])
+            data_dict = parse_hoga_json(json_data)
+          except json.JSONDecodeError:
+            logger.error(f"호가 데이터 JSON 파싱 실패: {recvstr[3][:100]}")
+            continue
+          
+          # 백프레셔 처리: Queue 상태 확인
+          status = result_monitor.check_status()
+          if status == "critical":
+            # Queue가 가득 차면 데이터 수신 속도 조절
+            current_time = time.time()
+            if current_time - last_warning_time > 5:  # 5초마다 경고
+              logger.warning("Queue 가득 참. 100ms 대기...")
+              last_warning_time = current_time
+            await asyncio.sleep(0.1)
+            continue
+          
+          # Queue에 추가 (타임아웃 설정)
+          try:
+            ws_result_queue.put(
+              dict(
+                action_id="실시간호가",
+                stock_code=data_dict["stock_code"],
+                data=data_dict
+              ),
+              block=True,
+              timeout=1.0
             )
-          )
+            metrics_collector.metrics.record_message_received()
+          except queue.Full:
+            logger.error("Queue 가득 참. 호가 데이터 드롭!")
+            dropped_messages_count += 1
+            metrics_collector.metrics.record_message_dropped()
           
 
 

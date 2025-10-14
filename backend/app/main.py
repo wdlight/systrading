@@ -39,9 +39,15 @@ from app.api.chart import router as chart_router
 from app.api.portfolio import router as portfolio_router
 from app.api.orders import router as orders_router
 from app.api.yf_index import router as yf_index_router
+from app.api.realtime import router as realtime_router
+from app.api.monitoring import router as monitoring_router
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.scheduler.portfolio_snapshot import save_portfolio_snapshot
+
+# 성능 모니터링 관련 임포트
+from app.utils.queue_monitor import QueueManager, QueueHealthChecker
+from app.utils.performance_metrics import get_global_metrics_collector, create_circuit_breaker
 
 # 전역 변수
 connection_manager = ConnectionManager()
@@ -51,6 +57,11 @@ websocket_process = None
 ws_result_queue = None
 ws_req_queue = None
 scheduler = AsyncIOScheduler()
+
+# 성능 모니터링 관련 전역 변수
+queue_manager = None
+queue_health_checker = None
+metrics_collector = None
 
 
 
@@ -75,16 +86,45 @@ class CustomCORSMiddleware(BaseHTTPMiddleware):
 async def lifespan(app: FastAPI):
     """애플리케이션 시작/종료 시 실행되는 컨텍스트 매니저"""
     global realtime_service, korea_invest_service, websocket_process, ws_result_queue, ws_req_queue
+    global queue_manager, queue_health_checker, metrics_collector
     
     logger.info("FastAPI 애플리케이션 초기화를 시작합니다.")
     settings = get_settings()
     
     korea_invest_service = KoreaInvestAPIService(settings)
     
-    ws_result_queue = Queue()
-    ws_req_queue = Queue()
+    # Queue 크기 설정 (성능 최적화)
+    ws_result_queue = Queue(maxsize=2000)  # 결과 Queue는 큼
+    ws_req_queue = Queue(maxsize=500)      # 요청 Queue는 작음
+    
+    # 성능 모니터링 초기화
+    logger.info("성능 모니터링 시스템을 초기화합니다.")
+    
+    # Queue Manager 초기화
+    queue_manager = QueueManager()
+    queue_manager.add_monitor("ws_req_queue", ws_req_queue, warning_threshold=0.8)
+    queue_manager.add_monitor("ws_result_queue", ws_result_queue, warning_threshold=0.8)
+    
+    # 메트릭 수집기 초기화
+    metrics_collector = get_global_metrics_collector()
+    
+    # Circuit Breaker 생성
+    websocket_circuit_breaker = create_circuit_breaker(
+        name="websocket_connection",
+        failure_threshold=5,
+        timeout_seconds=60
+    )
+    
+    # Queue 건강 상태 체커 초기화
+    queue_health_checker = QueueHealthChecker(queue_manager, check_interval=10.0)
+    
+    logger.info("성능 모니터링 시스템 초기화 완료")
     
     realtime_service = RealtimeDataService(korea_invest_service, connection_manager, ws_result_queue)
+    
+    # FastAPI app.state에 저장 (싱글톤 대신)
+    app.state.realtime_service = realtime_service
+    logger.info("RealtimeDataService가 app.state에 등록되었습니다.")
     
     if korea_invest_service.api_instance:
         ws_url = settings.KI_WEBSOCKET_URL
@@ -99,6 +139,9 @@ async def lifespan(app: FastAPI):
         logger.error("KoreaInvestAPI 인스턴스가 없어 domestic_websocket 프로세스를 시작할 수 없습니다.")
 
     asyncio.create_task(realtime_service.start())
+    
+    # Queue 건강 상태 모니터링 시작
+    asyncio.create_task(queue_health_checker.start_monitoring())
 
     # 스케줄러 시작 (5분마다 스냅샷 저장)
     scheduler.add_job(save_portfolio_snapshot, 'interval', minutes=5, id='portfolio_snapshot_job')
@@ -110,6 +153,12 @@ async def lifespan(app: FastAPI):
     yield
     
     logger.info("FastAPI 애플리케이션 종료를 시작합니다.")
+    
+    # Queue 건강 상태 모니터링 중지
+    if queue_health_checker:
+        queue_health_checker.stop_monitoring()
+        logger.info("Queue 건강 상태 모니터링이 중지되었습니다.")
+    
     if scheduler.running:
         scheduler.shutdown()
         logger.info("스케줄러가 중지되었습니다.")
@@ -158,8 +207,22 @@ app.include_router(chart_router, prefix="/api/chart", tags=["chart"])
 app.include_router(portfolio_router, prefix="/api/portfolio", tags=["portfolio"])
 app.include_router(orders_router, prefix="/api/orders", tags=["orders"])
 app.include_router(yf_index_router, prefix="/api", tags=["yf-index"])
+app.include_router(realtime_router, prefix="/api", tags=["realtime"])
+app.include_router(monitoring_router, tags=["monitoring"])
 
 logger.debug(f"chart_router routes: {chart_router.routes}")
+
+
+# 의존성 함수들 (monitoring API에서 사용)
+def get_queue_manager() -> QueueManager:
+    """Queue 매니저 의존성"""
+    return queue_manager
+
+
+def get_connection_manager() -> ConnectionManager:
+    """Connection 매니저 의존성"""
+    return connection_manager
+
 
 @app.get("/")
 async def root():

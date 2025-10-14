@@ -8,6 +8,7 @@ import {
   MarketOverview,
   ApiError,
   PortfolioHistoryPoint,
+  OrderBookData,
 } from './types';
 import { API_CONFIG } from './constants';
 import { getErrorMessage } from './utils';
@@ -341,6 +342,37 @@ export class TradingAPIClient {
     } catch {
       return false;
     }
+  }
+
+  // ===================
+  // 실시간 데이터 관련 API
+  // ===================
+
+  /**
+   * 현재 호가 데이터 조회
+   */
+  async getCurrentOrderBook(stockCode: string): Promise<OrderBookData> {
+    return this.requestWithRetry<OrderBookData>(`/api/realtime/orderbook/${stockCode}`);
+  }
+
+  /**
+   * 호가 데이터 구독
+   */
+  async subscribeOrderBook(stockCode: string): Promise<any> {
+    return this.requestWithRetry(`/api/realtime/subscribe/orderbook`, {
+      method: 'POST',
+      body: JSON.stringify({ stock_code: stockCode }),
+    });
+  }
+
+  /**
+   * 호가 데이터 구독 해제
+   */
+  async unsubscribeOrderBook(stockCode: string): Promise<any> {
+    return this.requestWithRetry(`/api/realtime/unsubscribe/orderbook`, {
+      method: 'POST',
+      body: JSON.stringify({ stock_code: stockCode }),
+    });
   }
 }
 

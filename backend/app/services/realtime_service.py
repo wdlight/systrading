@@ -9,9 +9,12 @@ from datetime import datetime
 from loguru import logger
 from typing import Dict, Any, Optional, List
 from queue import Queue, Empty
+import time
 
 from app.websocket.connection import ConnectionManager
 from app.core.korea_invest import KoreaInvestAPIService
+from app.utils.performance_metrics import get_global_metrics_collector
+from app.utils.websocket_logger import websocket_logger
 
 
 
@@ -25,6 +28,13 @@ class RealtimeDataService:
         self.is_running = False
         self.tasks = []
         
+        # 성능 모니터링
+        self.metrics_collector = get_global_metrics_collector()
+        
+        # 배치 처리 설정
+        self.batch_size = 10  # 한 번에 처리할 메시지 수
+        self.batch_timeout = 0.001  # 배치 타임아웃 (초)
+        
         # 기존 DataFrame 구조 유지
         self.realtime_watchlist_df = pd.DataFrame(columns=[
             '현재가', '수익률', '평균단가', '보유수량', 'MACD', 'MACD시그널', 
@@ -34,6 +44,11 @@ class RealtimeDataService:
         
         # 최신 지수 값 캐시 (WebSocket → REST fallback에 활용)
         self.latest_market_indices: Dict[str, Dict[str, Any]] = {}
+
+        # 호가 데이터 캐시 추가
+        self.orderbook_cache: Dict[str, Dict[str, Any]] = {}  # {stock_code: OrderBookData}
+        self.orderbook_cache_ttl = 300  # 5분 TTL (초)
+        self.last_orderbook_update: Dict[str, float] = {}  # {stock_code: timestamp}
 
         # 설정값들 (기존 PyQt5 애플리케이션에서 가져올 예정)
         self.trading_conditions = {
@@ -50,7 +65,7 @@ class RealtimeDataService:
             }
         }
         
-        logger.info("실시간 데이터 서비스가 초기화되었습니다.")
+        logger.info("실시간 데이터 서비스가 초기화되었습니다 (호가 캐시 포함).")
     
     async def start(self):
         """실시간 데이터 서비스 시작"""
@@ -174,18 +189,226 @@ class RealtimeDataService:
             await asyncio.sleep(2)  # 2초 대기
     
     async def _tr_result_loop(self):
-        """TR 결과 처리 루프 (기존 timer3 로직)"""
+        """최적화된 TR 결과 처리 루프 (배치 처리)"""
         # logger.info("TR 결과 처리 루프 시작 (0.05초 주기)") # 로그가 너무 많이 쌓이므로 주석 처리
         
         while self.is_running:
             try:
-                # 기존 receive_tr_result() 로직
-                await self._process_tr_results()
+                # 배치 처리로 메시지 수집
+                messages = []
+                
+                # 배치로 메시지 수집 (최대 batch_size개)
+                for _ in range(self.batch_size):
+                    if not self.ws_result_queue.empty():
+                        try:
+                            message = self.ws_result_queue.get_nowait()
+                            messages.append(message)
+                            self.metrics_collector.metrics.record_message_received()
+                        except Empty:
+                            break
+                    else:
+                        break
+                
+                if messages:
+                    # 배치 처리
+                    await self._process_message_batch(messages)
                 
             except Exception as e:
                 logger.error(f"TR 결과 처리 중 오류: {str(e)}")
+                self.metrics_collector.metrics.record_parse_error()
             
-            await asyncio.sleep(0.05)  # 0.05초 대기
+            # 메시지가 없으면 대기 시간 증가
+            if not messages:
+                await asyncio.sleep(0.05)
+            else:
+                # 메시지가 있으면 즉시 다음 배치 처리
+                await asyncio.sleep(self.batch_timeout)
+    
+    async def _process_message_batch(self, messages: List[Dict[str, Any]]):
+        """메시지 배치 처리"""
+        start_time = time.time()
+        
+        try:
+            tasks = []
+            
+            for message in messages:
+                action_id = message.get("action_id")
+                
+                if action_id == "실시간호가":
+                    task = self._handle_hoga_data(message)
+                    tasks.append(task)
+                elif action_id == "실시간체결":
+                    task = self._handle_tick_data(message)
+                    tasks.append(task)
+                elif action_id == "WEBSOCKET_PROCESS_ERROR":
+                    # 치명적인 오류는 즉시 처리
+                    logger.critical("!!! WebSocket 프로세스에서 치명적인 오류가 발생했습니다 !!!")
+                    logger.error(f"오류: {message.get('error')}")
+                    logger.error(f"Traceback:\n{message.get('traceback')}")
+                    continue
+                # 기타 타입 처리...
+            
+            # 병렬 처리
+            if tasks:
+                await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # 처리 완료 메트릭 기록
+                for _ in messages:
+                    self.metrics_collector.metrics.record_message_processed()
+        
+        except Exception as e:
+            logger.error(f"배치 처리 중 오류: {e}")
+            self.metrics_collector.metrics.record_parse_error()
+        
+        finally:
+            # 처리 시간 기록
+            processing_time_ms = (time.time() - start_time) * 1000
+            self.metrics_collector.metrics.record_processing_time(processing_time_ms)
+    
+    async def _handle_hoga_data(self, message: Dict[str, Any]):
+        """
+        실시간 호가 데이터 처리 및 캐시 저장
+        
+        Args:
+            message: {
+                "action_id": "실시간호가",
+                "stock_code": "005930",
+                "data": {
+                    "stock_code": "005930",
+                    "asks": [...],
+                    "bids": [...],
+                    "current_price": 71700,
+                    "timestamp": "2025-10-14T18:00:15",
+                    "market_data": {...}
+                }
+            }
+        """
+        try:
+            stock_code = message.get("stock_code")
+            hoga_data = message.get("data", {})
+            
+            if not stock_code or not hoga_data:
+                logger.warning(f"호가 데이터 누락: {message}")
+                return
+            
+            # 장 시간 체크
+            from app.utils.trading_hours import TradingHoursManager
+            from datetime import datetime
+            if not TradingHoursManager.is_trading_hours(datetime.now()):
+                logger.debug(f"장 시간 외 호가 데이터 무시: {stock_code}")
+                return
+            
+            # 캐시에 저장
+            current_time = time.time()
+            self.orderbook_cache[stock_code] = {
+                "stock_code": stock_code,
+                "current_price": hoga_data.get("current_price"),
+                "asks": hoga_data.get("asks", []),
+                "bids": hoga_data.get("bids", []),
+                "timestamp": hoga_data.get("timestamp"),
+                "market_status": "open",
+                "market_data": hoga_data.get("market_data", {})
+            }
+            self.last_orderbook_update[stock_code] = current_time
+            
+            # Frontend로 브로드캐스트 (구독자에게만)
+            await self.connection_manager.broadcast_to_stock_subscribers(
+                stock_code,
+                {
+                    "type": "orderbook_update",
+                    "stock_code": stock_code,
+                    "data": {
+                        "asks": hoga_data.get("asks", []),
+                        "bids": hoga_data.get("bids", []),
+                        "current_price": hoga_data.get("current_price"),
+                        "timestamp": hoga_data.get("timestamp")
+                    },
+                    "timestamp": datetime.now().isoformat()
+                }
+            )
+            
+            self.metrics_collector.metrics.record_message_processed()
+            logger.debug(f"호가 데이터 처리 완료: {stock_code}")
+            
+        except Exception as e:
+            logger.error(f"호가 데이터 처리 중 오류: {e}")
+            self.metrics_collector.metrics.record_broadcast_error()
+
+    def get_cached_orderbook(self, stock_code: str) -> Optional[Dict[str, Any]]:
+        """
+        캐시된 호가 데이터 조회
+        
+        Args:
+            stock_code: 종목 코드
+        
+        Returns:
+            캐시된 호가 데이터 또는 None (만료/없음)
+        """
+        current_time = time.time()
+        
+        # 캐시 존재 여부 확인
+        if stock_code not in self.orderbook_cache:
+            return None
+        
+        # TTL 체크
+        last_update = self.last_orderbook_update.get(stock_code, 0)
+        if current_time - last_update > self.orderbook_cache_ttl:
+            # 만료된 캐시 삭제
+            del self.orderbook_cache[stock_code]
+            del self.last_orderbook_update[stock_code]
+            logger.debug(f"호가 캐시 만료: {stock_code}")
+            return None
+        
+        return self.orderbook_cache[stock_code]
+
+    def invalidate_orderbook_cache(self, stock_code: str) -> None:
+        """
+        특정 종목의 호가 캐시 즉시 무효화 (개선)
+        
+        Args:
+            stock_code: 종목 코드
+        
+        Note:
+            클라이언트가 구독 해제(unsubscribe) 시 호출하여
+            stale 데이터 반환을 방지합니다.
+        
+        Example:
+            # 구독 해제 시
+            realtime_service.invalidate_orderbook_cache("005930")
+        """
+        if stock_code in self.orderbook_cache:
+            del self.orderbook_cache[stock_code]
+            logger.info(f"호가 캐시 무효화: {stock_code}")
+        
+        if stock_code in self.last_orderbook_update:
+            del self.last_orderbook_update[stock_code]
+    
+    async def _handle_tick_data(self, message: Dict[str, Any]):
+        """체결 데이터 처리"""
+        try:
+            data = message.get('data', {})
+            stock_code = data.get('종목코드')
+            
+            if '현재가' not in data:
+                return
+            
+            current_price_str = data.get('현재가')
+            current_price = float(current_price_str.replace(",", "")) if current_price_str else 0
+            
+            if stock_code in self.realtime_watchlist_df.index:
+                self.realtime_watchlist_df.loc[stock_code, "현재가"] = current_price
+                
+                # WebSocket으로 브로드캐스트
+                await self.connection_manager.broadcast({
+                    "type": "tick_update",
+                    "stock_code": stock_code,
+                    "current_price": current_price,
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+        except Exception as e:
+            logger.error(f"체결 데이터 처리 오류: {e}")
+            self.metrics_collector.metrics.record_broadcast_error()
     
     async def _market_data_loop(self):
         """시장 데이터 업데이트 루프 (기존 timer4 로직)"""
@@ -193,20 +416,121 @@ class RealtimeDataService:
         
         while self.is_running:
             try:
-                # 워치리스트 업데이트 및 브로드캐스트
-                watchlist_data = await self._update_watchlist()
+                from app.utils.trading_hours import TradingHoursManager
+                current_time = datetime.now()
                 
-                if watchlist_data:
-                    await self.connection_manager.broadcast({
-                        "type": "watchlist_update",
-                        "data": watchlist_data,
-                        "timestamp": datetime.now().isoformat()
-                    })
+                # 장 시간 체크
+                if TradingHoursManager.is_trading_hours(current_time, include_extended=True):
+                    # 장 시간: 상태 변경 체크 및 정상 워치리스트 업데이트
+                    session = TradingHoursManager.get_session(current_time)
+                    
+                    # 장 시간 진입 시 상태 변경 알림
+                    if not hasattr(self, '_last_market_session') or self._last_market_session != session.value:
+                        self._last_market_session = session.value
+                        
+                        status_message = {
+                            "type": "market_status_update",
+                            "data": {
+                                "status": "open",
+                                "session": session.value,
+                                "message": self._get_after_hours_message(session),
+                                "next_open": None,
+                                "last_data_timestamp": None
+                            },
+                            "timestamp": current_time.isoformat()
+                        }
+                        
+                        await self.connection_manager.broadcast(status_message)
+                        logger.info(f"시장 상태 변경 알림 전송: {session.value}")
+                    
+                    # 정상 워치리스트 업데이트
+                    watchlist_data = await self._update_watchlist()
+                    
+                    if watchlist_data:
+                        await self.connection_manager.broadcast({
+                            "type": "watchlist_update",
+                            "data": watchlist_data,
+                            "timestamp": datetime.now().isoformat()
+                        })
+                else:
+                    # 장 시간 외: 마지막 데이터 유지 및 상태 메시지 전송
+                    await self._handle_after_hours_update()
                 
             except Exception as e:
                 logger.error(f"시장 데이터 업데이트 중 오류: {str(e)}")
             
             await asyncio.sleep(2)  # 2초 대기
+
+    async def _handle_after_hours_update(self):
+        """장 시간 외 업데이트 처리"""
+        try:
+            from app.utils.trading_hours import TradingHoursManager
+            
+            current_time = datetime.now()
+            session = TradingHoursManager.get_session(current_time)
+            
+            # 상태 변경 시에만 메시지 전송
+            if not hasattr(self, '_last_market_session') or self._last_market_session != session.value:
+                self._last_market_session = session.value
+                
+                status_message = {
+                    "type": "market_status_update",
+                    "data": {
+                        "status": "closed",
+                        "session": session.value,
+                        "message": self._get_after_hours_message(session),
+                        "next_open": self._get_next_market_open_time(),
+                        "last_data_timestamp": self._get_last_data_timestamp()
+                    },
+                    "timestamp": current_time.isoformat()
+                }
+                
+                await self.connection_manager.broadcast(status_message)
+                logger.info(f"시장 상태 변경 알림 전송: {session.value}")
+            
+            # 마지막 데이터가 있으면 30초마다만 전송
+            if hasattr(self, '_last_watchlist_data') and self._last_watchlist_data:
+                last_send_time = getattr(self, '_last_watchlist_send_time', None)
+                if not last_send_time or (current_time - last_send_time).total_seconds() >= 30:
+                    self._last_watchlist_send_time = current_time
+                    
+                    await self.connection_manager.broadcast({
+                        "type": "watchlist_update",
+                        "data": self._last_watchlist_data,
+                        "timestamp": current_time.isoformat(),
+                        "note": "장 시간 외 - 마지막 데이터"
+                    })
+                    logger.debug("장 시간 외 마지막 데이터 전송")
+                
+        except Exception as e:
+            logger.error(f"장 시간 외 업데이트 처리 중 오류: {e}")
+
+    def _get_after_hours_message(self, session) -> str:
+        """장 시간 외 상태 메시지 생성"""
+        messages = {
+            "closed": "장 시간 외입니다. 다음 거래일 09:00에 다시 시작됩니다.",
+            "pre_market": "장 시작 전입니다. 09:00에 정규 장이 시작됩니다.",
+            "after_market": "장 종료 후 시간외 거래 시간입니다. 16:00에 완전 종료됩니다.",
+            "regular": "정규 장 시간입니다."
+        }
+        return messages.get(session.value, "거래 시간 정보를 확인할 수 없습니다.")
+
+    def _get_next_market_open_time(self) -> str:
+        """다음 장 시작 시간 계산"""
+        from datetime import timedelta
+        from app.utils.trading_hours import TradingHoursManager
+        
+        current_time = datetime.now()
+        tomorrow = current_time + timedelta(days=1)
+        next_open = datetime.combine(tomorrow.date(), TradingHoursManager.REGULAR_MARKET_START)
+        
+        return next_open.isoformat()
+
+    def _get_last_data_timestamp(self) -> Optional[str]:
+        """마지막 데이터 타임스탬프 반환"""
+        if hasattr(self, '_last_watchlist_data') and self._last_watchlist_data:
+            return self._last_watchlist_data.get('timestamp')
+        return None
     
     async def _settings_save_loop(self):
         """설정 저장 루프 (기존 timer1 로직)"""
@@ -234,6 +558,20 @@ class RealtimeDataService:
                 logger.error(f"하트비트 전송 중 오류: {str(e)}")
             
             await asyncio.sleep(30)  # 30초 대기
+    
+    async def _websocket_stats_loop(self):
+        """WebSocket 통계 로깅 루프 (5분마다)"""
+        logger.info("WebSocket 통계 로깅 루프 시작 (5분 주기)")
+        
+        while self.is_running:
+            try:
+                # WebSocket 통계 로깅
+                websocket_logger.log_statistics()
+                
+            except Exception as e:
+                logger.error(f"WebSocket 통계 로깅 중 오류: {str(e)}")
+            
+            await asyncio.sleep(300)  # 5분 대기
     
     async def _update_account_info(self) -> Optional[Dict[str, Any]]:
         """계좌 정보 업데이트 (기존 update_account_info 로직)"""
@@ -271,113 +609,9 @@ class RealtimeDataService:
         
         return None
     
-    async def _process_tr_results(self):
-        """TR 결과 처리 (큐에서 데이터 가져와 DF 업데이트)"""
-        try:
-            result = self.ws_result_queue.get_nowait()
-        except Empty:
-            return
-
-        action_id = result.get('action_id')
-
-        if action_id == 'WEBSOCKET_PROCESS_ERROR':
-            logger.critical("!!! WebSocket 프로세스에서 치명적인 오류가 발생했습니다 !!!")
-            logger.error(f"오류: {result.get('error')}")
-            logger.error(f"Traceback:\n{result.get('traceback')}")
-            return
-        
-        try:
-            if action_id == '실시간호가' or action_id == '실시간체결': # domestic_websocket.py와 ID 일치 필요
-                data = result.get('data', {})
-                stock_code = data.get('종목코드')
-                
-                # '현재가' 키가 있는지 확인
-                if '현재가' not in data:
-                    return
-
-                current_price_str = data.get('현재가')
-
-                if stock_code and current_price_str and stock_code in self.realtime_watchlist_df.index:
-                    current_price = abs(int(current_price_str))
-                    self.realtime_watchlist_df.loc[stock_code, '현재가'] = current_price
-                    
-                    # 수익률 계산
-                    avg_price = self.realtime_watchlist_df.loc[stock_code, '평균단가']
-                    if avg_price and pd.notna(avg_price) and avg_price > 0:
-                        profit_rate = ((current_price - avg_price) / avg_price) * 100
-                        self.realtime_watchlist_df.loc[stock_code, '수익률'] = profit_rate
-
-            elif action_id == '주문체결통보':
-                logger.info(f"주문체결통보 수신: {result}")
-                # 계좌 정보 즉시 업데이트 요청
-                await self._update_account_info()
-
-            elif action_id == '실시간지수':
-                data = result.get('data', {}) or {}
-                index_code = result.get('index_code') or data.get('tr_key')
-                meta = result.get('meta', {})
-
-                parsed = self._extract_index_values(data)
-                if parsed:
-                    current = parsed['current']
-                    change = parsed['change']
-                    change_rate = parsed['change_rate']
-                else:
-                    current = data.get('current_price')
-                    change = data.get('change')
-                    change_rate = data.get('change_rate')
-
-                market_map = {
-                    '001': 'U',
-                    '0001': 'U',
-                    '201': 'J',
-                    '1001': 'J',
-                    '0201': 'J',
-                    '1501': 'J',
-                    '2001': 'J',
-                }
-                market_code = market_map.get(index_code, 'U')
-
-                try:
-                    self.korea_invest_service.update_cached_index(
-                        index_code=index_code,
-                        market_code=market_code,
-                        current=current if current is not None else 0.0,
-                        change=change if change is not None else 0.0,
-                        change_rate=change_rate if change_rate is not None else 0.0,
-                        meta=meta,
-                        raw=data
-                    )
-                except Exception as cache_err:
-                    logger.error(f"지수 캐시 업데이트 실패: {cache_err}")
-
-                self.latest_market_indices[index_code] = {
-                    "current": current,
-                    "change": change,
-                    "change_rate": change_rate,
-                    "market_code": market_code,
-                    "meta": meta,
-                    "timestamp": datetime.now().isoformat(),
-                }
-
-                await self.connection_manager.broadcast({
-                    "type": "market_index_update",
-                    "data": {
-                        "index_code": index_code,
-                        "current": current,
-                        "change": change,
-                        "change_rate": change_rate,
-                        "timestamp": data.get("timestamp") or datetime.now().isoformat(),
-                        "raw": data,
-                        "meta": meta,
-                    },
-                    "timestamp": datetime.now().isoformat()
-                })
-
-        except (ValueError, TypeError) as e:
-            logger.error(f"실시간 데이터 처리 중 오류: {e} - 데이터: {result}")
-        except Exception as e:
-            logger.error(f"TR 결과 처리 중 예상치 못한 오류: {e}")
+    def get_metrics(self):
+        """메트릭 수집기 반환"""
+        return self.metrics_collector
     
     async def _update_watchlist(self) -> List[Dict[str, Any]]:
         """워치리스트 DataFrame을 API 응답 형태로 변환"""
@@ -406,6 +640,13 @@ class RealtimeDataService:
                 }
                 
                 watchlist_data.append(item)
+            
+            # 마지막 데이터 저장 (장 시간 외에 사용)
+            if watchlist_data:
+                self._last_watchlist_data = {
+                    "data": watchlist_data,
+                    "timestamp": datetime.now().isoformat()
+                }
             
             return watchlist_data
             

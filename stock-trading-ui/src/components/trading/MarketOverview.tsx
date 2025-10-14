@@ -3,9 +3,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useMarketData } from '@/hooks/useMarketData';
 import { cn, formatCurrency, formatNumber, formatPercentage } from '@/lib/utils';
-import { Globe, TrendingDown, TrendingUp } from 'lucide-react';
+import { Globe, TrendingDown, TrendingUp, Clock } from 'lucide-react';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
+import { useState, useEffect } from 'react';
+import { subscribeToMarketStatusUpdates } from '@/lib/websocket';
+import { MarketStatusUpdate } from '@/lib/types';
 
 interface MarketOverviewProps {
   className?: string;
@@ -22,6 +25,15 @@ interface MarketDatum {
 
 export function MarketOverview({ className, compact = false }: MarketOverviewProps) {
   const { marketOverview, isLoading, error } = useMarketData();
+  const [marketStatus, setMarketStatus] = useState<MarketStatusUpdate['data'] | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToMarketStatusUpdates((data) => {
+      setMarketStatus(data);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const marketData: MarketDatum[] = marketOverview
     ? [
@@ -164,6 +176,22 @@ export function MarketOverview({ className, compact = false }: MarketOverviewPro
             <p className="text-[11px] text-gray-400">
               {error ?? '시장 데이터를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.'}
             </p>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    // 장 시간 외 상태 표시
+    if (marketStatus && marketStatus.status === 'closed') {
+      return (
+        <Card className={cn('bg-[#1a1a1b] border-orange-700', className)}>
+          <CardContent className="px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <Clock className="w-3 h-3 text-orange-400" />
+              <p className="text-[11px] text-orange-400 font-medium">
+                장 시간 외 - 마지막 데이터 표시
+              </p>
+            </div>
           </CardContent>
         </Card>
       );

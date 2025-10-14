@@ -128,11 +128,50 @@ export interface Order {
   commission?: number;
 }
 
+// 호가 데이터 타입
+export interface OrderBookRow {
+  price: number;
+  quantity: number;
+  order_count: number;
+}
+
+export interface OrderBookData {
+  stock_code: string;
+  current_price?: number;
+  asks: OrderBookRow[];  // 매도호가 (10개)
+  bids: OrderBookRow[];  // 매수호가 (10개)
+  timestamp: string;
+  market_status?: 'open' | 'closed';  // 장 상태
+  error?: string;  // 오류 메시지
+}
+
+export interface OrderBookUpdate {
+  type: 'orderbook_update';
+  stock_code: string;
+  data: {
+    asks: OrderBookRow[];
+    bids: OrderBookRow[];
+    timestamp: string;
+  };
+}
+
 // WebSocket 메시지 타입
 export interface RealtimeMessage {
-  type: 'account_update' | 'watchlist_update' | 'price_update' | 'trading_status' | 'order_update' | 'connection_status' | 'market_index_update';
+  type: 'account_update' | 'watchlist_update' | 'price_update' | 'trading_status' | 'order_update' | 'connection_status' | 'market_index_update' | 'orderbook_update' | 'market_status_update';
   timestamp: string;
   data: any;
+}
+
+export interface MarketStatusUpdate {
+  type: 'market_status_update';
+  data: {
+    status: 'open' | 'closed';
+    session: 'pre_market' | 'regular' | 'after_market' | 'closed';
+    message: string;
+    next_open: string;
+    last_data_timestamp?: string;
+  };
+  timestamp: string;
 }
 
 export interface PriceUpdate {
