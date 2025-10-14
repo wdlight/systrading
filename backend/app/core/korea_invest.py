@@ -98,8 +98,11 @@ class KoreaInvestAPIService:
     
     async def _run_in_executor(self, func, *args, **kwargs):
         """동기 함수를 비동기로 실행"""
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(self.executor, func, *args, **kwargs)
+        loop = asyncio.get_running_loop()
+        if kwargs:
+            func = partial(func, *args, **kwargs)
+            args = ()
+        return await loop.run_in_executor(self.executor, func, *args)
     
     async def get_account_balance(self) -> Optional[Dict[str, Any]]:
         """계좌 잔고 조회 (비동기)"""
@@ -246,7 +249,21 @@ class KoreaInvestAPIService:
         if not self.is_connected or not self.api_instance:
             logger.error("API가 연결되지 않았습니다.")
             return None
+        stock_code = ""
+
         try:
+            # --- Gemini Modification Start ---
+            # API 호출 파라미터를 명확하게 로깅
+            api_params = {
+                "start_date": start_date,
+                "end_date": end_date,
+                "stock_code": stock_code,
+                "sll_buy_dvsn_cd": "00", # 전체
+                "ccld_dvsn": "01" # 체결
+            }
+            logger.info(f"체결 내역 조회를 위해 get_daily_ccld 호출. 파라미터: {api_params}")
+            # --- Gemini Modification End ---
+
             # get_daily_ccld를 체결(01) 조건으로 호출
             result_df = await self._run_in_executor(
                 self.api_instance.get_daily_ccld,
@@ -255,6 +272,106 @@ class KoreaInvestAPIService:
                 stock_code=stock_code,
                 sll_buy_dvsn_cd="00", # 전체
                 ccld_dvsn="01" # 체결
+            )
+            
+            # --- Raw Logging Start ---
+            if isinstance(result_df, pd.DataFrame) and not result_df.empty:
+                try:
+                    raw_df = result_df.copy()
+                    raw_cols = list(raw_df.columns)
+                    # 핵심 후보 컬럼 위주로 샘플 구성
+                    raw_key_cols = [
+                        c for c in [
+                            "pdno", "prdt_name", "sll_buy_dvsn_cd",
+                            "ord_qty", "rmn_qty", "tot_ccld_qty",
+                            "ord_unpr", "avg_prvs", "tot_ccld_amt",
+                            "ord_dt", "ord_tmd", "ccld_tmd",
+                            "odno", "orgn_odno", "brnno",
+                        ] if c in raw_cols
+                    ]
+                    raw_sample = raw_df[raw_key_cols].head(5).to_dict(orient="records") if raw_key_cols else raw_df.head(5).to_dict(orient="records")
+                    dtypes_map = {c: str(t) for c, t in raw_df.dtypes.to_dict().items()}
+                    logger.info(
+                        f"체결 내역 원본 응답 (샘플) | rows={len(raw_df)} | columns={raw_cols} | dtypes={dtypes_map} | sample={raw_sample}"
+                    )
+                except Exception as raw_log_err:
+                    logger.warning(f"원본 응답 로깅 중 경고: {raw_log_err}")
+            # --- Raw Logging End ---
+
+            # --- Normalization Start ---
+            # 응답 정규화: 수량/금액/시간 필드의 포맷을 정리하여 후속 파싱 오류(N/A, 0) 방지
+            if isinstance(result_df, pd.DataFrame) and not result_df.empty:
+                try:
+                    df = result_df.copy()
+                    # 1) 컬럼 이름 안정화 (문자열화 및 공백 제거)
+                    df.columns = [str(c).strip() for c in df.columns]
+
+                    # 2) 숫자 필드에서 콤마 제거 후 정수/실수 변환
+                    numeric_like_columns = [
+                        "ord_qty", "rmn_qty", "tot_ccld_qty", "ord_unpr", "avg_prvs",
+                        "tot_ccld_amt", "fee", "tax"
+                    ]
+                    for col in numeric_like_columns:
+                        if col in df.columns:
+                            df[col] = (
+                                df[col]
+                                .astype(str)
+                                .str.replace(",", "", regex=False)
+                                .str.replace(" ", "", regex=False)
+                            )
+                            # 가격/금액은 정수로 취급 (원 단위)
+                            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+
+                    # 3) 시간 필드 zero-pad (HHMMSS), "0" 또는 공백은 결측 처리
+                    time_columns = ["ord_tmd", "ccld_tmd", "infm_tmd"]
+                    for tcol in time_columns:
+                        if tcol in df.columns:
+                            df[tcol] = df[tcol].apply(
+                                lambda v: None
+                                if v is None or str(v).strip() in ("", "0", "000000")
+                                else str(v).strip().zfill(6)
+                            )
+
+                    # 4) 이상한/깨진 텍스트 정리 (간헐적 인코딩 이슈 예방 - 숫자만 남김)
+                    # 체결금액/체결수량 필드에 비숫자 문자가 섞여 있을 수 있음
+                    cleanup_targets = {"tot_ccld_amt", "tot_ccld_qty", "avg_prvs"}
+                    for col in cleanup_targets:
+                        if col in df.columns and df[col].dtype == object:
+                            df[col] = df[col].astype(str).str.replace(r"[^0-9]", "", regex=True)
+                            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
+
+                    # 5) 정규화된 DataFrame을 반환용으로 교체
+                    result_df = df
+
+                    # 샘플 로깅 (상위 5개, 핵심 필드만)
+                    sample_cols = [
+                        c for c in [
+                            "pdno", "prdt_name", "sll_buy_dvsn_cd",
+                            "ord_qty", "rmn_qty", "tot_ccld_qty",
+                            "ord_unpr", "avg_prvs", "tot_ccld_amt",
+                            "ord_dt", "ord_tmd", "ccld_tmd",
+                            "odno", "orgn_odno", "brnno",
+                        ] if c in result_df.columns
+                    ]
+                    dtypes_map_norm = {c: str(t) for c, t in result_df.dtypes.to_dict().items()}
+                    logger.info(
+                        f"체결 내역 응답 정규화 완료 (샘플) | rows={len(result_df)} | columns={list(result_df.columns)} | dtypes={dtypes_map_norm} | sample={result_df[sample_cols].head(5).to_dict(orient='records') if sample_cols else []}"
+                    )
+                except Exception as norm_err:
+                    logger.warning(f"체결 내역 정규화 중 경고: {norm_err}", exc_info=True)
+            else:
+                logger.warning("get_daily_ccld 응답: 데이터프레임이 비어있거나 유효하지 않음.")
+            # --- Normalization End ---
+
+            row_count = len(result_df) if isinstance(result_df, pd.DataFrame) else None
+            logger.info(
+                "기간별 체결 내역 조회 성공",
+                extra={
+                    "stock_code": stock_code,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "row_count": row_count,
+                }
             )
             return result_df
         except Exception as e:
@@ -675,18 +792,24 @@ class KoreaInvestAPIService:
                     meta=meta,
                     raw=raw_result,
                 )
-                logger.info(
-                    "지수 조회 성공",
+                # logger.info(
+                #     "지수 조회 성공",
+                #     extra={
+                #         "market_code": market_code,
+                #         "index_code": index_code,
+                #         "meta": meta,
+                #         "values": parsed.model_dump(),
+                #     }
+                # )
+            else:
+                logger.error(
+                    "지수 조회 실패",
                     extra={
                         "market_code": market_code,
                         "index_code": index_code,
                         "meta": meta,
-                        "values": parsed.model_dump(),
+                        "raw_response": raw_result,
                     }
-                )
-            else:
-                logger.warning(
-                    f"지수 파싱 결과가 None입니다. market_code={market_code}, index_code={index_code}, meta={meta}"
                 )
 
             return parsed
@@ -800,25 +923,29 @@ class KoreaInvestAPIService:
                     meta=meta,
                     raw=raw_result,
                 )
-                logger.info(
-                    "해외 지수 조회 성공",
+                # logger.info(
+                #     "해외 지수 조회 성공",
+                #     extra={
+                #         "market_code": market_code,
+                #         "index_code": index_code,
+                #         "meta": meta,
+                #         "values": parsed.model_dump(),
+                #         "start_date": start_date,
+                #         "end_date": end_date,
+                #         "period_code": period_code,
+                #     }
+                # )
+            else:
+                logger.error(
+                    "해외 지수 조회 실패",
                     extra={
                         "market_code": market_code,
                         "index_code": index_code,
                         "meta": meta,
-                        "values": parsed.model_dump(),
+                        "raw_response": raw_result,
                         "start_date": start_date,
                         "end_date": end_date,
                         "period_code": period_code,
-                    }
-                )
-            else:
-                logger.warning(
-                    "해외 지수 파싱 결과가 None입니다.",
-                    extra={
-                        "market_code": market_code,
-                        "index_code": index_code,
-                        "meta": meta,
                     }
                 )
 

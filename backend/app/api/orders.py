@@ -223,7 +223,11 @@ async def get_order_history(
     - **end_date**: 조회 종료일 (선택)
     """
     try:
-        result = await order_service.get_order_history(stock_code, start_date, end_date)
+        # --- Gemini Modification Start ---
+        # stock_code가 None이면 빈 문자열("")로 처리하여 전체 조회를 보장
+        effective_stock_code = stock_code if stock_code else ""
+        result = await order_service.get_order_history(effective_stock_code, start_date, end_date)
+        # --- Gemini Modification End ---
         return result
 
     except Exception as e:

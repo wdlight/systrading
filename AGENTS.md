@@ -29,3 +29,30 @@
 ## Security & Configuration Tips
 - Never commit API keys. Backend reads credentials from `config.yaml`/environment variables; share secrets via approved vaults.
 - Regenerate Korean Investment tokens before integration tests and store them under `backend/token_backup/` only when encrypted.
+
+
+## Fast Tools for Speedy Searches
+
+To make your work faster in large repositories, use these optimized tools instead of the defaults. They are pre-installed or can be installed via your package manager (e.g., brew on macOS, apt on Linux).
+
+### File Content Search
+- Use `rg` (ripgrep) for searching text inside files. It's 10x faster than `grep`.
+  - Example: `rg "pattern" .` to search for "pattern" in current directory.
+  - Install: `brew install ripgrep` or `sudo apt install ripgrep`.
+
+### File Discovery
+- Use `fd` for finding files and directories. Faster and more user-friendly than `find`.
+  - Example: `fd pattern` to find files matching "pattern".
+  - Install: `brew install fd` or `sudo apt install fd-find` (then alias `fd=fdfind` in ~/.bashrc).
+
+### JSON Processing
+- Use `jq` for parsing and manipulating JSON data. Essential for API responses and config files.
+  - Example: `cat data.json | jq '.key'`.
+  - Install: `brew install jq` or `sudo apt install jq`.
+
+### Usage Rules for Agent
+- Always prefer these tools over `grep`, `find`, or manual parsing.
+- If a tool is not available, fall back to defaults but note it in your response.
+- For WSL/Windows: Ensure tools are installed in the Linux subsystem for seamless integration.
+
+This setup reduces search time from seconds to milliseconds. Run `/setup fast tools` in a Codex session to auto-append this to AGENTS.md.

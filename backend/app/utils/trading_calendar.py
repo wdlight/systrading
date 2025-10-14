@@ -6,8 +6,8 @@
 - 연말 휴장일(12월 31일) 자동 포함
 """
 
-from datetime import datetime, timedelta
-from typing import List
+from datetime import datetime, timedelta, date
+from typing import List, Union
 import holidays
 
 
@@ -37,18 +37,26 @@ class TradingCalendar:
             if last_day.weekday() < 5:  # 0-4 (월-금)
                 self.holidays[last_day] = "연말 휴장일"
 
-    def is_trading_day(self, date: datetime) -> bool:
+    def is_trading_day(self, day: Union[datetime, date]) -> bool:
         """
         특정 날짜가 거래일인지 확인합니다.
         주말, 공휴일, 연말 휴장일을 제외합니다.
         """
+        if isinstance(day, datetime):
+            target_datetime = day
+            target_date = day.date()
+        elif isinstance(day, date):
+            target_datetime = datetime.combine(day, datetime.min.time())
+            target_date = day
+        else:
+            raise TypeError("is_trading_day expects datetime or date instance")
+
         # 주말 체크 (토요일=5, 일요일=6)
-        if date.weekday() >= 5:
+        if target_datetime.weekday() >= 5:
             return False
 
         # 공휴일 체크 (holidays 라이브러리 사용)
-        # date 객체의 날짜 부분만 비교하기 위해 date.date() 사용
-        if date.date() in self.holidays:
+        if target_date in self.holidays:
             return False
 
         return True

@@ -135,6 +135,16 @@ class OrderDetail(BaseModel):
     filled_amount: int = Field(default=0, description="체결 금액", alias='tot_ccld_amt')
     commission: int = Field(default=0, description="수수료", alias='fee')
     tax: int = Field(default=0, description="제세금", alias='tax')
+
+    # --- Gemini Modification Start ---
+    # 디버깅을 위한 Raw 데이터 필드
+    raw_filled_price: Optional[str] = None
+    raw_filled_quantity: Optional[str] = None
+    raw_filled_amount: Optional[str] = None
+    raw_commission: Optional[str] = None
+    raw_tax: Optional[str] = None
+    raw_filled_time: Optional[str] = None
+    # --- Gemini Modification End ---
     
     # 정정/취소를 위한 정보
     branch_code: Optional[str] = Field(None, description="주문채번지점번호", alias='ord_gno_brno')

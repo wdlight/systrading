@@ -131,17 +131,17 @@ class StockInfoService:
                         meta = None
                     last_meta = meta
 
-                    logger.info(
-                        "지수 조회 응답",
-                        extra={
-                            "label": label,
-                            "fetch_type": fetch_type,
-                            "market_code": market_code,
-                            "index_code": index_code,
-                            "meta": meta,
-                            "values": result.model_dump() if result else None,
-                        }
-                    )
+                    # logger.info(
+                    #     "지수 조회 응답",
+                    #     extra={
+                    #         "label": label,
+                    #         "fetch_type": fetch_type,
+                    #         "market_code": market_code,
+                    #         "index_code": index_code,
+                    #         "meta": meta,
+                    #         "values": result.model_dump() if result else None,
+                    #     }
+                    # )
 
                     if (
                         result

@@ -47,6 +47,23 @@ export function OrdersList({
   const [orderHistory, setOrderHistory] = useState<OrderDetail[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const formatNumber = (value?: number | string | null, fallback = '0') => {
+    const num = typeof value === 'string' ? Number(value) : value;
+    if (typeof num === 'number' && Number.isFinite(num)) {
+      return num.toLocaleString();
+    }
+    return fallback;
+  };
+
+  const parseNumeric = (v: unknown): number | null => {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+    const s = String(v);
+    const cleaned = s.replace(/,/g, '').trim();
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : null;
+  };
+
   const { getPendingOrders, getOrderHistory } = useOrders();
 
   // 주문 조회
@@ -55,7 +72,7 @@ export function OrdersList({
     try {
       const [pending, history] = await Promise.all([
         getPendingOrders(stockCode),
-        getOrderHistory(stockCode),
+        getOrderHistory(""), // stockCode 대신 빈 문자열("")을 전달
       ]);
 
       if (pending.success) {
@@ -105,6 +122,8 @@ export function OrdersList({
     return side === 'buy' ? 'text-red-500' : 'text-blue-500';
   };
 
+  const [tabValue, setTabValue] = useState<'pending' | 'history'>('pending');
+
   return (
     <Card className={cn('bg-[#1a1a1b] border-gray-700', className)}>
       <CardHeader className="pb-3">
@@ -123,7 +142,19 @@ export function OrdersList({
       </CardHeader>
 
       <CardContent>
-        <Tabs defaultValue="pending" className="space-y-4">
+        <Tabs
+          defaultValue="pending"
+          value={tabValue}
+          onValueChange={(v) => {
+            const next = (v as 'pending' | 'history');
+            setTabValue(next);
+            if (next === 'history') {
+              // 탭 전환 시 체결 내역을 즉시 새로고침
+              fetchOrders();
+            }
+          }}
+          className="space-y-4"
+        >
           <TabsList className="grid w-full grid-cols-2 bg-[#2a2a2a]">
             <TabsTrigger value="pending" className="data-[state=active]:bg-blue-600">
               <Clock className="w-4 h-4 mr-1" />
@@ -143,9 +174,9 @@ export function OrdersList({
               </div>
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {pendingOrders.map((order) => (
+                {pendingOrders.map((order, index) => (
                   <div
-                    key={`${order.order_number}-${index}`}
+                    key={order.order_number || index}
                     className="bg-[#2a2a2a] rounded-lg p-3 space-y-2"
                   >
                     <div className="flex items-center justify-between">
@@ -173,19 +204,21 @@ export function OrdersList({
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
                         <span className="text-gray-400">주문가격:</span>
-                        <span className="text-white ml-1">{order.order_price.toLocaleString()}원</span>
+                        <span className="text-white ml-1">
+                          {order.order_type === '01' ? '시장가' : `${formatNumber(order.order_price, 'N/A')}원`}
+                        </span>
                       </div>
                       <div>
                         <span className="text-gray-400">주문수량:</span>
-                        <span className="text-white ml-1">{order.quantity.toLocaleString()}주</span>
+                        <span className="text-white ml-1">{`${formatNumber(order.quantity)}주`}</span>
                       </div>
                       <div>
                         <span className="text-gray-400">체결수량:</span>
-                        <span className="text-green-500 ml-1">{order.filled_quantity.toLocaleString()}주</span>
+                        <span className="text-green-500 ml-1">{`${formatNumber(order.filled_quantity)}주`}</span>
                       </div>
                       <div>
                         <span className="text-gray-400">미체결:</span>
-                        <span className="text-yellow-500 ml-1">{order.remaining_quantity.toLocaleString()}주</span>
+                        <span className="text-yellow-500 ml-1">{`${formatNumber(order.remaining_quantity)}주`}</span>
                       </div>
                     </div>
 
@@ -206,9 +239,9 @@ export function OrdersList({
               </div>
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                {orderHistory.map((order) => (
+                {orderHistory.map((order, index) => (
                   <div
-                    key={order.order_number}
+                    key={order.order_number || index}
                     className="bg-[#2a2a2a] rounded-lg p-3 space-y-2"
                   >
                     <div className="flex items-center justify-between">
@@ -224,30 +257,73 @@ export function OrdersList({
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <span className="text-gray-400">체결가격:</span>
-                        <span className="text-white ml-1">
-                          {order.filled_price?.toLocaleString() || order.order_price.toLocaleString()}원
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">체결수량:</span>
-                        <span className="text-white ml-1">{order.filled_quantity.toLocaleString()}주</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">체결금액:</span>
-                        <span className="text-white ml-1">{order.filled_amount.toLocaleString()}원</span>
-                      </div>
-                      <div>
-                        <span className="text-gray-400">수수료+세금:</span>
-                        <span className="text-red-400 ml-1">
-                          {(order.commission + order.tax).toLocaleString()}원
-                        </span>
-                      </div>
+                      {(() => {
+                        const filledPrice = parseNumeric(order.filled_price);
+                        const rawFilledPrice = parseNumeric(order.raw_filled_price);
+                        const displayFilledPrice = filledPrice ?? rawFilledPrice;
+                        const filledQty = parseNumeric(order.filled_quantity);
+                        const rawFilledQty = parseNumeric(order.raw_filled_quantity);
+                        const displayFilledQty = filledQty ?? rawFilledQty ?? 0;
+                        const filledAmt = parseNumeric(order.filled_amount);
+                        const rawFilledAmt = parseNumeric(order.raw_filled_amount);
+                        const displayFilledAmt = filledAmt ?? rawFilledAmt ?? (displayFilledPrice && displayFilledQty ? displayFilledPrice * displayFilledQty : null);
+                        const fee = parseNumeric(order.raw_commission);
+                        const tax = parseNumeric(order.raw_tax);
+                        const displayFeeTax = (order.commission ?? 0) + (order.tax ?? 0);
+                        return (
+                          <>
+                            <div>
+                              <span className="text-gray-400">체결가격:</span>
+                              <span className="text-white ml-1">
+                                {`${formatNumber(displayFilledPrice, 'N/A')}원 (raw: ${order.raw_filled_price || '-'})`}
+                                <br />
+                                <span className="text-yellow-400">(fe: {formatNumber(rawFilledPrice ?? 0)}원)</span>
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">체결수량:</span>
+                              <span className="text-white ml-1">
+                                {`${formatNumber(displayFilledQty)}주 (raw: ${order.raw_filled_quantity || '-'})`}
+                                <br />
+                                <span className="text-yellow-400">(fe: {formatNumber(rawFilledQty ?? 0)}주)</span>
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">체결금액:</span>
+                              <span className="text-white ml-1">
+                                {`${formatNumber(displayFilledAmt)}원 (raw: ${order.raw_filled_amount || '-'})`}
+                                <br />
+                                <span className="text-yellow-400">(fe: {formatNumber(rawFilledAmt ?? 0)}원)</span>
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-400">수수료+세금:</span>
+                              <span className="text-red-400 ml-1">
+                                {`${formatNumber(displayFeeTax)}원 (raw: ${order.raw_commission || '-'}, ${order.raw_tax || '-'})`}
+                                {fee !== null || tax !== null ? (
+                                  <>
+                                    <br />
+                                    <span className="text-yellow-400">(fe: {formatNumber((fee ?? 0) + (tax ?? 0))}원)</span>
+                                  </>
+                                ) : null}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     <div className="text-xs text-gray-400">
-                      체결시각: {order.filled_time ? new Date(order.filled_time).toLocaleString('ko-KR') : '-'}
+                      {
+                        (() => {
+                          const displayTime = order.filled_time || order.order_time;
+                          return (
+                            <>
+                              체결시각: {displayTime ? new Date(displayTime).toLocaleString('ko-KR') : '-'} (raw: {order.raw_filled_time || '-'})
+                            </>
+                          );
+                        })()
+                      }
                     </div>
                   </div>
                 ))}

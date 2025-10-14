@@ -115,6 +115,16 @@ export interface OrderDetail {
   filled_amount: number;        // 체결 금액
   commission: number;           // 수수료
   tax: number;                  // 제세금
+
+  // --- Gemini Modification Start ---
+  // 디버깅을 위한 Raw 데이터 필드
+  raw_filled_price?: string;
+  raw_filled_quantity?: string;
+  raw_filled_amount?: string;
+  raw_commission?: string;
+  raw_tax?: string;
+  raw_filled_time?: string;
+  // --- Gemini Modification End ---
 }
 
 /**
