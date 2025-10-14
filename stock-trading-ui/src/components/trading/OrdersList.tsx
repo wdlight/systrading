@@ -145,7 +145,7 @@ export function OrdersList({
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {pendingOrders.map((order) => (
                   <div
-                    key={order.order_number}
+                    key={`${order.order_number}-${index}`}
                     className="bg-[#2a2a2a] rounded-lg p-3 space-y-2"
                   >
                     <div className="flex items-center justify-between">
