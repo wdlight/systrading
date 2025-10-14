@@ -67,11 +67,11 @@ export class TradingAPIClient {
       return data.data || data; // API 응답 구조에 맞게 조정
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('요청 시간이 초과되었습니다.');
       }
-      
+
       throw new Error(getErrorMessage(error));
     }
   }
@@ -88,7 +88,7 @@ export class TradingAPIClient {
       return await this.request<T>(endpoint, options);
     } catch (error) {
       if (attempt < this.retryAttempts) {
-        await new Promise(resolve => 
+        await new Promise(resolve =>
           setTimeout(resolve, this.retryDelay * attempt)
         );
         return this.requestWithRetry<T>(endpoint, options, attempt + 1);
@@ -275,7 +275,35 @@ export class TradingAPIClient {
    * 시장 현황 조회
    */
   async getMarketOverview(): Promise<MarketOverview> {
-    return this.requestWithRetry<MarketOverview>('/api/stocks/overview');
+    // 환경변수로 yfinance 사용 여부 제어
+    const useYFinance = process.env.NEXT_PUBLIC_USE_YFINANCE === 'true';
+
+    if (useYFinance) {
+      return this.requestWithRetry<MarketOverview>('/api/yf-index/overview');
+    } else {
+      // 기존 한투 API 호출 (주석 처리하지 않고 유지)
+      return this.requestWithRetry<MarketOverview>('/api/stocks/overview');
+    }
+  }
+
+  // yfinance 전용 메서드 추가 (추가 지수 표시용)
+  async getYFinanceMarketOverview(): Promise<MarketOverview> {
+    return this.requestWithRetry<MarketOverview>('/api/yf-index/overview');
+  }
+
+  // 지역별 시장 데이터 조회 (추가 지수 표시용)
+  async getRegionalMarketData(region: 'asia' | 'europe' | 'americas' | 'forex'): Promise<any> {
+    return this.requestWithRetry(`/api/yf-index/overview/region/${region}`);
+  }
+
+  // 특정 지수 조회 (추가 지수 표시용)
+  async getSpecificIndex(indexName: string): Promise<any> {
+    return this.requestWithRetry(`/api/yf-index/indices/${indexName}`);
+  }
+
+  // yfinance 서비스 상태 확인
+  async checkYFinanceHealth(): Promise<any> {
+    return this.request('/api/yf-index/health');
   }
 
   /**

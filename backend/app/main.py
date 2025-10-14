@@ -38,6 +38,7 @@ from app.api.stocks import router as stocks_router
 from app.api.chart import router as chart_router
 from app.api.portfolio import router as portfolio_router
 from app.api.orders import router as orders_router
+from app.api.yf_index import router as yf_index_router
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.scheduler.portfolio_snapshot import save_portfolio_snapshot
@@ -156,6 +157,7 @@ app.include_router(stocks_router, prefix="/api/stocks", tags=["stocks"])
 app.include_router(chart_router, prefix="/api/chart", tags=["chart"])
 app.include_router(portfolio_router, prefix="/api/portfolio", tags=["portfolio"])
 app.include_router(orders_router, prefix="/api/orders", tags=["orders"])
+app.include_router(yf_index_router, prefix="/api", tags=["yf-index"])
 
 logger.debug(f"chart_router routes: {chart_router.routes}")
 

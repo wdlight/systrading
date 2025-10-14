@@ -200,6 +200,9 @@ class MarketIndex(BaseModel):
     current: float
     change: float
     change_rate: float
+    ticker: Optional[str] = None
+    last_updated: Optional[str] = None
+    error: Optional[str] = None
 
 class TopStock(BaseModel):
     stock_code: str
@@ -213,7 +216,17 @@ class MarketOverview(BaseModel):
     kosdaq: MarketIndex
     nasdaq: MarketIndex
     sp500: MarketIndex
+    dow: MarketIndex
     usd_krw: MarketIndex
+    # 추가 지수들
+    nyse: MarketIndex
+    russell2000: MarketIndex
+    ftse: MarketIndex
+    dax: MarketIndex
+    cac40: MarketIndex
+    nikkei225: MarketIndex
+    hangseng: MarketIndex
+    shanghai: MarketIndex
     top_gainers: List[TopStock]
     top_losers: List[TopStock]
 

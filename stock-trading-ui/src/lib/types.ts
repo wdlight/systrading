@@ -192,6 +192,10 @@ export interface MarketIndex {
   meta?: Record<string, unknown>;
   raw?: Record<string, unknown>;
   timestamp?: string;
+  // yfinance 추가 필드들 (추가 지수 표시용)
+  ticker?: string;           // yfinance 티커 (예: ^KS11, ^IXIC)
+  last_updated?: string;     // 마지막 업데이트 시간
+  error?: string;           // 에러 메시지
 }
 
 export interface MarketTopStock {
@@ -213,6 +217,28 @@ export interface MarketOverview {
   gold?: MarketIndex;
   bitcoin?: MarketIndex;
   updated_at?: string;
+  // 기존 필드들은 주석 처리하지 않고 유지
+  // 추가 지수들 (yfinance에서 제공)
+  dow?: MarketIndex;         // 다우존스
+  nyse?: MarketIndex;        // 뉴욕증권거래소
+  russell2000?: MarketIndex; // 러셀2000
+  ftse?: MarketIndex;        // 영국 FTSE
+  dax?: MarketIndex;         // 독일 DAX
+  cac40?: MarketIndex;       // 프랑스 CAC40
+  nikkei225?: MarketIndex;   // 일본 닛케이225
+  hangseng?: MarketIndex;    // 홍콩 항셍
+  shanghai?: MarketIndex;    // 중국 상하이종합
+}
+
+// 추가 지수 표시용 타입들
+export type MarketRegion = 'asia' | 'europe' | 'americas' | 'forex';
+
+export interface RegionalMarketData {
+  region: MarketRegion;
+  market_status: string;
+  indices: Record<string, MarketIndex>;
+  count: number;
+  timestamp: string;
 }
 
 // 기술적 지표 타입

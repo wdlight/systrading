@@ -25,59 +25,133 @@ export function MarketOverview({ className, compact = false }: MarketOverviewPro
 
   const marketData: MarketDatum[] = marketOverview
     ? [
-        {
-          name: 'KOSPI',
-          value: marketOverview.kospi.current,
-          change: marketOverview.kospi.change,
-          changeRate: marketOverview.kospi.change_rate,
-          waiting: marketOverview.kospi.current === 0,
-        },
-        {
-          name: 'KOSDAQ',
-          value: marketOverview.kosdaq.current,
-          change: marketOverview.kosdaq.change,
-          changeRate: marketOverview.kosdaq.change_rate,
-          waiting: marketOverview.kosdaq.current === 0,
-        },
-        {
-          name: 'NASDAQ',
-          value: marketOverview.nasdaq.current,
-          change: marketOverview.nasdaq.change,
-          changeRate: marketOverview.nasdaq.change_rate,
-          waiting: marketOverview.nasdaq.current === 0,
-        },
-        {
-          name: 'S&P 500',
-          value: marketOverview.sp500.current,
-          change: marketOverview.sp500.change,
-          changeRate: marketOverview.sp500.change_rate,
-          waiting: marketOverview.sp500.current === 0,
-        },
-        {
-          name: 'USD/KRW',
-          value: marketOverview.usd_krw.current,
-          change: marketOverview.usd_krw.change,
-          changeRate: marketOverview.usd_krw.change_rate,
-          waiting: marketOverview.usd_krw.current === 0,
-        },
-      ]
+      // 기존 5개 지수
+      {
+        name: 'KOSPI',
+        value: marketOverview.kospi.current,
+        change: marketOverview.kospi.change,
+        changeRate: marketOverview.kospi.change_rate,
+        waiting: marketOverview.kospi.current === 0,
+      },
+      {
+        name: 'KOSDAQ',
+        value: marketOverview.kosdaq.current,
+        change: marketOverview.kosdaq.change,
+        changeRate: marketOverview.kosdaq.change_rate,
+        waiting: marketOverview.kosdaq.current === 0,
+      },
+      {
+        name: 'NASDAQ',
+        value: marketOverview.nasdaq.current,
+        change: marketOverview.nasdaq.change,
+        changeRate: marketOverview.nasdaq.change_rate,
+        waiting: marketOverview.nasdaq.current === 0,
+      },
+      {
+        name: 'S&P 500',
+        value: marketOverview.sp500.current,
+        change: marketOverview.sp500.change,
+        changeRate: marketOverview.sp500.change_rate,
+        waiting: marketOverview.sp500.current === 0,
+      },
+      {
+        name: 'USD/KRW',
+        value: marketOverview.usd_krw.current,
+        change: marketOverview.usd_krw.change,
+        changeRate: marketOverview.usd_krw.change_rate,
+        waiting: marketOverview.usd_krw.current === 0,
+      },
+      // 추가 지수들 (yfinance에서 제공)
+      ...(marketOverview.dow ? [{
+        name: 'DOW',
+        value: marketOverview.dow.current,
+        change: marketOverview.dow.change,
+        changeRate: marketOverview.dow.change_rate,
+        waiting: marketOverview.dow.current === 0,
+      }] : []),
+      ...(marketOverview.nyse ? [{
+        name: 'NYSE',
+        value: marketOverview.nyse.current,
+        change: marketOverview.nyse.change,
+        changeRate: marketOverview.nyse.change_rate,
+        waiting: marketOverview.nyse.current === 0,
+      }] : []),
+      ...(marketOverview.russell2000 ? [{
+        name: 'RUSSELL',
+        value: marketOverview.russell2000.current,
+        change: marketOverview.russell2000.change,
+        changeRate: marketOverview.russell2000.change_rate,
+        waiting: marketOverview.russell2000.current === 0,
+      }] : []),
+      ...(marketOverview.ftse ? [{
+        name: 'FTSE',
+        value: marketOverview.ftse.current,
+        change: marketOverview.ftse.change,
+        changeRate: marketOverview.ftse.change_rate,
+        waiting: marketOverview.ftse.current === 0,
+      }] : []),
+      ...(marketOverview.dax ? [{
+        name: 'DAX',
+        value: marketOverview.dax.current,
+        change: marketOverview.dax.change,
+        changeRate: marketOverview.dax.change_rate,
+        waiting: marketOverview.dax.current === 0,
+      }] : []),
+      ...(marketOverview.cac40 ? [{
+        name: 'CAC40',
+        value: marketOverview.cac40.current,
+        change: marketOverview.cac40.change,
+        changeRate: marketOverview.cac40.change_rate,
+        waiting: marketOverview.cac40.current === 0,
+      }] : []),
+      ...(marketOverview.nikkei225 ? [{
+        name: 'NIKKEI',
+        value: marketOverview.nikkei225.current,
+        change: marketOverview.nikkei225.change,
+        changeRate: marketOverview.nikkei225.change_rate,
+        waiting: marketOverview.nikkei225.current === 0,
+      }] : []),
+      ...(marketOverview.hangseng ? [{
+        name: 'HANGSENG',
+        value: marketOverview.hangseng.current,
+        change: marketOverview.hangseng.change,
+        changeRate: marketOverview.hangseng.change_rate,
+        waiting: marketOverview.hangseng.current === 0,
+      }] : []),
+      ...(marketOverview.shanghai ? [{
+        name: 'SHANGHAI',
+        value: marketOverview.shanghai.current,
+        change: marketOverview.shanghai.change,
+        changeRate: marketOverview.shanghai.change_rate,
+        waiting: marketOverview.shanghai.current === 0,
+      }] : []),
+    ]
     : [];
 
   const topStocks = marketOverview
     ? [
-        ...(marketOverview.top_gainers || []).map((stock) => ({ ...stock, trend: 'up' as const })),
-        ...(marketOverview.top_losers || []).map((stock) => ({ ...stock, trend: 'down' as const })),
-      ]
+      ...(marketOverview.top_gainers || []).map((stock) => ({ ...stock, trend: 'up' as const })),
+      ...(marketOverview.top_losers || []).map((stock) => ({ ...stock, trend: 'down' as const })),
+    ]
     : [];
 
   if (compact) {
     if (isLoading) {
       return (
         <Card className={cn('bg-[#1a1a1b] border-gray-700', className)}>
-          <CardContent className="flex items-center gap-3 overflow-hidden px-3 py-2.5">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <div key={index} className="h-8 w-20 animate-pulse rounded-md bg-gray-700/60" />
-            ))}
+          <CardContent className="px-3 py-2 space-y-2">
+            {/* 첫 번째 줄 로딩 */}
+            <div className="flex items-center gap-3">
+              {Array.from({ length: 7 }).map((_, index) => (
+                <div key={index} className="h-8 w-20 animate-pulse rounded-md bg-gray-700/60" />
+              ))}
+            </div>
+            {/* 두 번째 줄 로딩 */}
+            <div className="flex items-center gap-3">
+              {Array.from({ length: 7 }).map((_, index) => (
+                <div key={index + 7} className="h-8 w-20 animate-pulse rounded-md bg-gray-700/60" />
+              ))}
+            </div>
           </CardContent>
         </Card>
       );
@@ -95,18 +169,39 @@ export function MarketOverview({ className, compact = false }: MarketOverviewPro
       );
     }
 
+    // 지수들을 2줄로 나누어 표시 (7개씩)
+    const firstRow = marketData.slice(0, 7);
+    const secondRow = marketData.slice(7);
+
     return (
       <Card className={cn('bg-[#1a1a1b] border-gray-700 gap-2 py-1', className)}>
-        <CardContent className="flex items-center gap-3 overflow-x-auto px-3 py-1 scrollbar-hide">
-          {marketData.map((market) => (
-            <CompactIndexCard
-              key={market.name}
-              name={market.name}
-              value={market.value}
-              change={market.change}
-              changeRate={market.changeRate}
-            />
-          ))}
+        <CardContent className="px-3 py-2 space-y-2">
+          {/* 첫 번째 줄 */}
+          <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
+            {firstRow.map((market) => (
+              <CompactIndexCard
+                key={market.name}
+                name={market.name}
+                value={market.value}
+                change={market.change}
+                changeRate={market.changeRate}
+              />
+            ))}
+          </div>
+          {/* 두 번째 줄 (추가 지수들이 있을 때만) */}
+          {secondRow.length > 0 && (
+            <div className="flex items-center gap-3 overflow-x-auto scrollbar-hide">
+              {secondRow.map((market) => (
+                <CompactIndexCard
+                  key={market.name}
+                  name={market.name}
+                  value={market.value}
+                  change={market.change}
+                  changeRate={market.changeRate}
+                />
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     );
