@@ -7,7 +7,8 @@ import {
   TradingStatusUpdate,
   OrderUpdate,
   ConnectionStatus,
-  OrderBookUpdate
+  OrderBookUpdate,
+  MarketStatusUpdate
 } from './types';
 import { API_CONFIG, WS_MESSAGE_TYPES } from './constants';
 
