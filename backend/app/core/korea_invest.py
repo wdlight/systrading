@@ -291,9 +291,11 @@ class KoreaInvestAPIService:
                     ]
                     raw_sample = raw_df[raw_key_cols].head(5).to_dict(orient="records") if raw_key_cols else raw_df.head(5).to_dict(orient="records")
                     dtypes_map = {c: str(t) for c, t in raw_df.dtypes.to_dict().items()}
-                    logger.info(
-                        f"체결 내역 원본 응답 (샘플) | rows={len(raw_df)} | columns={raw_cols} | dtypes={dtypes_map} | sample={raw_sample}"
-                    )
+
+                    # 체결 내역 원본 응답 로깅 비활성화
+                    #logger.info(
+                    #    f"체결 내역 원본 응답 (샘플) | rows={len(raw_df)} | columns={raw_cols} | dtypes={dtypes_map} | sample={raw_sample}"
+                    #)
                 except Exception as raw_log_err:
                     logger.warning(f"원본 응답 로깅 중 경고: {raw_log_err}")
             # --- Raw Logging End ---
@@ -354,9 +356,11 @@ class KoreaInvestAPIService:
                         ] if c in result_df.columns
                     ]
                     dtypes_map_norm = {c: str(t) for c, t in result_df.dtypes.to_dict().items()}
-                    logger.info(
-                        f"체결 내역 응답 정규화 완료 (샘플) | rows={len(result_df)} | columns={list(result_df.columns)} | dtypes={dtypes_map_norm} | sample={result_df[sample_cols].head(5).to_dict(orient='records') if sample_cols else []}"
-                    )
+                    
+                    # 체결 내역 응답 정규화 완료 로깅 비활성화
+                    # logger.info(
+                    #     f"체결 내역 응답 정규화 완료 (샘플) | rows={len(result_df)} | columns={list(result_df.columns)} | dtypes={dtypes_map_norm} | sample={result_df[sample_cols].head(5).to_dict(orient='records') if sample_cols else []}"
+                    # )
                 except Exception as norm_err:
                     logger.warning(f"체결 내역 정규화 중 경고: {norm_err}", exc_info=True)
             else:

@@ -51,8 +51,8 @@ async def test_orderbook_cache_ttl(realtime_service):
             "stock_code": "005930",
             "data": {
                 "stock_code": "005930",
-                "asks": [{"price": 71800, "quantity": 100, "order_count": 0}],
-                "bids": [{"price": 71700, "quantity": 150, "order_count": 0}],
+                "asks": [{"price": 71800, "quantity": 100}],
+                "bids": [{"price": 71700, "quantity": 150}],
                 "current_price": 71700,
                 "timestamp": "2025-10-14T18:00:15"
             }
@@ -85,8 +85,8 @@ async def test_orderbook_cache_invalidation(realtime_service):
             "stock_code": "005930",
             "data": {
                 "stock_code": "005930",
-                "asks": [{"price": 71800, "quantity": 100, "order_count": 0}],
-                "bids": [{"price": 71700, "quantity": 150, "order_count": 0}],
+                "asks": [{"price": 71800, "quantity": 100}],
+                "bids": [{"price": 71700, "quantity": 150}],
                 "current_price": 71700,
                 "timestamp": "2025-10-14T18:00:15"
             }
@@ -116,8 +116,8 @@ async def test_orderbook_cache_multiple_stocks(realtime_service):
             "stock_code": "005930",
             "data": {
                 "stock_code": "005930",
-                "asks": [{"price": 71800, "quantity": 100, "order_count": 0}],
-                "bids": [{"price": 71700, "quantity": 150, "order_count": 0}],
+                "asks": [{"price": 71800, "quantity": 100}],
+                "bids": [{"price": 71700, "quantity": 150}],
                 "current_price": 71700,
                 "timestamp": "2025-10-14T18:00:15"
             }
@@ -128,8 +128,8 @@ async def test_orderbook_cache_multiple_stocks(realtime_service):
             "stock_code": "000660",
             "data": {
                 "stock_code": "000660",
-                "asks": [{"price": 120000, "quantity": 200, "order_count": 0}],
-                "bids": [{"price": 119000, "quantity": 250, "order_count": 0}],
+                "asks": [{"price": 120000, "quantity": 200}],
+                "bids": [{"price": 119000, "quantity": 250}],
                 "current_price": 119500,
                 "timestamp": "2025-10-14T18:00:15"
             }
@@ -168,8 +168,8 @@ async def test_orderbook_cache_broadcast(realtime_service):
             "stock_code": "005930",
             "data": {
                 "stock_code": "005930",
-                "asks": [{"price": 71800, "quantity": 100, "order_count": 0}],
-                "bids": [{"price": 71700, "quantity": 150, "order_count": 0}],
+                "asks": [{"price": 71800, "quantity": 100}],
+                "bids": [{"price": 71700, "quantity": 150}],
                 "current_price": 71700,
                 "timestamp": "2025-10-14T18:00:15"
             }
@@ -206,8 +206,8 @@ async def test_orderbook_cache_invalid_data(realtime_service):
     await realtime_service._handle_hoga_data({
         "data": {
             "stock_code": "005930",
-            "asks": [{"price": 71800, "quantity": 100, "order_count": 0}],
-            "bids": [{"price": 71700, "quantity": 150, "order_count": 0}],
+            "asks": [{"price": 71800, "quantity": 100}],
+            "bids": [{"price": 71700, "quantity": 150}],
             "current_price": 71700,
             "timestamp": "2025-10-14T18:00:15"
         }

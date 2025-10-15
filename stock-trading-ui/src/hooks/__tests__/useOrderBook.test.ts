@@ -20,12 +20,12 @@ describe('useOrderBook', () => {
     const mockData = {
       stock_code: '005930',
       asks: [
-        { price: 50000, quantity: 100, order_count: 0 },
-        { price: 50100, quantity: 200, order_count: 0 }
+        { price: 50000, quantity: 100 },
+        { price: 50100, quantity: 200 }
       ],
       bids: [
-        { price: 49900, quantity: 150, order_count: 0 },
-        { price: 49800, quantity: 250, order_count: 0 }
+        { price: 49900, quantity: 150 },
+        { price: 49800, quantity: 250 }
       ],
       timestamp: new Date().toISOString()
     };
@@ -43,7 +43,16 @@ describe('useOrderBook', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.orderBook).toEqual(mockData);
+    expect(result.current.orderBook?.stock_code).toEqual('005930');
+    expect(result.current.orderBook?.asks).toEqual([
+      { price: 50000, quantity: 100 },
+      { price: 50100, quantity: 200 },
+    ]);
+    expect(result.current.orderBook?.bids).toEqual([
+      { price: 49900, quantity: 150 },
+      { price: 49800, quantity: 250 },
+    ]);
+    expect(result.current.orderBook?.timestamp).toBeTruthy();
     expect(result.current.error).toBeNull();
   });
 

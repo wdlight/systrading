@@ -5,6 +5,7 @@ RSI/MACD 트레이딩 시스템의 백엔드 API 서버
 
 import sys
 import os
+import json
 
 # 현재 파일의 부모 디렉토리(backend)를 Python 경로에 추가
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -12,6 +13,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import asyncio
 from contextlib import asynccontextmanager
 from multiprocessing import Process, Queue
+from datetime import datetime
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -124,19 +126,19 @@ async def lifespan(app: FastAPI):
     
     # FastAPI app.state에 저장 (싱글톤 대신)
     app.state.realtime_service = realtime_service
+    app.state.ws_req_queue = ws_req_queue
+    app.state.ws_result_queue = ws_result_queue
     logger.info("RealtimeDataService가 app.state에 등록되었습니다.")
     
-    if korea_invest_service.api_instance:
-        ws_url = settings.KI_WEBSOCKET_URL
-        websocket_process = Process(
-            target=run_websocket,
-            args=(korea_invest_service.api_instance, ws_url, ws_req_queue, ws_result_queue),
-            daemon=True
-        )
-        websocket_process.start()
-        logger.info(f"domestic_websocket 프로세스를 시작했습니다 (PID: {websocket_process.pid}).")
-    else:
-        logger.error("KoreaInvestAPI 인스턴스가 없어 domestic_websocket 프로세스를 시작할 수 없습니다.")
+    # WebSocket 프로세스 시작 (설정 정보 전달)
+    ws_url = settings.KI_WEBSOCKET_URL
+    websocket_process = Process(
+        target=run_websocket,
+        args=(settings.model_dump(), ws_url, ws_req_queue, ws_result_queue),
+        daemon=True
+    )
+    websocket_process.start()
+    logger.info(f"domestic_websocket 프로세스를 시작했습니다 (PID: {websocket_process.pid}).")
 
     asyncio.create_task(realtime_service.start())
     
@@ -254,8 +256,30 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             logger.debug(f"WebSocket 메시지 수신: {data}")
-            if data == "ping":
-                await websocket.send_text("pong")
+            
+            # JSON 메시지 처리
+            try:
+                message = json.loads(data)
+                message_type = message.get("type")
+                stock_code = message.get("stock_code")
+                
+                if message_type == "subscribe" and stock_code:
+                    await connection_manager.subscribe_stock(websocket, stock_code)
+                    logger.info(f"종목 구독 요청 처리: {stock_code}")
+                elif message_type == "unsubscribe" and stock_code:
+                    await connection_manager.unsubscribe_stock(websocket, stock_code)
+                    logger.info(f"종목 구독 해제 요청 처리: {stock_code}")
+                elif message_type == "ping":
+                    await websocket.send_text(json.dumps({"type": "pong", "timestamp": datetime.now().isoformat()}))
+                else:
+                    logger.warning(f"알 수 없는 메시지 타입: {message_type}")
+                    
+            except json.JSONDecodeError:
+                # JSON이 아닌 경우 기존 로직 유지
+                if data == "ping":
+                    await websocket.send_text("pong")
+                else:
+                    logger.warning(f"JSON 파싱 실패: {data}")
                 
     except WebSocketDisconnect:
         await connection_manager.disconnect(websocket)

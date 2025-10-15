@@ -19,12 +19,12 @@ def mock_realtime_service():
         "stock_code": "005930",
         "current_price": 91600,
         "asks": [
-            {"price": 91700, "quantity": 1000, "order_count": 5},
-            {"price": 91800, "quantity": 950, "order_count": 4}
+            {"price": 91700, "quantity": 1000},
+            {"price": 91800, "quantity": 950}
         ],
         "bids": [
-            {"price": 91600, "quantity": 1000, "order_count": 5},
-            {"price": 91500, "quantity": 950, "order_count": 4}
+            {"price": 91600, "quantity": 1000},
+            {"price": 91500, "quantity": 950}
         ],
         "timestamp": "2025-10-14T20:00:00",
         "market_status": "open"
@@ -41,12 +41,16 @@ def client_with_mock_service(mock_realtime_service):
     
     from app.dependencies import get_realtime_service
     app.dependency_overrides[get_realtime_service] = get_realtime_service_override
+    app.state.ws_req_queue = Mock()
+    app.state.ws_result_queue = Mock()
     
     with TestClient(app) as test_client:
         yield test_client
-    
+
     # Cleanup
     app.dependency_overrides.clear()
+    app.state.ws_req_queue = None
+    app.state.ws_result_queue = None
 
 
 def test_get_current_orderbook_cached_data(client_with_mock_service, mock_realtime_service):
@@ -111,47 +115,51 @@ def test_get_current_orderbook_market_closed(client_with_mock_service, mock_real
         for ask in data["asks"]:
             assert ask["price"] == 0
             assert ask["quantity"] == 0
-            assert ask["order_count"] == 0
         
         for bid in data["bids"]:
             assert bid["price"] == 0
             assert bid["quantity"] == 0
-            assert bid["order_count"] == 0
 
 
 def test_subscribe_orderbook(client_with_mock_service):
     """호가 구독 테스트"""
-    with patch('app.api.realtime.ws_req_queue') as mock_queue:
-        response = client_with_mock_service.post("/api/realtime/subscribe/orderbook?stock_code=005930")
+    from app.main import app
+    queue_mock = Mock()
+    app.state.ws_req_queue = queue_mock
+
+    response = client_with_mock_service.post("/api/realtime/subscribe/orderbook?stock_code=005930")
         
-        assert response.status_code == 200
-        data = response.json()
-        
-        assert data["success"] is True
-        assert data["stock_code"] == "005930"
-        assert "구독 시작" in data["message"]
-        
-        # Queue에 구독 요청이 추가되었는지 확인
-        mock_queue.put.assert_called_once()
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["success"] is True
+    assert data["stock_code"] == "005930"
+    assert "구독 시작" in data["message"]
+    
+    # Queue에 구독 요청이 추가되었는지 확인
+    queue_mock.put.assert_called_once()
 
 
 def test_unsubscribe_orderbook(client_with_mock_service, mock_realtime_service):
     """호가 구독 해제 테스트"""
-    with patch('app.api.realtime.ws_req_queue') as mock_queue:
-        response = client_with_mock_service.post("/api/realtime/unsubscribe/orderbook?stock_code=005930")
-        
-        assert response.status_code == 200
-        data = response.json()
-        
-        assert data["success"] is True
-        assert data["stock_code"] == "005930"
-        assert "구독 해제" in data["message"]
-        
-        # Queue에 구독 해제 요청이 추가되었는지 확인
-        mock_queue.put.assert_called_once()
-        
-        # 캐시 무효화가 호출되었는지 확인
-        mock_realtime_service.invalidate_orderbook_cache.assert_called_once_with("005930")
+    from app.main import app
+    queue_mock = Mock()
+    app.state.ws_req_queue = queue_mock
+    
+    response = client_with_mock_service.post("/api/realtime/unsubscribe/orderbook?stock_code=005930")
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    assert data["success"] is True
+    assert data["stock_code"] == "005930"
+    assert "구독 해제" in data["message"]
+    
+    # Queue에 구독 해제 요청이 추가되었는지 확인
+    queue_mock.put.assert_called_once()
+    
+    # 캐시 무효화가 호출되었는지 확인
+    mock_realtime_service.invalidate_orderbook_cache.assert_called_once_with("005930")
 
 
 def test_api_error_handling(client_with_mock_service, mock_realtime_service):

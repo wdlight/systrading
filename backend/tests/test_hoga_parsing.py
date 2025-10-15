@@ -119,12 +119,10 @@ def test_parse_hoga_json_empty_body():
     for ask in result["asks"]:
         assert ask["price"] == 0
         assert ask["quantity"] == 0
-        assert ask["order_count"] == 0
     
     for bid in result["bids"]:
         assert bid["price"] == 0
         assert bid["quantity"] == 0
-        assert bid["order_count"] == 0
 
 
 if __name__ == "__main__":

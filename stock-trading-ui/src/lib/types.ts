@@ -132,7 +132,6 @@ export interface Order {
 export interface OrderBookRow {
   price: number;
   quantity: number;
-  order_count: number;
 }
 
 export interface OrderBookData {
@@ -151,6 +150,7 @@ export interface OrderBookUpdate {
   data: {
     asks: OrderBookRow[];
     bids: OrderBookRow[];
+    current_price?: number;
     timestamp: string;
   };
 }

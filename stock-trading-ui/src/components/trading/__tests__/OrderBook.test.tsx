@@ -55,18 +55,18 @@ describe('OrderBook', () => {
     const mockOrderBook = {
       stock_code: '005930',
       asks: [
-        { price: 50000, quantity: 100, order_count: 0 },
-        { price: 50100, quantity: 200, order_count: 0 },
-        { price: 50200, quantity: 300, order_count: 0 },
-        { price: 50300, quantity: 400, order_count: 0 },
-        { price: 50400, quantity: 500, order_count: 0 },
+        { price: 50000, quantity: 100 },
+        { price: 50100, quantity: 200 },
+        { price: 50200, quantity: 300 },
+        { price: 50300, quantity: 400 },
+        { price: 50400, quantity: 500 },
       ],
       bids: [
-        { price: 49900, quantity: 150, order_count: 0 },
-        { price: 49800, quantity: 250, order_count: 0 },
-        { price: 49700, quantity: 350, order_count: 0 },
-        { price: 49600, quantity: 450, order_count: 0 },
-        { price: 49500, quantity: 550, order_count: 0 },
+        { price: 49900, quantity: 150 },
+        { price: 49800, quantity: 250 },
+        { price: 49700, quantity: 350 },
+        { price: 49600, quantity: 450 },
+        { price: 49500, quantity: 550 },
       ],
       timestamp: new Date().toISOString(),
     };
@@ -80,9 +80,10 @@ describe('OrderBook', () => {
     render(<OrderBook stockCode="005930" currentPrice={50000} />);
 
     // 헤더 확인
+    expect(screen.getByText('호가창')).toBeInTheDocument();
+    expect(screen.getByText('실시간')).toBeInTheDocument();
     expect(screen.getByText('가격')).toBeInTheDocument();
     expect(screen.getByText('수량')).toBeInTheDocument();
-    expect(screen.getByText('건수')).toBeInTheDocument();
 
     // 매도호가 확인 (역순으로 표시되므로 50400부터)
     expect(screen.getByText('50,400')).toBeInTheDocument();
@@ -99,8 +100,8 @@ describe('OrderBook', () => {
   it('props로 전달된 현재가를 우선 사용해야 함', () => {
     const mockOrderBook = {
       stock_code: '005930',
-      asks: [{ price: 50000, quantity: 100, order_count: 0 }],
-      bids: [{ price: 49900, quantity: 150, order_count: 0 }],
+      asks: [{ price: 50000, quantity: 100 }],
+      bids: [{ price: 49900, quantity: 150 }],
       timestamp: new Date().toISOString(),
     };
 
@@ -120,11 +121,11 @@ describe('OrderBook', () => {
     const mockOrderBook = {
       stock_code: '005930',
       asks: [
-        { price: 50000, quantity: 100, order_count: 0 },
-        { price: 50100, quantity: 200, order_count: 0 },
+        { price: 50000, quantity: 100 },
+        { price: 50100, quantity: 200 },
       ],
       bids: [
-        { price: 49900, quantity: 150, order_count: 0 },
+        { price: 49900, quantity: 150 },
       ],
       timestamp: new Date().toISOString(),
     };
@@ -147,12 +148,12 @@ describe('OrderBook', () => {
     const mockOrderBook = {
       stock_code: '005930',
       asks: [
-        { price: 50000, quantity: 0, order_count: 0 },
-        { price: 50100, quantity: 100, order_count: 0 },
+        { price: 50000, quantity: 0 },
+        { price: 50100, quantity: 100 },
       ],
       bids: [
-        { price: 49900, quantity: 0, order_count: 0 },
-        { price: 49800, quantity: 200, order_count: 0 },
+        { price: 49900, quantity: 0 },
+        { price: 49800, quantity: 200 },
       ],
       timestamp: new Date().toISOString(),
     };

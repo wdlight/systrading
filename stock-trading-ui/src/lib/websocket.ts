@@ -7,7 +7,7 @@ import {
   TradingStatusUpdate,
   OrderUpdate,
   ConnectionStatus,
-  OrderBookData
+  OrderBookUpdate
 } from './types';
 import { API_CONFIG, WS_MESSAGE_TYPES } from './constants';
 
@@ -24,6 +24,7 @@ export class WebSocketManager {
   private listeners: Map<string, Set<(data: any) => void>> = new Map();
   private connectionStateListeners: Set<(state: ConnectionState) => void> = new Set();
   private heartbeatInterval: NodeJS.Timeout | null = null;
+  private pendingSubscriptions: Set<string> = new Set();
   private connectionState: ConnectionState = {
     status: 'disconnected',
     reconnectAttempts: 0,
@@ -40,17 +41,7 @@ export class WebSocketManager {
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        // Check if we're in demo mode (no backend available)
-        if (this.url.includes('localhost:8000')) {
-          console.log('🚀 Demo mode: Skipping WebSocket connection to', this.url);
-          this.updateConnectionState({
-            status: 'disconnected',
-            error: 'Demo mode - WebSocket disabled'
-          });
-          resolve(); // Don't reject, just resolve with disconnected state
-          return;
-        }
-
+        // 실제 WebSocket 연결 수행
         console.log('🚀 WebSocket 연결 시도:', this.url);
         this.isManualClose = false;
         this.updateConnectionState({ status: 'connecting' });
@@ -68,6 +59,10 @@ export class WebSocketManager {
             error: undefined,
           });
           this.startHeartbeat();
+
+          // 재연결 시 구독 복원
+          this.restorePendingSubscriptions();
+
           resolve();
         };
 
@@ -80,9 +75,9 @@ export class WebSocketManager {
 
             this.handleMessage(message);
           } catch (error) {
-            console.error('WebSocket 메시지 파싱 오류:', error, event.data);
-          }
-        };
+          console.error('WebSocket 메시지 파싱 오류:', error, event.data);
+        }
+      };
 
         this.ws.onclose = (event) => {
           console.log('WebSocket 연결 해제:', {
@@ -220,11 +215,38 @@ export class WebSocketManager {
     return this.ws?.readyState === WebSocket.OPEN;
   }
 
+  addPendingSubscription(stockCode: string): void {
+    this.pendingSubscriptions.add(stockCode);
+    console.log(`📝 구독 대기 목록에 추가: ${stockCode}`);
+  }
+
+  removePendingSubscription(stockCode: string): void {
+    this.pendingSubscriptions.delete(stockCode);
+    console.log(`📝 구독 대기 목록에서 제거: ${stockCode}`);
+  }
+
+  private restorePendingSubscriptions(): void {
+    if (this.pendingSubscriptions.size === 0) {
+      return;
+    }
+    console.log(`🔄 ${this.pendingSubscriptions.size}개 구독 복원 중...`);
+    this.pendingSubscriptions.forEach((stockCode) => {
+      this.send({
+        type: 'subscribe',
+        stock_code: stockCode,
+      });
+      console.log(`🔄 구독 복원: ${stockCode}`);
+    });
+  }
+
   /**
    * 메시지 처리
    */
   private handleMessage(message: RealtimeMessage): void {
     const { type, data } = message;
+
+    // 디버그: 모든 메시지 로그
+    console.log('🔍 WebSocket 메시지 수신:', { type, data });
 
     // 타입별 특수 처리
     switch (type) {
@@ -250,6 +272,7 @@ export class WebSocketManager {
         this.notifyListeners(type, data);
         break;
       case 'orderbook_update':
+        console.log('📊 호가 업데이트 메시지 수신:', data);
         this.notifyListeners(type, data);
         break;
       case 'market_status_update':
@@ -500,11 +523,14 @@ export function subscribeToMarketIndexUpdates(callback: (data: any) => void): vo
  */
 export function subscribeToOrderBookUpdates(
   stockCode: string,
-  callback: (data: OrderBookData) => void
+  callback: (data: OrderBookUpdate) => void
 ): () => void {
-  const listener = (message: RealtimeMessage) => {
-    if (message.type === 'orderbook_update' && message.stock_code === stockCode) {
-      callback(message.data as OrderBookData);
+  const listener = (data: any) => {
+    // data는 이미 notifyListeners에서 전달된 데이터
+    // 백엔드에서 보내는 메시지 구조: { stock_code, data: { asks, bids, current_price, timestamp } }
+    if (data && data.stock_code === stockCode) {
+      console.log(`📊 호가 데이터 수신: ${stockCode}`, data);
+      callback(data as OrderBookUpdate);
     }
   };
 

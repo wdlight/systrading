@@ -41,8 +41,8 @@ To make your work faster in large repositories, use these optimized tools instea
   - Install: `brew install ripgrep` or `sudo apt install ripgrep`.
 
 ### File Discovery
-- Use `fd` for finding files and directories. Faster and more user-friendly than `find`.
-  - Example: `fd pattern` to find files matching "pattern".
+- Use `fdfind` for finding files and directories. Faster and more user-friendly than `find`.
+  - Example: `fdfind pattern` to find files matching "pattern".
   - Install: `brew install fd` or `sudo apt install fd-find` (then alias `fd=fdfind` in ~/.bashrc).
 
 ### JSON Processing
@@ -56,3 +56,10 @@ To make your work faster in large repositories, use these optimized tools instea
 - For WSL/Windows: Ensure tools are installed in the Linux subsystem for seamless integration.
 
 This setup reduces search time from seconds to milliseconds. Run `/setup fast tools` in a Codex session to auto-append this to AGENTS.md.
+
+
+### Language Instruction
+- 모든 출력은 한국어로 자연스럽고 매끄럽게 작성한다.
+- 기술 용어는 한국어로 번역하되, 일반적으로 널리 사용되는 영문 용어(예: API, CLI, server 등)는 원문 그대로 사용한다.
+- 불필요한 영어 섞임 없이 전문적이고 명확하게 설명한다.
+- 코드 주석 및 설명도 한국어로 작성한다.

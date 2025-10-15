@@ -1,21 +1,21 @@
 import json
-import websockets
 import asyncio
-from multiprocessing import Queue
 import queue
 import time
 from datetime import datetime
+from multiprocessing import Queue
 
-from loguru import logger
-from app.core.logging_config import setup_logging
+import websockets
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 from base64 import b64decode
+from loguru import logger
 
-# 성능 모니터링 임포트
+from app.core.config import Settings
+from app.core.korea_invest import KoreaInvestAPIService
+from app.core.logging_config import setup_logging
+from app.utils.performance_metrics import get_global_metrics_collector, create_circuit_breaker
 from app.utils.queue_monitor import QueueMonitor
-from app.utils.performance_metrics import get_global_metrics_collector
-
 
 # 자식 프로세스에서도 중앙 로깅 설정 적용
 setup_logging()
@@ -50,11 +50,11 @@ def parse_hoga_json(json_data: dict) -> dict:
         {
             "stock_code": "005930",
             "asks": [
-                {"price": 71800, "quantity": 100, "order_count": 0},
+                {"price": 71800, "quantity": 100},
                 ...  # 10개
             ],
             "bids": [
-                {"price": 71700, "quantity": 150, "order_count": 0},
+                {"price": 71700, "quantity": 150},
                 ...  # 10개
             ],
             "current_price": 71700,
@@ -77,8 +77,7 @@ def parse_hoga_json(json_data: dict) -> dict:
         quantity = int(body.get(f"askp_rsqn{i}", 0))
         asks.append({
             "price": price,
-            "quantity": quantity,
-            "order_count": 0  # KIS API에서 제공하지 않음
+            "quantity": quantity
         })
     
     # 매수호가 파싱 (bidp1~10, bidp_rsqn1~10)
@@ -88,8 +87,7 @@ def parse_hoga_json(json_data: dict) -> dict:
         quantity = int(body.get(f"bidp_rsqn{i}", 0))
         bids.append({
             "price": price,
-            "quantity": quantity,
-            "order_count": 0
+            "quantity": quantity
         })
     
     # 현재가 및 시간 정보
@@ -117,6 +115,75 @@ def parse_hoga_json(json_data: dict) -> dict:
             "drate": float(body.get("drate", 0.0))
         }
     }
+
+def receive_realtime_hoga_domestic_new(data: str) -> dict | None:
+    """
+    KIS WebSocket에서 내려오는 ^ 구분자 호가 데이터를 표준 구조로 변환한다.
+    데이터 예시:
+    005930^142414^0^95100^95200^...^매도/매수호가^...^호가수량^...^기타 필드
+    """
+    try:
+        values = data.split('^')
+        if len(values) < 43:
+            logger.warning(f"호가 데이터 길이 부족: {len(values)}, 데이터: {data[:100]}")
+            return None
+
+        stock_code = values[0]
+        time_str = values[1]  # HHMMSS
+
+        # 현재가 (필드 2 혹은 매수/매도 1호가 평균)
+        try:
+            current_price = int(values[2])
+        except ValueError:
+            current_price = 0
+
+        asks = []
+        bids = []
+
+        # 매도 호가/수량: ask1~ask10 는 인덱스 3~12, 수량은 23~32
+        for i in range(10):
+            price_idx = 3 + i
+            qty_idx = 23 + i
+            price = int(values[price_idx]) if values[price_idx].isdigit() else 0
+            quantity = int(values[qty_idx]) if values[qty_idx].lstrip('-').isdigit() else 0
+            asks.append({
+                "price": price,
+                "quantity": quantity
+            })
+
+        # 매수 호가/수량: bid1~bid10 는 인덱스 13~22, 수량은 33~42
+        for i in range(10):
+            price_idx = 13 + i
+            qty_idx = 33 + i
+            price = int(values[price_idx]) if values[price_idx].isdigit() else 0
+            quantity = int(values[qty_idx]) if values[qty_idx].lstrip('-').isdigit() else 0
+            bids.append({
+                "price": price,
+                "quantity": quantity
+            })
+
+        timestamp = datetime.now().strftime("%Y-%m-%dT") + f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+
+        return {
+            "stock_code": stock_code,
+            "asks": asks,
+            "bids": bids,
+            "current_price": current_price,
+            "timestamp": timestamp,
+            "market_data": {
+                "open": 0,
+                "high": 0,
+                "low": 0,
+                "volume": 0,
+                "value": 0,
+                "sign": "3",
+                "change": 0,
+                "drate": 0.0
+            }
+        }
+    except Exception as e:
+        logger.error(f"호가 ^ 데이터 파싱 오류: {e}, 데이터: {data[:100]}")
+        return None
 
 
 def receive_realtime_hoga_domestic(data):
@@ -154,17 +221,67 @@ def receive_realtime_hoga_domestic(data):
   return data_dict
 
 
-def run_websocket(korea_invest_api, ws_url, ws_req_queue, ws_result_queue):
-  #이벤트 루프 초기화
-  loop = asyncio.get_event_loop()
-  loop.run_until_complete(connect_with_circuit_breaker(korea_invest_api, ws_url, ws_req_queue, ws_result_queue))
-  loop.close()
+def run_websocket(settings_data, ws_url, ws_req_queue, ws_result_queue):
+  """Multiprocessing 프로세스에서 실행될 WebSocket 런너."""
+  try:
+    # settings 데이터 복원
+    if isinstance(settings_data, dict):
+      settings = Settings(**settings_data)
+    elif isinstance(settings_data, Settings):
+      settings = settings_data
+    else:
+      logger.warning(f"알 수 없는 settings 데이터 타입: {type(settings_data)}. 기본 설정을 사용합니다.")
+      settings = Settings()
+
+    logger.info("domestic_websocket 프로세스 시작 - API 인스턴스 생성 중...")
+    
+    try:
+      korea_invest_service = KoreaInvestAPIService(settings)
+      korea_invest_api = korea_invest_service.api_instance
+
+      if not korea_invest_api:
+        logger.error("KoreaInvestAPI 인스턴스 생성 실패 - api_instance가 None")
+        return
+
+      logger.info("KoreaInvestAPI 인스턴스 생성 완료")
+    except Exception as api_init_error:
+      logger.error(f"KoreaInvestAPIService 초기화 실패: {api_init_error}", exc_info=True)
+      return
+
+    # Circuit breaker 확인 (자식 프로세스는 초기화되어 있지 않음)
+    metrics_collector = get_global_metrics_collector()
+    if metrics_collector.get_circuit_breaker("websocket_connection") is None:
+      logger.info("자식 프로세스에서 Circuit Breaker 초기화")
+      create_circuit_breaker(
+        name="websocket_connection",
+        failure_threshold=5,
+        timeout_seconds=60
+      )
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(connect_with_circuit_breaker(korea_invest_api, ws_url, ws_req_queue, ws_result_queue))
+  except Exception as e:
+    logger.error(f"domestic_websocket 프로세스 시작 실패: {e}", exc_info=True)
+  finally:
+    try:
+      if 'loop' in locals():
+        loop.close()
+    except Exception as loop_error:
+      logger.warning(f"이벤트 루프 종료 중 오류: {loop_error}")
 
 
 async def connect_with_circuit_breaker(korea_invest_api, url, ws_req_queue, ws_result_queue):
   """Circuit Breaker를 적용한 WebSocket 연결"""
   metrics_collector = get_global_metrics_collector()
   circuit_breaker = metrics_collector.get_circuit_breaker("websocket_connection")
+  if circuit_breaker is None:
+    logger.warning("Circuit Breaker가 존재하지 않아 기본 설정으로 생성합니다.")
+    circuit_breaker = create_circuit_breaker(
+      name="websocket_connection",
+      failure_threshold=5,
+      timeout_seconds=60
+    )
   
   while True:
     if not circuit_breaker.can_attempt():
@@ -219,39 +336,82 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
       except Exception as e:
         logger.error(f"실시간 지수 등록 실패 tr_key={tr_key}: {e}")
     
+    stop_event = asyncio.Event()
+
+    async def process_queue():
+      """
+      multiprocessing.Queue는 blocking 호출만 제대로 동작하므로
+      to_thread로 감싸 timeout을 적용하며 polling한다.
+      """
+      while not stop_event.is_set():
+        try:
+          req_data = await asyncio.to_thread(ws_req_queue.get, True, 0.5)
+        except queue.Empty:
+          # 500ms 동안 요청이 없으면 다시 루프 진입
+          continue
+        except Exception as e:
+          logger.error(f"Queue 처리 중 오류: {e}")
+          await asyncio.sleep(0.1)
+          continue
+
+        if not isinstance(req_data, dict):
+          logger.warning(f"알 수 없는 Queue 데이터 무시: {req_data}")
+          continue
+
+        action_id = req_data.get('action_id')
+        stock_code = req_data.get('종목코드')
+        logger.info(f"[DEBUG] Queue에서 요청 수신: action_id={action_id}, stock_code={stock_code}")
+
+        try:
+          if action_id == "실시간체록록등록":
+            logger.info(f"실시간체록록등록 {stock_code}")
+            send_data = korea_invest_api.get_send_data(cmd=3, stock_code=stock_code)
+            await websocket.send(send_data)
+
+          elif action_id == "실시간호가등록":
+            logger.info(f"실시간호가등록 {stock_code}")
+            send_data = korea_invest_api.get_send_data(cmd=1, stock_code=stock_code)
+            logger.info(f"[DEBUG] 호가 구독 데이터 전송: {send_data[:100]}...")
+            await websocket.send(send_data)
+            logger.info(f"[DEBUG] 호가 구독 데이터 전송 완료")
+
+          elif action_id == "실시간체결통보해제":
+            logger.info(f"실시간체결통보해제 {stock_code}")
+            send_data = korea_invest_api.get_send_data(cmd=4, stock_code=stock_code)
+            await websocket.send(send_data)
+
+          elif action_id == "실시간호가해제":
+            logger.info(f"실시간호가해제 {stock_code}")
+            send_data = korea_invest_api.get_send_data(cmd=2, stock_code=stock_code)
+            await websocket.send(send_data)
+
+          elif action_id == "종료":
+            logger.info("종료 요청 수신 – WebSocket 종료")
+            stop_event.set()
+            await websocket.close()
+            break
+          else:
+            logger.warning(f"알 수 없는 action_id: {action_id}")
+        except Exception as e:
+          logger.error(f"Queue 처리 중 전송 오류: action_id={action_id}, error={e}")
+          await asyncio.sleep(0.1)
+
+    queue_task = asyncio.create_task(process_queue())
+
     while True:
-      if not ws_req_queue.empty():
-        req_data = ws_req_queue.get()
-        action_id = req_data['action_id']
-        stock_code = req_data.get('종목코드') # stock_code가 항상 있을 것이라고 가정하지 않음
+      if stop_event.is_set():
+        break
 
-        if action_id == "실시간체록록등록":
-          logger.info(f"실시간체록록등록 {stock_code}")
-          send_data = korea_invest_api.get_send_data(cmd=3, stock_code=stock_code) #실시간체결통보 등록
-          await websocket.send(send_data)
-          
-        elif action_id == "실시간호가등록":
-          logger.info(f"실시간호가등록 {stock_code}")
-          send_data = korea_invest_api.get_send_data(cmd=1, stock_code=stock_code) #실시간호가등록
-          await websocket.send(send_data)
-
-        elif action_id == "실시간체결통보해제":
-          logger.info(f"실시간체결통보해제 {stock_code}")
-          send_data = korea_invest_api.get_send_data(cmd=4, stock_code=stock_code) #실시간체결통보해제
-          await websocket.send(send_data)
-          
-        elif action_id == "실시간호가해제":
-          logger.info(f"실시간호가해제 {stock_code}")
-          send_data = korea_invest_api.get_send_data(cmd=2, stock_code=stock_code) #실시간호가해제
-          await websocket.send(send_data)
-
-        elif action_id == "종료":
-          logger.info(f"종료")
-          break
-          
-
-      data = await websocket.recv()
-      logger.info(f"received data: {data} \n")
+      try:
+        data = await asyncio.wait_for(websocket.recv(), timeout=0.5)
+      except asyncio.TimeoutError:
+        # Queue 태스크가 계속 동작하도록 루프 유지
+        continue
+      except websockets.exceptions.ConnectionClosed as e:
+        logger.info(f"WebSocket 연결 종료 감지: code={e.code}, reason={e.reason}")
+        break
+      # websocket 전달  log 활성화   
+      #logger.info(f"received data: {data} \n")
 
       if data[0] == '0':  
         recvstr = data.split('|')
@@ -291,13 +451,20 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
               metrics_collector.metrics.record_message_dropped()
             
         elif trid0 == "H0STASP0":   # 주식호가 데이터 처리
-          # JSON 파싱으로 변경
-          try:
-            json_data = json.loads(recvstr[3])
-            data_dict = parse_hoga_json(json_data)
-          except json.JSONDecodeError:
-            logger.error(f"호가 데이터 JSON 파싱 실패: {recvstr[3][:100]}")
-            continue
+          # JSON 형식과 ^ 파이프 형식을 모두 지원
+          data_dict = None
+          if recvstr[3].startswith('{'):
+            try:
+              json_data = json.loads(recvstr[3])
+              data_dict = parse_hoga_json(json_data)
+            except json.JSONDecodeError:
+              logger.error(f"호가 데이터 JSON 파싱 실패: {recvstr[3][:100]}")
+              continue
+          else:
+            data_dict = receive_realtime_hoga_domestic_new(recvstr[3])
+            if not data_dict:
+              logger.error(f"호가 파이프 데이터 파싱 실패: {recvstr[3][:100]}")
+              continue
           
           # 백프레셔 처리: Queue 상태 확인
           status = result_monitor.check_status()
@@ -380,6 +547,14 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
           logger.info(f"### RECV [PINGPONG] [{data}]")
           await websocket.send(data)
           logger.info(f"### SEND [PINGPONG] [{data}]")
+
+    # 루프 종료시 Queue 태스크 정리
+    stop_event.set()
+    queue_task.cancel()
+    try:
+      await queue_task
+    except asyncio.CancelledError:
+      pass
 
 
 def receive_signing_notice(data, key, iv, account_num="", ws_result_queue=None):

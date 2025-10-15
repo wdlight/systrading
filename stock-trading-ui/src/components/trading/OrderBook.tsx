@@ -106,22 +106,47 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
   const asks = orderBook.asks.slice(0, 5).reverse(); // 상위 5개, 역순
   const bids = orderBook.bids.slice(0, 5); // 상위 5개
 
-  const maxQuantity = Math.max(
-    ...asks.map(a => a.quantity),
-    ...bids.map(b => b.quantity)
-  );
+  const quantities = [...asks, ...bids].map((row) => row.quantity || 0);
+  const maxQuantity = quantities.length ? Math.max(...quantities) : 0;
 
-  // 현재가는 orderBook에서 계산 (매도1호가와 매수1호가의 중간)
-  const displayPrice = currentPrice ||
-    (orderBook.asks[0]?.price + orderBook.bids[0]?.price) / 2 || 0;
+  const deriveMidPrice = () => {
+    const topAsk = orderBook.asks[0];
+    const topBid = orderBook.bids[0];
+    if (topAsk && topBid) {
+      return Math.round((topAsk.price + topBid.price) / 2);
+    }
+    return topAsk?.price ?? topBid?.price ?? 0;
+  };
+
+  const displayPrice =
+    typeof currentPrice === 'number'
+      ? currentPrice
+      : typeof orderBook.current_price === 'number'
+        ? orderBook.current_price
+        : deriveMidPrice();
+
+  const formattedTimestamp = (() => {
+    if (!orderBook.timestamp) return '--:--:--';
+    const parsed = new Date(orderBook.timestamp);
+    if (Number.isNaN(parsed.getTime())) return '--:--:--';
+    return parsed.toLocaleTimeString('ko-KR', { hour12: false });
+  })();
 
   return (
     <div className="w-full">
+      <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
+
+        <div className="flex items-center w-full text-sm text-white font-semibold">
+          <span className="text-green-400 text-[9px]">호가창</span>
+          <span className="flex-1 text-center text-[11px] text-gray-400">[{formattedTimestamp}]</span>
+          <span className="text-green-400 text-[9px]">실시간</span>
+        </div>
+      </div>
+
       {/* Header */}
-      <div className="grid grid-cols-3 text-[10px] text-gray-400 pb-1 border-b border-gray-700">
+      <div className="grid grid-cols-2 text-[10px] text-gray-400 pb-1 border-b border-gray-700">
         <div className="text-right">가격</div>
         <div className="text-right">수량</div>
-        <div className="text-right">건수</div>
       </div>
 
       {/* Sell Orders (Red) */}
@@ -134,15 +159,12 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
                 className="absolute right-0 top-0 h-full bg-red-900/20"
                 style={{ width: `${widthPercent}%` }}
               />
-              <div className="relative grid grid-cols-3 text-[11px] py-0.5">
+              <div className="relative grid grid-cols-2 text-[11px] py-0.5">
                 <div className="text-right text-red-400 font-medium">
                   {ask.price.toLocaleString()}
                 </div>
                 <div className="text-right text-gray-300">
                   {ask.quantity.toLocaleString()}
-                </div>
-                <div className="text-right text-gray-500 text-[10px]">
-                  {ask.order_count || '-'}
                 </div>
               </div>
             </div>
@@ -167,15 +189,12 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
                 className="absolute right-0 top-0 h-full bg-blue-900/20"
                 style={{ width: `${widthPercent}%` }}
               />
-              <div className="relative grid grid-cols-3 text-[11px] py-0.5">
+              <div className="relative grid grid-cols-2 text-[11px] py-0.5">
                 <div className="text-right text-blue-400 font-medium">
                   {bid.price.toLocaleString()}
                 </div>
                 <div className="text-right text-gray-300">
                   {bid.quantity.toLocaleString()}
-                </div>
-                <div className="text-right text-gray-500 text-[10px]">
-                  {bid.order_count || '-'}
                 </div>
               </div>
             </div>

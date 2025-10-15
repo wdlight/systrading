@@ -2,7 +2,7 @@
 실시간 데이터 API 엔드포인트
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from typing import Dict, Any
 from datetime import datetime
 from loguru import logger
@@ -12,7 +12,7 @@ from app.services.realtime_service import RealtimeDataService
 router = APIRouter(prefix="/realtime", tags=["realtime"])
 
 @router.post("/subscribe/orderbook")
-async def subscribe_orderbook(stock_code: str):
+async def subscribe_orderbook(stock_code: str, request: Request):
     """
     특정 종목의 호가 데이터 구독
     
@@ -24,8 +24,7 @@ async def subscribe_orderbook(stock_code: str):
     """
     import queue
     try:
-        # ws_req_queue에 구독 요청 추가
-        from app.main import ws_req_queue
+        ws_req_queue = getattr(request.app.state, "ws_req_queue", None)
         
         logger.info(f"호가 구독 요청: {stock_code}")
         
@@ -59,6 +58,7 @@ async def subscribe_orderbook(stock_code: str):
 @router.post("/unsubscribe/orderbook")
 async def unsubscribe_orderbook(
     stock_code: str,
+    request: Request,
     realtime_service: RealtimeDataService = Depends(get_realtime_service)
 ):
     """
@@ -66,7 +66,7 @@ async def unsubscribe_orderbook(
     """
     import queue
     try:
-        from app.main import ws_req_queue
+        ws_req_queue = getattr(request.app.state, "ws_req_queue", None)
         
         logger.info(f"호가 구독 해제 요청: {stock_code}")
         
@@ -138,8 +138,8 @@ async def get_current_orderbook(
             return {
                 "stock_code": stock_code,
                 "current_price": 0,
-                "asks": [{"price": 0, "quantity": 0, "order_count": 0} for _ in range(10)],
-                "bids": [{"price": 0, "quantity": 0, "order_count": 0} for _ in range(10)],
+                "asks": [{"price": 0, "quantity": 0} for _ in range(10)],
+                "bids": [{"price": 0, "quantity": 0} for _ in range(10)],
                 "timestamp": now.isoformat(),
                 "market_status": "open",
                 "message": "호가 데이터를 받으려면 WebSocket 구독이 필요합니다. /api/realtime/subscribe/orderbook 엔드포인트를 호출하세요.",
@@ -151,8 +151,8 @@ async def get_current_orderbook(
             return {
                 "stock_code": stock_code,
                 "current_price": 0,
-                "asks": [{"price": 0, "quantity": 0, "order_count": 0} for _ in range(10)],
-                "bids": [{"price": 0, "quantity": 0, "order_count": 0} for _ in range(10)],
+                "asks": [{"price": 0, "quantity": 0} for _ in range(10)],
+                "bids": [{"price": 0, "quantity": 0} for _ in range(10)],
                 "timestamp": now.isoformat(),
                 "market_status": "closed"
             }
@@ -160,3 +160,38 @@ async def get_current_orderbook(
     except Exception as e:
         logger.error(f"호가 데이터 조회 실패: {stock_code}, {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/debug/queue-status")
+async def get_queue_status(request: Request):
+    """디버그: Queue 상태 조회"""
+    ws_req_queue = getattr(request.app.state, "ws_req_queue", None)
+    ws_result_queue = getattr(request.app.state, "ws_result_queue", None)
+    return {
+        "ws_req_queue_size": ws_req_queue.qsize() if ws_req_queue else None,
+        "ws_result_queue_size": ws_result_queue.qsize() if ws_result_queue else None,
+        "ws_req_queue_initialized": ws_req_queue is not None,
+        "ws_result_queue_initialized": ws_result_queue is not None
+    }
+
+@router.get("/debug/cache-status")
+async def get_cache_status(
+    realtime_service: RealtimeDataService = Depends(get_realtime_service)
+):
+    """디버그: 호가 캐시 상태 조회"""
+    cache_keys = list(realtime_service.orderbook_cache.keys())
+    cache_details = {}
+    for stock_code in cache_keys:
+        cached_data = realtime_service.get_cached_orderbook(stock_code)
+        if cached_data:
+            cache_details[stock_code] = {
+                "current_price": cached_data.get("current_price"),
+                "timestamp": cached_data.get("timestamp"),
+                "asks_count": len(cached_data.get("asks", [])),
+                "bids_count": len(cached_data.get("bids", []))
+            }
+    
+    return {
+        "cached_stocks": cache_keys,
+        "cache_size": len(cache_keys),
+        "cache_details": cache_details
+    }

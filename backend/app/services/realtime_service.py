@@ -199,14 +199,11 @@ class RealtimeDataService:
                 
                 # 배치로 메시지 수집 (최대 batch_size개)
                 for _ in range(self.batch_size):
-                    if not self.ws_result_queue.empty():
-                        try:
-                            message = self.ws_result_queue.get_nowait()
-                            messages.append(message)
-                            self.metrics_collector.metrics.record_message_received()
-                        except Empty:
-                            break
-                    else:
+                    try:
+                        message = self.ws_result_queue.get_nowait()
+                        messages.append(message)
+                        self.metrics_collector.metrics.record_message_received()
+                    except Empty:
                         break
                 
                 if messages:
@@ -300,6 +297,7 @@ class RealtimeDataService:
             
             # 캐시에 저장
             current_time = time.time()
+            logger.info(f"📊 호가 데이터 처리: {stock_code}, 현재가={hoga_data.get('current_price')}, 매도1={hoga_data.get('asks', [{}])[0].get('price', 0)}, 매수1={hoga_data.get('bids', [{}])[0].get('price', 0)}")
             self.orderbook_cache[stock_code] = {
                 "stock_code": stock_code,
                 "current_price": hoga_data.get("current_price"),
@@ -312,19 +310,21 @@ class RealtimeDataService:
             self.last_orderbook_update[stock_code] = current_time
             
             # Frontend로 브로드캐스트 (구독자에게만)
+            broadcast_message = {
+                "type": "orderbook_update",
+                "stock_code": stock_code,
+                "data": {
+                    "asks": hoga_data.get("asks", []),
+                    "bids": hoga_data.get("bids", []),
+                    "current_price": hoga_data.get("current_price"),
+                    "timestamp": hoga_data.get("timestamp")
+                },
+                "timestamp": datetime.now().isoformat()
+            }
+            logger.info(f"📡 호가 데이터 브로드캐스트: {stock_code}")
             await self.connection_manager.broadcast_to_stock_subscribers(
                 stock_code,
-                {
-                    "type": "orderbook_update",
-                    "stock_code": stock_code,
-                    "data": {
-                        "asks": hoga_data.get("asks", []),
-                        "bids": hoga_data.get("bids", []),
-                        "current_price": hoga_data.get("current_price"),
-                        "timestamp": hoga_data.get("timestamp")
-                    },
-                    "timestamp": datetime.now().isoformat()
-                }
+                broadcast_message
             )
             
             self.metrics_collector.metrics.record_message_processed()

@@ -389,12 +389,12 @@ export function OrderForm({
         {/* Order Book - Show only for limit orders */}
         {orderType === OrderType.LIMIT && currentPrice > 0 && (
           <div className="border-t border-gray-700 pt-2 mt-2">
-            <div className="flex items-center justify-between mb-1">
-              <Label className="text-gray-300 text-[10px]">호가창</Label>
+            {/* <div className="flex items-center justify-between mb-1">
+              <Label className="text-gray-300 text-[10px]">호가창--</Label>
               <Badge variant="outline" className="text-[9px] px-1 py-0">
                 실시간
               </Badge>
-            </div>
+            </div> */}
             <OrderBook stockCode={stockCode} currentPrice={currentPrice} />
           </div>
         )}

@@ -115,13 +115,13 @@ class OrderService:
 
         # 입력 DF의 메타 로깅 (환경 변수로 토글)
         ORDER_PARSER_DEBUG = os.getenv('ORDER_PARSER_DEBUG') == '1'
-        if ORDER_PARSER_DEBUG:
-            try:
-                logger.info(
-                    f"[주문파서] 입력 DataFrame 메타 | rows={len(df)} | columns={list(df.columns)} | dtypes={ {c: str(t) for c,t in df.dtypes.to_dict().items()} }"
-                )
-            except Exception:
-                pass
+        # if ORDER_PARSER_DEBUG:
+        #     try:
+        #         logger.info(
+        #             f"[주문파서] 입력 DataFrame 메타 | rows={len(df)} | columns={list(df.columns)} | dtypes={ {c: str(t) for c,t in df.dtypes.to_dict().items()} }"
+        #         )
+        #     except Exception:
+        #         pass
 
         df = df.astype(object).where(pd.notnull(df), None)
         records = df.to_dict('records')
@@ -293,14 +293,14 @@ class OrderService:
                 return OrderHistoryResponse(success=True, message="체결 내역 없음", orders=[], total_count=0)
 
             row_count = len(df)
-            logger.info(
-                "체결 내역 원본 DataFrame 정보",
-                extra={
-                    "row_count": row_count,
-                    "columns": list(df.columns),
-                    "sample": df.head(5).to_dict(orient="records") if row_count > 0 else [],
-                }
-            )
+            # logger.info(
+            #     "체결 내역 원본 DataFrame 정보",
+            #     extra={
+            #         "row_count": row_count,
+            #         "columns": list(df.columns),
+            #         "sample": df.head(5).to_dict(orient="records") if row_count > 0 else [],
+            #     }
+            # )
 
             orders = self._parse_order_df(df, is_history=True)
 
