@@ -156,8 +156,30 @@ export interface OrderBookUpdate {
 }
 
 // WebSocket 메시지 타입
+export interface MinuteCandlePayload {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  last_tick?: string;
+}
+
+export interface MinuteCandleUpdateMessage {
+  type: 'minute_candle_update';
+  stock_code: string;
+  data: MinuteCandlePayload;
+}
+
+export interface MinuteCandleFinalizeMessage {
+  type: 'minute_candle_finalize';
+  stock_code: string;
+  data: MinuteCandlePayload;
+}
+
 export interface RealtimeMessage {
-  type: 'account_update' | 'watchlist_update' | 'price_update' | 'trading_status' | 'order_update' | 'connection_status' | 'market_index_update' | 'orderbook_update' | 'market_status_update';
+  type: 'account_update' | 'watchlist_update' | 'price_update' | 'trading_status' | 'order_update' | 'connection_status' | 'market_index_update' | 'orderbook_update' | 'market_status_update' | 'minute_candle_update' | 'minute_candle_finalize';
   timestamp: string;
   data: any;
 }

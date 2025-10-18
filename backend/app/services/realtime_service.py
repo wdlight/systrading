@@ -5,15 +5,19 @@
 
 import asyncio
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from loguru import logger
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple, Callable, Awaitable
 from queue import Queue, Empty
 import time
+from pathlib import Path
 
 from app.websocket.connection import ConnectionManager
 from app.core.korea_invest import KoreaInvestAPIService
+from app.models.schemas import ChartCandle
+from app.models.realtime_minute import MinuteCandleState
 from app.utils.performance_metrics import get_global_metrics_collector
+from app.utils.time import parse_kis_time
 from app.utils.websocket_logger import websocket_logger
 
 
@@ -49,6 +53,29 @@ class RealtimeDataService:
         self.orderbook_cache: Dict[str, Dict[str, Any]] = {}  # {stock_code: OrderBookData}
         self.orderbook_cache_ttl = 300  # 5분 TTL (초)
         self.last_orderbook_update: Dict[str, float] = {}  # {stock_code: timestamp}
+
+        # 실시간 분봉 집계 상태
+        self.minute_candle_state: Dict[str, MinuteCandleState] = {}
+        self.minute_state_lock = asyncio.Lock()
+        self.minute_state_ttl = timedelta(minutes=10)
+        self._last_acc_volume: Dict[str, int] = {}
+        self.minute_finalize_queue: asyncio.Queue[Tuple[str, ChartCandle]] = asyncio.Queue(maxsize=200)
+        self._minute_persist_handler: Optional[Callable[[str, ChartCandle], Awaitable[None]]] = None
+
+        # 분봉 샘플 로그 설정
+        sample_log_path = Path("logs/minute_candle_samples.log")
+        sample_log_path.parent.mkdir(parents=True, exist_ok=True)
+        self.minute_log_handle = logger.add(
+            sample_log_path,
+            level="DEBUG",
+            rotation="10 MB",
+            enqueue=True,
+            filter=lambda record: record["extra"].get("channel") == "minute_candle"
+        )
+        self.minute_logger = logger.bind(channel="minute_candle")
+        self._sample_log_enabled = True
+        self._sample_log_limit = 50
+        self._sample_log_counter = 0
 
         # 설정값들 (기존 PyQt5 애플리케이션에서 가져올 예정)
         self.trading_conditions = {
@@ -102,7 +129,9 @@ class RealtimeDataService:
                 asyncio.create_task(self._tr_result_loop()),          # 0.05초 주기 (timer3)
                 asyncio.create_task(self._market_data_loop()),        # 2초 주기 (timer4)
                 asyncio.create_task(self._settings_save_loop()),      # 10초 주기 (timer1)
-                asyncio.create_task(self._heartbeat_loop())           # 30초 주기 (하트비트)
+                asyncio.create_task(self._heartbeat_loop()),          # 30초 주기 (하트비트)
+                asyncio.create_task(self._minute_persistence_worker()),
+                asyncio.create_task(self._minute_state_cleanup_loop()),
             ]
             
             # 모든 태스크가 완료될 때까지 대기 (실제로는 무한 루프)
@@ -130,6 +159,13 @@ class RealtimeDataService:
             await asyncio.gather(*self.tasks, return_exceptions=True)
         
         self.tasks = []
+        self._sample_log_enabled = False
+        if hasattr(self, "minute_log_handle") and self.minute_log_handle is not None:
+            try:
+                logger.remove(self.minute_log_handle)
+            except ValueError:
+                pass
+            self.minute_log_handle = None
         logger.info("실시간 데이터 서비스가 중지되었습니다.")
 
     def _extract_index_values(self, payload: Dict[str, Any]) -> Optional[Dict[str, float]]:
@@ -385,31 +421,170 @@ class RealtimeDataService:
             del self.last_orderbook_update[stock_code]
     
     async def _handle_tick_data(self, message: Dict[str, Any]):
-        """체결 데이터 처리"""
+        """체결 데이터 처리 및 분봉 집계"""
         try:
-            data = message.get('data', {})
-            stock_code = data.get('종목코드')
-            
-            if '현재가' not in data:
+            data = message.get("data", {})
+            stock_code = message.get("stock_code") or data.get("stock_code")
+
+            if not stock_code:
                 return
-            
-            current_price_str = data.get('현재가')
-            current_price = float(current_price_str.replace(",", "")) if current_price_str else 0
-            
+
+            price = float(data.get("price", 0) or 0)
+            if price <= 0:
+                return
+
+            executed_time = data.get("executed_time")
+            if not executed_time:
+                return
+
+            trade_volume = int(data.get("trade_volume", 0) or 0)
+            acc_volume = int(data.get("acc_volume", 0) or 0)
+
+            # Fallback: 누적 거래량 증분으로 체결량 계산
+            previous_acc = self._last_acc_volume.get(stock_code)
+            if trade_volume <= 0 and previous_acc is not None and acc_volume >= previous_acc:
+                trade_volume = acc_volume - previous_acc
+            if trade_volume < 0:
+                logger.warning(f"음수 체결량 감지 → 0으로 보정: {stock_code}, delta={trade_volume}")
+                trade_volume = 0
+            if acc_volume > 0:
+                self._last_acc_volume[stock_code] = acc_volume
+
+            executed_ts = parse_kis_time(executed_time)
+            minute_key = executed_ts.strftime("%Y-%m-%dT%H:%M:00")
+
+            # 샘플 로그
+            if getattr(self, "_sample_log_enabled", False) and self._sample_log_counter < self._sample_log_limit:
+                self._sample_log_counter += 1
+                self.minute_logger.debug(
+                    "tick sample | stock={stock} minute={minute} payload={payload}",
+                    stock=stock_code,
+                    minute=minute_key,
+                    payload=data.get("raw_payload") or message.get("raw_payload")
+                )
+                if self._sample_log_counter >= self._sample_log_limit:
+                    self._sample_log_enabled = False
+
+            # 분봉 상태 갱신
+            async with self.minute_state_lock:
+                state = self.minute_candle_state.get(stock_code)
+
+                if state and state.minute_key != minute_key:
+                    await self._flush_closed_candle(stock_code, state)
+                    state = None
+
+                if not state:
+                    state = MinuteCandleState(
+                        minute_key=minute_key,
+                        open=price,
+                        high=price,
+                        low=price,
+                        close=price,
+                        volume=trade_volume,
+                        start_ts=executed_ts,
+                        last_tick_ts=executed_ts,
+                    )
+                    self.minute_candle_state[stock_code] = state
+                else:
+                    state.apply_tick(price, trade_volume, executed_ts)
+
+            await self._broadcast_minute_snapshot(stock_code, state)
+
+            # 워치리스트 가격 갱신 (기존 기능 유지)
             if stock_code in self.realtime_watchlist_df.index:
-                self.realtime_watchlist_df.loc[stock_code, "현재가"] = current_price
-                
-                # WebSocket으로 브로드캐스트
+                self.realtime_watchlist_df.loc[stock_code, "현재가"] = price
                 await self.connection_manager.broadcast({
                     "type": "tick_update",
                     "stock_code": stock_code,
-                    "current_price": current_price,
+                    "current_price": price,
                     "timestamp": datetime.now().isoformat()
                 })
-                
+
         except Exception as e:
             logger.error(f"체결 데이터 처리 오류: {e}")
             self.metrics_collector.metrics.record_broadcast_error()
+
+    async def _broadcast_minute_snapshot(self, stock_code: str, state: MinuteCandleState):
+        """현재 진행 중인 분봉 스냅샷 브로드캐스트"""
+        payload = {
+            "type": "minute_candle_update",
+            "stock_code": stock_code,
+            "data": {
+                "timestamp": state.minute_key,
+                "open": state.open,
+                "high": state.high,
+                "low": state.low,
+                "close": state.close,
+                "volume": state.volume,
+                "last_tick": state.last_tick_ts.isoformat(),
+            }
+        }
+        await self.connection_manager.broadcast(payload)
+
+    async def _flush_closed_candle(self, stock_code: str, state: MinuteCandleState) -> None:
+        """분 경계 통과 시 완료된 캔들을 확정하고 persistence 큐로 전달"""
+        candle = state.to_chart_candle()
+        await self._enqueue_candle_for_persistence(stock_code, candle)
+        await self.connection_manager.broadcast({
+            "type": "minute_candle_finalize",
+            "stock_code": stock_code,
+            "data": candle.model_dump(),
+        })
+        self.minute_candle_state.pop(stock_code, None)
+
+    async def _enqueue_candle_for_persistence(self, stock_code: str, candle: ChartCandle) -> None:
+        try:
+            self.minute_finalize_queue.put_nowait((stock_code, candle))
+        except asyncio.QueueFull:
+            logger.warning(f"minute_finalize_queue 가득 참: {stock_code}, {candle.timestamp}")
+
+    async def _minute_persistence_worker(self):
+        logger.info("분봉 persistence worker 시작")
+        try:
+            while self.is_running or not self.minute_finalize_queue.empty():
+                try:
+                    stock_code, candle = await asyncio.wait_for(self.minute_finalize_queue.get(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    continue
+                except asyncio.CancelledError:
+                    break
+
+                try:
+                    if self._minute_persist_handler:
+                        await self._minute_persist_handler(stock_code, candle)
+                    else:
+                        logger.debug(f"분봉 persistence handler 미설정 - {stock_code} {candle.timestamp}")
+                except Exception as exc:
+                    logger.error(f"분봉 persistence 처리 실패: {exc}")
+                finally:
+                    self.minute_finalize_queue.task_done()
+        finally:
+            logger.info("분봉 persistence worker 종료")
+
+    async def _minute_state_cleanup_loop(self):
+        logger.info("분봉 상태 정리 루프 시작 (60초 주기)")
+        try:
+            while self.is_running:
+                await asyncio.sleep(60)
+                await self._drain_stale_states()
+        except asyncio.CancelledError:
+            logger.info("분봉 상태 정리 루프가 취소되었습니다.")
+
+    async def _drain_stale_states(self):
+        cutoff = datetime.now() - self.minute_state_ttl
+        async with self.minute_state_lock:
+            stale_keys = [
+                code for code, state in self.minute_candle_state.items()
+                if state.last_tick_ts < cutoff
+            ]
+            for code in stale_keys:
+                logger.debug(f"분봉 상태 정리: {code}")
+                self.minute_candle_state.pop(code, None)
+                self._last_acc_volume.pop(code, None)
+
+    def set_minute_persist_handler(self, handler: Callable[[str, ChartCandle], Awaitable[None]]) -> None:
+        """외부에서 persistence 핸들러를 주입"""
+        self._minute_persist_handler = handler
     
     async def _market_data_loop(self):
         """시장 데이터 업데이트 루프 (기존 timer4 로직)"""

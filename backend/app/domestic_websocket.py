@@ -438,7 +438,7 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
               ws_result_queue.put(
                 dict(
                   action_id='실시간체결',
-                  종목코드=data_dict["종목코드"],
+                  stock_code=data_dict["stock_code"],
                   data=data_dict
                 ), 
                 block=True, 
@@ -629,21 +629,47 @@ def receive_signing_notice(data, key, iv, account_num="", ws_result_queue=None):
   )
 
   
-def receive_realtime_tick_domestic(data):
+def receive_realtime_tick_domestic(raw: str) -> dict:
   """
-  메뉴 순서는 '|'로 분리 해서 하나씩 접근함.
-  유가 증권단축종목코드|주식체결시간|주식현재가|전일대비부호|전일대비|전일대비율|가중평균주식가격|주식시가|주식최고가|주식최저가|
-  매도호가1|매수호가1|체결거래량|누적거래량|누적거래대금|매도체결건수|매수체결건수|순매수체결건수|체결강도|총매도수량|총매수수량|체결구분|
-  매수비율|전일거래량대비등락율|시가시간|시가대비구분|시가대비|최고가시간|고가대비구분|고가대비|최저가시간|저가대비구분|저가대비|영업일자|
-  신장운영구분코드|거래정지여부|매도호가잔량|매수호가잔량|종매도호가잔량|총매수호가잔량|거래량회전율|전일동시간누적거래량|전일동시간누적거래량비율|
-  시간구분코드|임의종료구분코드|정적VI발동기준가
+  한국투자증권 H0STCNI0 체결 채널 (^ 구분 문자열) 파싱.
+
+  필드 순서는 docs/KIS-API/KIS-ws-H0STCNI0.spec.md 기준으로 21개이다.
   """
-  values = data.split('^')
-  종목코드 = values[0]
-  체결시간 = values[1]
-  현재가 = values[2]
-  return dict( 
-    종목코드=종목코드,
-    체결결간=체결시간,
-    현재가=현재가,
-  )
+  values = raw.split("^")
+
+  def _int(idx: int, default: int = 0) -> int:
+    try:
+      return int(values[idx]) if len(values) > idx and values[idx] else default
+    except ValueError:
+      return default
+
+  def _float(idx: int, default: float = 0.0) -> float:
+    try:
+      return float(values[idx]) if len(values) > idx and values[idx] else default
+    except ValueError:
+      return default
+
+  return {
+    "stock_code": values[0] if len(values) > 0 else "",
+    "executed_time": values[1] if len(values) > 1 else "",
+    "price": _int(2),
+    "trade_volume": _int(3),
+    "change_sign": values[4] if len(values) > 4 else "",
+    "change": _int(5),
+    "change_rate": _float(6),
+    "ask_price": _int(7),
+    "bid_price": _int(8),
+    "ask_qty": _int(9),
+    "bid_qty": _int(10),
+    "market_code": values[11] if len(values) > 11 else "",
+    "total_ask_qty": _int(12),
+    "total_bid_qty": _int(13),
+    "volume_ratio": _float(14),
+    "acc_volume": _int(15),
+    "acc_value": _int(16),
+    "open_price": _int(17),
+    "high_price": _int(18),
+    "low_price": _int(19),
+    "sequence": _int(20),
+    "raw_payload": raw,
+  }

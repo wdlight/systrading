@@ -8,7 +8,9 @@ import {
   OrderUpdate,
   ConnectionStatus,
   OrderBookUpdate,
-  MarketStatusUpdate
+  MarketStatusUpdate,
+  MinuteCandleUpdateMessage,
+  MinuteCandleFinalizeMessage
 } from './types';
 import { API_CONFIG, WS_MESSAGE_TYPES } from './constants';
 
@@ -272,6 +274,12 @@ export class WebSocketManager {
       case WS_MESSAGE_TYPES.MARKET_INDEX_UPDATE:
         this.notifyListeners(type, data);
         break;
+      case WS_MESSAGE_TYPES.MINUTE_CANDLE_UPDATE:
+        this.notifyListeners(type, message as any);
+        break;
+      case WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZE:
+        this.notifyListeners(type, message as any);
+        break;
       case 'orderbook_update':
         console.log('📊 호가 업데이트 메시지 수신:', data);
         this.notifyListeners(type, data);
@@ -517,6 +525,23 @@ export function subscribeToConnectionStatus(callback: (state: ConnectionState) =
 // 시장 지수 업데이트 구독
 export function subscribeToMarketIndexUpdates(callback: (data: any) => void): void {
   wsManager.on(WS_MESSAGE_TYPES.MARKET_INDEX_UPDATE, callback);
+}
+
+// 분봉 실시간 업데이트 구독
+export function subscribeToMinuteCandles(callback: (message: MinuteCandleUpdateMessage) => void): () => void {
+  const listener = (message: MinuteCandleUpdateMessage) => {
+    callback(message);
+  };
+  wsManager.on(WS_MESSAGE_TYPES.MINUTE_CANDLE_UPDATE, listener);
+  return () => wsManager.off(WS_MESSAGE_TYPES.MINUTE_CANDLE_UPDATE, listener);
+}
+
+export function subscribeToMinuteCandleFinalize(callback: (message: MinuteCandleFinalizeMessage) => void): () => void {
+  const listener = (message: MinuteCandleFinalizeMessage) => {
+    callback(message);
+  };
+  wsManager.on(WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZE, listener);
+  return () => wsManager.off(WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZE, listener);
 }
 
 /**

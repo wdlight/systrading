@@ -1,9 +1,10 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useMemo } from 'react';
 import { ChartCandle } from '@/lib/types/korean-stocks';
 import { UniversalChart } from './chart-adapters';
 import { useHistoricalChartData } from '@/hooks/useHistoricalChartData';
+import { useRealtimeMinuteCandles } from '@/hooks/useRealtimeMinuteCandles';
 
 interface RealtimeCandlestickChartProps {
   // ✅ Backward compatibility: chartData 또는 stockCode 둘 다 지원
@@ -38,10 +39,35 @@ const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = memo((
   });
 
   // ✅ chartData 우선순위: externalChartData > autoChartData
-  const chartData = externalChartData || autoChartData;
+  const baseChartData = externalChartData || autoChartData;
+
+  const realtimeCandle = useRealtimeMinuteCandles(
+    stockCode || '',
+    timeframe === 'minute' && !!stockCode
+  );
+
+  const finalChartData = useMemo(() => {
+    if (!realtimeCandle || baseChartData.length === 0) {
+      return baseChartData;
+    }
+
+    const lastCandle = baseChartData[baseChartData.length - 1];
+    const lastMinute = lastCandle.timestamp.substring(0, 16);
+    const realtimeMinute = realtimeCandle.timestamp.substring(0, 16);
+
+    if (lastMinute === realtimeMinute) {
+      return [...baseChartData.slice(0, -1), realtimeCandle];
+    }
+
+    if (new Date(realtimeCandle.timestamp).getTime() > new Date(lastCandle.timestamp).getTime()) {
+      return [...baseChartData, realtimeCandle];
+    }
+
+    return baseChartData;
+  }, [baseChartData, realtimeCandle]);
 
   // 로딩 상태 표시 (자동 로딩 모드일 때만)
-  if (stockCode && !externalChartData && isLoading && chartData.length === 0) {
+  if (stockCode && !externalChartData && isLoading && baseChartData.length === 0) {
     return (
       <div
         className="bg-[#0a0a0b] border border-gray-700 rounded-lg flex items-center justify-center"
@@ -73,7 +99,7 @@ const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = memo((
   return (
     <UniversalChart
       library="recharts"
-      chartData={chartData}
+      chartData={finalChartData}
       height={height}
       timeframe={timeframe}
       events={{
