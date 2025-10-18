@@ -298,6 +298,7 @@ class RealtimeDataService:
             # 캐시에 저장
             current_time = time.time()
             logger.info(f"📊 호가 데이터 처리: {stock_code}, 현재가={hoga_data.get('current_price')}, 매도1={hoga_data.get('asks', [{}])[0].get('price', 0)}, 매수1={hoga_data.get('bids', [{}])[0].get('price', 0)}")
+            logger.info(f" RAW Data: {hoga_data}")
             self.orderbook_cache[stock_code] = {
                 "stock_code": stock_code,
                 "current_price": hoga_data.get("current_price"),

@@ -897,13 +897,8 @@ class KoreaInvestAPI:
             # 로그 내용 구성
             log_entry = f"""
 ================================================================================
-[{timestamp}] KOREA INVESTMENT API CALL
+[{timestamp}] KIS API CALL : TR_ID: {tr_id}, URL: {url}, STATUS: {status}
 ================================================================================
-TR_ID: {tr_id}
-METHOD: {method}
-URL: {url}
-STATUS: {status}
-
 PARAMETERS:
 {params_str}
 

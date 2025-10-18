@@ -83,21 +83,34 @@ export function TRViewChart({
     if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
-      ...getTRViewChartOptions(),
+      ...getTRViewChartOptions(timeframe),
       width: chartContainerRef.current.clientWidth,
       height,
     });
     chartRef.current = chart;
     chart.applyOptions({
       localization: {
-        timeFormatter: (timestamp: number) =>
-          formatKST(new Date(timestamp * 1000), {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
+        timeFormatter: (timestamp: number) => {
+          const date = new Date(timestamp * 1000);
+
+          if (timeframe === 'day') {
+            // 일봉: YYYY-MM-DD 형식 (툴팁/범례용)
+            return formatKST(date, {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            });
+          } else {
+            // 분봉: YYYY-MM-DD HH:MM 형식
+            return formatKST(date, {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          }
+        },
       },
     });
 
@@ -154,7 +167,7 @@ export function TRViewChart({
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [height, showVolume, formatKST]);
+  }, [height, showVolume, formatKST, timeframe]);
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -170,37 +183,18 @@ export function TRViewChart({
 
   useEffect(() => {
     if (volumeSeriesRef.current) {
-        volumeSeriesRef.current.applyOptions({ visible: showVolume });
+      volumeSeriesRef.current.applyOptions({ visible: showVolume });
     }
   }, [showVolume]);
 
   useEffect(() => {
     if (!chartRef.current) return;
 
-    const isDay = timeframe === 'day';
-
     chartRef.current.timeScale().applyOptions({
-      timeVisible: !isDay,
+      timeVisible: true,  // 항상 시간 표시
       secondsVisible: false,
-      // tickMarkFormatter는 lightweight-charts 타입 정의에 없으므로 주석 처리
-      // tickMarkFormatter: (time: number) => {
-      //   const date = new Date(time * 1000);
-      //
-      //   if (isDay) {
-      //     return formatKST(date, {
-      //       year: 'numeric',
-      //       month: '2-digit',
-      //       day: '2-digit',
-      //     });
-      //   } else {
-      //     return formatKST(date, {
-      //       hour: '2-digit',
-      //       minute: '2-digit',
-      //     });
-      //   }
-      // },
     });
-  }, [timeframe, formatKST]);
+  }, [timeframe]);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -223,12 +217,12 @@ export function TRViewChart({
       }
     }
     if (volumeSeriesRef.current) {
-        if (volumeData && volumeData.length > 0) {
-            volumeSeriesRef.current.setData(volumeData);
-        }
-        else {
-            volumeSeriesRef.current.setData([]);
-        }
+      if (volumeData && volumeData.length > 0) {
+        volumeSeriesRef.current.setData(volumeData);
+      }
+      else {
+        volumeSeriesRef.current.setData([]);
+      }
     }
   }, [candleData, volumeData, chartData, hasExtendedRange, initialVisibleCandles]);
 

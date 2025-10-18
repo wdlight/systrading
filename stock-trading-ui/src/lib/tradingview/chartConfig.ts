@@ -1,7 +1,9 @@
 // lib/tradingview/chartConfig.ts
 import { ChartOptions, DeepPartial, UTCTimestamp } from 'lightweight-charts';
 
-export function getTRViewChartOptions(): DeepPartial<ChartOptions> {
+export function getTRViewChartOptions(
+  timeframe: 'minute' | 'day' = 'minute'
+): DeepPartial<ChartOptions> {
   return {
     layout: {
       background: {
@@ -43,13 +45,24 @@ export function getTRViewChartOptions(): DeepPartial<ChartOptions> {
       secondsVisible: false,
       tickMarkFormatter: (time: UTCTimestamp) => {
         const date = new Date(time * 1000);
-        // Intl.DateTimeFormat을 사용하여 한국 시간으로 포맷
-        return new Intl.DateTimeFormat('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-          timeZone: 'Asia/Seoul',
-        }).format(date);
+
+        if (timeframe === 'day') {
+          // 일봉: MM/DD 형식
+          return new Intl.DateTimeFormat('ko-KR', {
+            month: '2-digit',
+            day: '2-digit',
+            timeZone: 'Asia/Seoul',
+          }).format(date).replace('. ', '/').replace('.', '');
+          // "10. 15." → "10/15"
+        } else {
+          // 분봉: HH:MM 형식
+          return new Intl.DateTimeFormat('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'Asia/Seoul',
+          }).format(date);
+        }
       },
     },
     rightPriceScale: {
