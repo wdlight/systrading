@@ -8,9 +8,11 @@ export function useRealtimeMinuteCandles(stockCode: string, enabled: boolean = t
   const [finalizedCandles, setFinalizedCandles] = useState<ChartCandle[]>([]);
 
   useEffect(() => {
+    // ✅ 종목 전환 시 상태 즉시 초기화 (데이터 오염 방지)
+    setCurrentCandle(null);
+    setFinalizedCandles([]);
+
     if (!enabled || !stockCode) {
-      setCurrentCandle(null);
-      setFinalizedCandles([]);
       return;
     }
 
