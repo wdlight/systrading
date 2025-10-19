@@ -553,7 +553,10 @@ class RealtimeDataService:
                     if self._minute_persist_handler:
                         await self._minute_persist_handler(stock_code, candle)
                     else:
-                        logger.debug(f"분봉 persistence handler 미설정 - {stock_code} {candle.timestamp}")
+                        logger.warning(
+                            f"⚠️ [Persistence Worker] Handler 미설정! "
+                            f"분봉이 캐시에 저장되지 않음 - {stock_code} {candle.timestamp}"
+                        )
                 except Exception as exc:
                     logger.error(f"분봉 persistence 처리 실패: {exc}")
                 finally:

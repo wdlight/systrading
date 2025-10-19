@@ -41,30 +41,51 @@ const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = memo((
   // ✅ chartData 우선순위: externalChartData > autoChartData
   const baseChartData = externalChartData || autoChartData;
 
-  const realtimeCandle = useRealtimeMinuteCandles(
+  const { currentCandle, finalizedCandles } = useRealtimeMinuteCandles(
     stockCode || '',
     timeframe === 'minute' && !!stockCode
   );
 
   const finalChartData = useMemo(() => {
-    if (!realtimeCandle || baseChartData.length === 0) {
-      return baseChartData;
+    let mergedData = [...baseChartData];
+
+    // 1. 완성된 분봉 병합 (finalize 이벤트로 받은 것들)
+    if (finalizedCandles.length > 0) {
+      finalizedCandles.forEach((finalizedCandle) => {
+        const existingIndex = mergedData.findIndex(
+          c => c.timestamp === finalizedCandle.timestamp
+        );
+
+        if (existingIndex >= 0) {
+          // 기존 데이터 교체 (WebSocket이 더 최신)
+          mergedData[existingIndex] = finalizedCandle;
+        } else {
+          // 새 분봉 추가
+          mergedData.push(finalizedCandle);
+        }
+      });
+
+      // 타임스탬프 정렬
+      mergedData.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
     }
 
-    const lastCandle = baseChartData[baseChartData.length - 1];
-    const lastMinute = lastCandle.timestamp.substring(0, 16);
-    const realtimeMinute = realtimeCandle.timestamp.substring(0, 16);
+    // 2. 현재 진행 중인 분봉 병합 (update 이벤트)
+    if (currentCandle && mergedData.length > 0) {
+      const lastCandle = mergedData[mergedData.length - 1];
+      const currentMinute = currentCandle.timestamp.substring(0, 16);
+      const lastMinute = lastCandle?.timestamp.substring(0, 16);
 
-    if (lastMinute === realtimeMinute) {
-      return [...baseChartData.slice(0, -1), realtimeCandle];
+      if (lastMinute === currentMinute) {
+        // 같은 분봉: 마지막 항목 교체
+        mergedData = [...mergedData.slice(0, -1), currentCandle];
+      } else if (new Date(currentCandle.timestamp).getTime() > new Date(lastCandle.timestamp).getTime()) {
+        // 새로운 분봉: 추가
+        mergedData = [...mergedData, currentCandle];
+      }
     }
 
-    if (new Date(realtimeCandle.timestamp).getTime() > new Date(lastCandle.timestamp).getTime()) {
-      return [...baseChartData, realtimeCandle];
-    }
-
-    return baseChartData;
-  }, [baseChartData, realtimeCandle]);
+    return mergedData;
+  }, [baseChartData, currentCandle, finalizedCandles]);
 
   // 로딩 상태 표시 (자동 로딩 모드일 때만)
   if (stockCode && !externalChartData && isLoading && baseChartData.length === 0) {
