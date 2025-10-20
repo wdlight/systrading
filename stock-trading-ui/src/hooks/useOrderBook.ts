@@ -151,28 +151,31 @@ export function useOrderBook({
     if (!isSubscribed) return;
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/realtime/unsubscribe/orderbook?stock_code=${stockCode}`,
-        { method: 'POST' }
-      );
+      // # 임시 비활성화: 백엔드 지속 구독 테스트용
+      // const response = await fetch(
+      //   `${process.env.NEXT_PUBLIC_API_URL}/api/realtime/unsubscribe/orderbook?stock_code=${stockCode}`,
+      //   { method: 'POST' }
+      // );
+      //
+      // if (!response.ok) {
+      //   throw new Error('호가 구독 해제 실패');
+      // }
+      //
+      // // WebSocket 구독 해제
+      // if (wsManager.isConnected()) {
+      //   wsManager.send({
+      //     type: 'unsubscribe',
+      //     stock_code: stockCode
+      //   });
+      //   console.log(`❌ 호가 WebSocket 구독 해제: ${stockCode}`);
+      // }
+      //
+      // // pending list에서 제거
+      // wsManager.removePendingSubscription(stockCode);
+      // setIsSubscribed(false);
+      // console.log(`❌ 호가 구독 해제: ${stockCode}`);
 
-      if (!response.ok) {
-        throw new Error('호가 구독 해제 실패');
-      }
-
-      // WebSocket 구독 해제
-      if (wsManager.isConnected()) {
-        wsManager.send({
-          type: 'unsubscribe',
-          stock_code: stockCode
-        });
-        console.log(`❌ 호가 WebSocket 구독 해제: ${stockCode}`);
-      }
-
-      // pending list에서 제거
-      wsManager.removePendingSubscription(stockCode);
-      setIsSubscribed(false);
-      console.log(`❌ 호가 구독 해제: ${stockCode}`);
+      console.warn('⚠️ 호가 구독 해제 호출이 임시로 비활성화되었습니다. (백엔드 지속 구독 테스트)');
     } catch (err) {
       console.error('호가 구독 해제 오류:', err);
       throw err; // 호출 측에서 처리할 수 있도록 에러 재throw
@@ -240,17 +243,17 @@ export function useOrderBook({
     }
 
     return () => {
-      if (isSubscribed) {
-        unsubscribe();
-      }
-
-      // WebSocket 구독 해제 (cleanup 시에도)
-      if (wsManager.isConnected()) {
-        wsManager.send({
-          type: 'unsubscribe',
-          stock_code: stockCode
-        });
-      }
+      // # 임시 비활성화: 백엔드 지속 구독 모니터링을 위해 cleanup 시 구독 해제하지 않음
+      // if (isSubscribed) {
+      //   unsubscribe();
+      // }
+      //
+      // if (wsManager.isConnected()) {
+      //   wsManager.send({
+      //     type: 'unsubscribe',
+      //     stock_code: stockCode
+      //   });
+      // }
     };
   }, [autoSubscribe, isSubscribed, subscribe, unsubscribe, stockCode]);
 

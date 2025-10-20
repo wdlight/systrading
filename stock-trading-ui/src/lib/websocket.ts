@@ -529,19 +529,29 @@ export function subscribeToMarketIndexUpdates(callback: (data: any) => void): vo
 
 // 분봉 실시간 업데이트 구독
 export function subscribeToMinuteCandles(callback: (message: MinuteCandleUpdateMessage) => void): () => void {
+  console.log('📝 [WS] minute_candle_update 리스너 등록');
   const listener = (message: MinuteCandleUpdateMessage) => {
+    console.log('📨 [WS] minute_candle_update 리스너 실행:', message);
     callback(message);
   };
   wsManager.on(WS_MESSAGE_TYPES.MINUTE_CANDLE_UPDATE, listener);
-  return () => wsManager.off(WS_MESSAGE_TYPES.MINUTE_CANDLE_UPDATE, listener);
+  return () => {
+    console.log('🔚 [WS] minute_candle_update 리스너 해제');
+    wsManager.off(WS_MESSAGE_TYPES.MINUTE_CANDLE_UPDATE, listener);
+  };
 }
 
 export function subscribeToMinuteCandleFinalize(callback: (message: MinuteCandleFinalizeMessage) => void): () => void {
+  console.log('📝 [WS] minute_candle_finalize 리스너 등록');
   const listener = (message: MinuteCandleFinalizeMessage) => {
+    console.log('📨 [WS] minute_candle_finalize 리스너 실행:', message);
     callback(message);
   };
   wsManager.on(WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZE, listener);
-  return () => wsManager.off(WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZE, listener);
+  return () => {
+    console.log('🔚 [WS] minute_candle_finalize 리스너 해제');
+    wsManager.off(WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZE, listener);
+  };
 }
 
 /**

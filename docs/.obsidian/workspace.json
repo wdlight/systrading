@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "plan/mincandle/1019.update.impl.md",
+                "file": "0.TODOs/2025.10.19 TODO List.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "1019.update.impl"
+              "title": "2025.10.19 TODO List"
             }
           }
         ],
@@ -93,7 +93,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 510.5
   },
   "right": {
     "id": "d2bd04e3740befe6",
@@ -109,7 +109,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "plan/mincandle/1019.update.impl.md",
+                "file": "plan/mincandle/minute-candle.realtime.update.final.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -119,7 +119,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "1019.update.impl 의 백링크"
+              "title": "minute-candle.realtime.update.final 의 백링크"
             }
           },
           {
@@ -128,12 +128,12 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "plan/mincandle/1019.update.impl.md",
+                "file": "plan/mincandle/minute-candle.realtime.update.final.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "1019.update.impl 의 나가는 링크"
+              "title": "minute-candle.realtime.update.final 의 나가는 링크"
             }
           },
           {
@@ -157,13 +157,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "plan/mincandle/1019.update.impl.md",
+                "file": "plan/mincandle/minute-candle.realtime.update.final.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "1019.update.impl 의 개요"
+              "title": "minute-candle.realtime.update.final 의 개요"
             }
           }
         ]
@@ -186,13 +186,27 @@
   },
   "active": "0b61ac38331bd383",
   "lastOpenFiles": [
-    "plan/mincandle/TEST_GUIDE.md",
     "plan/mincandle/1019.implementation-summary.md",
+    "0.TODOs/SOLUTION-FOUND.md",
+    "0.TODOs/ROOT-CAUSE-3-BACKEND-BROADCAST.md",
+    "0.TODOs/frontend-debug-guide.md",
+    "0.TODOs/FINAL-VERIFICATION-GUIDE.md",
+    "0.TODOs/DEBUG-CHECKLIST.md",
+    "0.TODOs/2025.10.19 TODO List.md",
+    "0.TODOs/FINAL-VERIFICATION-GUIDE.md.tmp.49501.1760922048844",
+    "0.TODOs/ROOT-CAUSE-3-BACKEND-BROADCAST.md.tmp.49501.1760921787057",
+    "0.TODOs/DEBUG-CHECKLIST.md.tmp.49501.1760921441617",
+    "0.TODOs/SOLUTION-FOUND.md.tmp.49501.1760921003102",
+    "0.TODOs/frontend-debug-guide.md.tmp.49501.1760920458052",
+    "plan/mincandle/minute-candle.realtime.update.final.md",
+    "plan/mincandle/minute-candle.realtime.update.final.md.tmp.24093.1760877795281",
+    "plan/mincandle/2025-10-20.impl.realtime-minute-candle-improvements.md",
+    "0.TODOs",
+    "plan/mincandle/TEST_GUIDE.md",
+    "plan/mincandle/1019.update.impl.md",
     "plan/mincandle/1019.implementation-summary.md.tmp.24093.1760874596094",
     "plan/mincandle/1019. Update Plan for Minute Candle.md",
-    "plan/mincandle/1019.update.impl.md",
     "plan/mincandle/1019.update.impl.md.tmp.24093.1760874397912",
-    "plan/mincandle/2025-10-20.impl.realtime-minute-candle-improvements.md",
     "무제.md",
     "plan/mincandle/1018.impl.daily.plan.md",
     "plan/mincandle/1018.review01.md",

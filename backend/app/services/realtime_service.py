@@ -17,7 +17,7 @@ from app.core.korea_invest import KoreaInvestAPIService
 from app.models.schemas import ChartCandle
 from app.models.realtime_minute import MinuteCandleState
 from app.utils.performance_metrics import get_global_metrics_collector
-from app.utils.time import parse_kis_time
+from app.utils.time import parse_kis_time, KST
 from app.utils.websocket_logger import websocket_logger
 
 
@@ -327,8 +327,23 @@ class RealtimeDataService:
             # 장 시간 체크
             from app.utils.trading_hours import TradingHoursManager
             from datetime import datetime
-            if not TradingHoursManager.is_trading_hours(datetime.now()):
-                logger.debug(f"장 시간 외 호가 데이터 무시: {stock_code}")
+
+            timestamp_str = hoga_data.get("timestamp")
+            check_time = None
+
+            if timestamp_str:
+                try:
+                    check_time = datetime.fromisoformat(timestamp_str)
+                except ValueError:
+                    logger.warning(f"호가 타임스탬프 파싱 실패: {timestamp_str} (stock: {stock_code})")
+
+            if check_time and check_time.tzinfo is not None:
+                check_time = check_time.astimezone(KST).replace(tzinfo=None)
+
+            effective_time = check_time or datetime.now(tz=KST).replace(tzinfo=None)
+
+            if not TradingHoursManager.is_trading_hours(effective_time, include_extended=True):
+                logger.debug(f"장 시간 외 호가 데이터 무시: {stock_code} (timestamp={timestamp_str})")
                 return
             
             # 캐시에 저장
@@ -346,7 +361,7 @@ class RealtimeDataService:
             }
             self.last_orderbook_update[stock_code] = current_time
             
-            # Frontend로 브로드캐스트 (구독자에게만)
+            # Frontend로 브로드캐스트 (전체)
             broadcast_message = {
                 "type": "orderbook_update",
                 "stock_code": stock_code,
@@ -359,10 +374,7 @@ class RealtimeDataService:
                 "timestamp": datetime.now().isoformat()
             }
             logger.info(f"📡 호가 데이터 브로드캐스트: {stock_code}")
-            await self.connection_manager.broadcast_to_stock_subscribers(
-                stock_code,
-                broadcast_message
-            )
+            await self.connection_manager.broadcast(broadcast_message)
             
             self.metrics_collector.metrics.record_message_processed()
             logger.debug(f"호가 데이터 처리 완료: {stock_code}")
@@ -429,18 +441,24 @@ class RealtimeDataService:
             if not stock_code:
                 return
 
-            # 🔥 장 시간 체크 추가
-            from app.utils.trading_hours import TradingHoursManager
-            if not TradingHoursManager.is_trading_hours(datetime.now()):
-                logger.debug(f"장 시간 외 체결 데이터 무시: {stock_code}")
-                return
-
             price = float(data.get("price", 0) or 0)
             if price <= 0:
                 return
 
             executed_time = data.get("executed_time")
             if not executed_time:
+                return
+
+            try:
+                executed_ts = parse_kis_time(executed_time)
+            except ValueError:
+                logger.warning(f"체결 타임스탬프 파싱 실패: {executed_time} (stock: {stock_code})")
+                return
+
+            from app.utils.trading_hours import TradingHoursManager
+            executed_ts_naive = executed_ts.astimezone(KST).replace(tzinfo=None)
+            if not TradingHoursManager.is_trading_hours(executed_ts_naive, include_extended=True):
+                logger.debug(f"장 시간 외 체결 데이터 무시: {stock_code} (executed_time={executed_time})")
                 return
 
             trade_volume = int(data.get("trade_volume", 0) or 0)
@@ -456,7 +474,6 @@ class RealtimeDataService:
             if acc_volume > 0:
                 self._last_acc_volume[stock_code] = acc_volume
 
-            executed_ts = parse_kis_time(executed_time)
             minute_key = executed_ts.strftime("%Y-%m-%dT%H:%M:00")
 
             # 샘플 로그
@@ -525,17 +542,23 @@ class RealtimeDataService:
                 "last_tick": state.last_tick_ts.isoformat(),
             }
         }
+        # 전체 브로드캐스트 (Frontend에서 stock_code로 필터링)
         await self.connection_manager.broadcast(payload)
 
     async def _flush_closed_candle(self, stock_code: str, state: MinuteCandleState) -> None:
         """분 경계 통과 시 완료된 캔들을 확정하고 persistence 큐로 전달"""
         candle = state.to_chart_candle()
         await self._enqueue_candle_for_persistence(stock_code, candle)
-        await self.connection_manager.broadcast({
+
+        finalize_message = {
             "type": "minute_candle_finalize",
             "stock_code": stock_code,
             "data": candle.model_dump(),
-        })
+        }
+
+        # 전체 브로드캐스트 (Frontend에서 stock_code로 필터링)
+        await self.connection_manager.broadcast(finalize_message)
+
         self.minute_candle_state.pop(stock_code, None)
 
     async def _enqueue_candle_for_persistence(self, stock_code: str, candle: ChartCandle) -> None:
