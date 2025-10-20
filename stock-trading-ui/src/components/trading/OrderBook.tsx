@@ -282,11 +282,6 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
     );
   }
 
-  const isMarketClosed =
-    (marketStatus && marketStatus.status === 'closed') ||
-    (orderBook && orderBook.market_status === 'closed') ||
-    !isMarketOpen();
-
   if (!orderBook || !orderBook.asks || !orderBook.bids) {
     return (
       <div className="w-full h-64 flex items-center justify-center">
@@ -296,10 +291,23 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
   }
 
   // ✅ 조건부 리턴 이후 - 데이터가 확실히 있을 때만 실행됨
-  const asks = (orderBook.asks ?? []).slice(0, 5).reverse();
-  const bids = (orderBook.bids ?? []).slice(0, 5);
+  // 백엔드에서 3개만 오더라도 5개 행 유지 (빈 행은 필터링하여 표시 안 함)
+  const rawAsks = (orderBook.asks ?? []).reverse();
+  const rawBids = (orderBook.bids ?? []);
+
+  // 실제 데이터만 필터링 (가격이 0보다 큰 것만)
+  const asks = rawAsks.filter(item => item.price > 0).slice(0, 5);
+  const bids = rawBids.filter(item => item.price > 0).slice(0, 5);
 
   console.log(`🔄 [${new Date().toLocaleTimeString()}] 호가 배열 생성 - asks: ${asks.length}개 (매도1: ${asks[0]?.price?.toLocaleString()}), bids: ${bids.length}개 (매수1: ${bids[0]?.price?.toLocaleString()})`);
+
+  // ✅ 데이터가 있으면 시간 상관없이 표시 (시간외 거래 지원)
+  const hasValidData = asks.length > 0 || bids.length > 0;
+  const isMarketClosed = !hasValidData && (
+    (marketStatus && marketStatus.status === 'closed') ||
+    (orderBook && orderBook.market_status === 'closed') ||
+    !isMarketOpen()
+  );
 
   if (isMarketClosed) {
     return (
@@ -346,7 +354,12 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
       <div className="flex items-center justify-between text-xs text-gray-400 mb-2">
         <div className="flex items-center w-full text-sm text-white font-semibold">
           <span className="text-green-400 text-[9px]">호가창</span>
-          <span className="flex-1 text-center text-[11px] text-gray-400">[{formattedTimestamp}]</span>
+          <span className="flex-1 text-center text-[11px] text-gray-400">
+            [{formattedTimestamp}]
+            {!isMarketOpen() && hasValidData && (
+              <span className="ml-2 text-orange-400 text-[9px]">⏰ 시간외</span>
+            )}
+          </span>
           <span className="text-green-400 text-[9px]">실시간</span>
         </div>
       </div>

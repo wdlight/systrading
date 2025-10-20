@@ -287,6 +287,12 @@ export class WebSocketManager {
       case 'market_status_update':
         this.notifyListeners(type, data);
         break;
+      case WS_MESSAGE_TYPES.HEARTBEAT:
+        // 서버 하트비트 - 연결 유지 메시지 (조용히 처리)
+        break;
+      case WS_MESSAGE_TYPES.PONG:
+        // ping 응답 - 연결 상태 확인 (조용히 처리)
+        break;
       default:
         console.warn('알 수 없는 메시지 타입:', type);
     }

@@ -73,6 +73,8 @@ export const WS_MESSAGE_TYPES = {
   MARKET_INDEX_UPDATE: 'market_index_update',
   MINUTE_CANDLE_UPDATE: 'minute_candle_update',
   MINUTE_CANDLE_FINALIZE: 'minute_candle_finalize',
+  HEARTBEAT: 'heartbeat',
+  PONG: 'pong',
 } as const;
 
 // 매매 조건 타입
