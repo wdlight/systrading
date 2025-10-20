@@ -429,6 +429,12 @@ class RealtimeDataService:
             if not stock_code:
                 return
 
+            # 🔥 장 시간 체크 추가
+            from app.utils.trading_hours import TradingHoursManager
+            if not TradingHoursManager.is_trading_hours(datetime.now()):
+                logger.debug(f"장 시간 외 체결 데이터 무시: {stock_code}")
+                return
+
             price = float(data.get("price", 0) or 0)
             if price <= 0:
                 return
