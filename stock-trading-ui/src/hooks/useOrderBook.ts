@@ -30,7 +30,7 @@ export interface UseOrderBookReturn {
  * });
  * ```
  */
-const SILENT_REFRESH_INTERVAL = 30000; // 30초
+const SILENT_REFRESH_INTERVAL = 1000; // ✅ 1초로 변경 - 실시간 느낌 보장
 
 export function useOrderBook({
   stockCode,
@@ -199,30 +199,53 @@ export function useOrderBook({
     }
 
     const unsubscribeWs = subscribeToOrderBookUpdates(stockCode, (update: OrderBookUpdate) => {
-      const now = Date.now();
-      if (now - lastUpdateRef.current < 1000) {
-        return;
-      }
-      lastUpdateRef.current = now;
+      // ✅ Throttling 완전 제거 - 모든 업데이트 즉시 반영
+      const updateTime = Date.now();
+      lastUpdateRef.current = updateTime;
+
+      // ✅ 직접 정규화 - useCallback 메모이제이션 우회
+      const normalizeRows = (rows: any[]) =>
+        (rows || []).map((row: any) => ({
+          price: Number(row?.price) || 0,
+          quantity: Number(row?.quantity) || 0,
+        }));
+
+      // 🔥 디버깅: 백엔드에서 받은 원본 데이터 개수 확인
+      console.log(`📦 백엔드 원본 데이터 - asks: ${update.data.asks?.length || 0}개, bids: ${update.data.bids?.length || 0}개`);
+      console.log(`📦 asks 원본:`, update.data.asks);
+      console.log(`📦 bids 원본:`, update.data.bids);
+
+      const normalized: OrderBookData = {
+        stock_code: update.stock_code,
+        asks: normalizeRows(update.data.asks),
+        bids: normalizeRows(update.data.bids),
+        current_price: typeof update.data.current_price === 'number'
+          ? update.data.current_price
+          : Number(update.data.current_price) || undefined,
+        timestamp: update.data.timestamp || new Date().toISOString(),
+        market_status: undefined,
+        error: undefined,
+      };
 
       setOrderBook((prev) => {
-        const normalized = normalizeOrderBook({
-          stock_code: update.stock_code,
-          asks: update.data.asks,
-          bids: update.data.bids,
-          current_price: update.data.current_price,
-          timestamp: update.data.timestamp,
-          market_status: prev?.market_status,
-          error: undefined,
-        } as OrderBookData);
+        // ✅ 디버깅: 이전 vs 현재 비교
+        const prevAsk1 = prev?.asks?.[0]?.price;
+        const newAsk1 = normalized.asks?.[0]?.price;
+        const prevBid1 = prev?.bids?.[0]?.price;
+        const newBid1 = normalized.bids?.[0]?.price;
 
-        if (normalized) {
-          console.log(`📊 호가 데이터 업데이트: ${stockCode}`, normalized);
-          console.log(`🔥 실시간 WebSocket 업데이트 - 현재가: ${normalized.current_price}, 매도1: ${normalized.asks[0]?.price}, 매수1: ${normalized.bids[0]?.price}`);
-          return normalized;
-        }
+        console.log(`📊 [${new Date().toLocaleTimeString()}] 호가 실시간 업데이트: ${stockCode}`);
+        console.log(`🔥 매도1: ${prevAsk1?.toLocaleString()} → ${newAsk1?.toLocaleString()} | 매수1: ${prevBid1?.toLocaleString()} → ${newBid1?.toLocaleString()}`);
 
-        return prev;
+        // ✅ 매번 완전히 새로운 객체 반환 - React 강제 렌더링
+        const newState = {
+          ...normalized,
+          _updateId: updateTime, // 매번 다른 timestamp로 강제 렌더링
+          market_status: prev?.market_status, // 이전 market_status 유지
+        } as OrderBookData;
+
+        console.log(`🆔 강제 렌더링 ID: ${updateTime}`);
+        return newState;
       });
       setError(null);
     });
