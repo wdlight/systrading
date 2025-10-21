@@ -9,8 +9,9 @@ import {
   ConnectionStatus,
   OrderBookUpdate,
   MarketStatusUpdate,
+  MarketIndexUpdate,  // ✅ 추가
   MinuteCandleUpdateMessage,
-  MinuteCandleFinalizeMessage
+  MinuteCandleFinalizedMessage  // ✅ Finalize → Finalized
 } from './types';
 import { API_CONFIG, WS_MESSAGE_TYPES } from './constants';
 
@@ -44,6 +45,20 @@ export class WebSocketManager {
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        // 이미 연결되어 있으면 재연결 스킵
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          console.log('✅ WebSocket 이미 연결됨, 재연결 스킵');
+          resolve();
+          return;
+        }
+
+        // 연결 시도 중이면 스킵
+        if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+          console.log('⏳ WebSocket 연결 중, 재연결 스킵');
+          resolve();
+          return;
+        }
+
         // 실제 WebSocket 연결 수행
         console.log('🚀 WebSocket 연결 시도:', this.url);
         this.isManualClose = false;
@@ -246,46 +261,50 @@ export class WebSocketManager {
    * 메시지 처리
    */
   private handleMessage(message: RealtimeMessage): void {
-    const { type, data } = message;
+    const { type } = message;
 
     // 디버그: 모든 메시지 로그
-    console.log('🔍 WebSocket 메시지 수신:', { type, data });
+    // console.log('🔍 WebSocket 메시지 수신:', { type, message });
 
     // 타입별 특수 처리
     switch (type) {
       case WS_MESSAGE_TYPES.CONNECTION_STATUS:
-        this.handleConnectionStatus(data);
+        this.handleConnectionStatus((message as ConnectionStatus).data);
         break;
       case WS_MESSAGE_TYPES.ACCOUNT_UPDATE:
-        this.notifyListeners(type, data);
+        this.notifyListeners(type, (message as AccountUpdate).data);
         break;
       case WS_MESSAGE_TYPES.WATCHLIST_UPDATE:
-        this.notifyListeners(type, data);
+        this.notifyListeners(type, (message as WatchlistUpdate).data);
         break;
       case WS_MESSAGE_TYPES.PRICE_UPDATE:
-        this.notifyListeners(type, data);
+        this.notifyListeners(type, (message as PriceUpdate).data);
         break;
       case WS_MESSAGE_TYPES.TRADING_STATUS:
-        this.notifyListeners(type, data);
+        this.notifyListeners(type, (message as TradingStatusUpdate).data);
         break;
       case WS_MESSAGE_TYPES.ORDER_UPDATE:
-        this.notifyListeners(type, data);
+        this.notifyListeners(type, (message as OrderUpdate).data);
         break;
       case WS_MESSAGE_TYPES.MARKET_INDEX_UPDATE:
-        this.notifyListeners(type, data);
+        this.notifyListeners(type, (message as MarketIndexUpdate).data);
         break;
       case WS_MESSAGE_TYPES.MINUTE_CANDLE_UPDATE:
-        this.notifyListeners(type, message as any);
+        // ✅ 분봉 업데이트 메시지는 전체 메시지 객체를 전달 (candle 필드 포함)
+        this.notifyListeners(type, message as MinuteCandleUpdateMessage);
+        console.log('🔍 WebSocket 메시지 MINUTE_CANDLE_UPDATE :', { type, candle: (message as MinuteCandleUpdateMessage).candle });
         break;
-      case WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZE:
-        this.notifyListeners(type, message as any);
+      case WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZED:  // ✅ FINALIZE → FINALIZED
+        // ✅ 분봉 완료 메시지는 전체 메시지 객체를 전달 (candle 필드 포함)
+        this.notifyListeners(type, message as MinuteCandleFinalizedMessage);
+        console.log('🔍 WebSocket 메시지 MINUTE_CANDLE_FINALIZED :', { type, candle: (message as MinuteCandleFinalizedMessage).candle });
         break;
       case 'orderbook_update':
-        console.log('📊 호가 업데이트 메시지 수신:', data);
-        this.notifyListeners(type, data);
+        // console.log('📊 호가 업데이트 메시지 수신:', data);
+        this.notifyListeners(type, (message as OrderBookUpdate).data);
         break;
       case 'market_status_update':
-        this.notifyListeners(type, data);
+        this.notifyListeners(type, (message as MarketStatusUpdate).data);
         break;
       case WS_MESSAGE_TYPES.HEARTBEAT:
         // 서버 하트비트 - 연결 유지 메시지 (조용히 처리)
@@ -313,11 +332,11 @@ export class WebSocketManager {
    */
   private notifyListeners(messageType: string, data: any): void {
     const listeners = this.listeners.get(messageType);
-    console.log(`🔔 notifyListeners 호출: ${messageType}, 리스너 수: ${listeners?.size || 0}`, data);
+    // console.log(`🔔 notifyListeners 호출: ${messageType}, 리스너 수: ${listeners?.size || 0}`, data);
     if (listeners) {
       listeners.forEach(callback => {
         try {
-          console.log(`📤 리스너 실행: ${messageType}`);
+          // console.log(`📤 리스너 실행: ${messageType}`);
           callback(data);
         } catch (error) {
           console.error(`리스너 실행 오류 (${messageType}):`, error);
@@ -547,16 +566,16 @@ export function subscribeToMinuteCandles(callback: (message: MinuteCandleUpdateM
   };
 }
 
-export function subscribeToMinuteCandleFinalize(callback: (message: MinuteCandleFinalizeMessage) => void): () => void {
-  console.log('📝 [WS] minute_candle_finalize 리스너 등록');
-  const listener = (message: MinuteCandleFinalizeMessage) => {
-    console.log('📨 [WS] minute_candle_finalize 리스너 실행:', message);
+export function subscribeToMinuteCandleFinalized(callback: (message: MinuteCandleFinalizedMessage) => void): () => void {  // ✅ Finalize → Finalized
+  console.log('📝 [WS] minute_candle_finalized 리스너 등록');  // ✅ finalize → finalized
+  const listener = (message: MinuteCandleFinalizedMessage) => {  // ✅ Finalize → Finalized
+    console.log('📨 [WS] minute_candle_finalized 리스너 실행:', message);  // ✅ finalize → finalized
     callback(message);
   };
-  wsManager.on(WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZE, listener);
+  wsManager.on(WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZED, listener);  // ✅ FINALIZE → FINALIZED
   return () => {
-    console.log('🔚 [WS] minute_candle_finalize 리스너 해제');
-    wsManager.off(WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZE, listener);
+    console.log('🔚 [WS] minute_candle_finalized 리스너 해제');  // ✅ finalize → finalized
+    wsManager.off(WS_MESSAGE_TYPES.MINUTE_CANDLE_FINALIZED, listener);  // ✅ FINALIZE → FINALIZED
   };
 }
 

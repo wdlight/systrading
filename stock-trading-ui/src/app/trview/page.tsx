@@ -10,12 +10,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  CandlestickChart,
   RefreshCw,
   TrendingUp
 } from 'lucide-react';
 import { useStockList } from '@/hooks/useStockList';
 import { AccountBalance } from '@/lib/types/account';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 const TRViewChart = dynamic(
   () => import('@/components/trading/TRViewChart').then(mod => mod.TRViewChart),
@@ -42,6 +42,18 @@ export default function TRViewPage() {
   const [showGrid, setShowGrid] = useState(true);
   const [balance, setBalance] = useState<AccountBalance | null>(null);
 
+  // WebSocket 연결 초기화
+  const { isConnected: wsConnected, connectionStatus } = useWebSocket();
+  
+  // WebSocket 연결 상태 로깅
+  useEffect(() => {
+    console.log('🔌 [TRViewPage] WebSocket 상태:', {
+      isConnected: wsConnected,
+      status: connectionStatus.status,
+      error: connectionStatus.error
+    });
+  }, [wsConnected, connectionStatus]);
+
   // 1. Minute Chart Data Hook
   const {
     chartData: minuteChartData,
@@ -51,6 +63,7 @@ export default function TRViewPage() {
     loadPrevious: loadPreviousMinute,
     isLoadingMore: isLoadingMoreMinute,
     hasExtendedRange: hasExtendedRangeMinute,
+    latestClose: minuteLatestClose,
   } = useTRViewChart({
     stockCode,
     timeframe: 'minute',
@@ -231,11 +244,7 @@ export default function TRViewPage() {
             <OrderForm
               stockCode={stockCode}
               stockName={selectedStockName}
-              currentPrice={
-                minuteChartData.length > 0
-                  ? minuteChartData[minuteChartData.length - 1].close
-                  : 0
-              }
+              currentPrice={minuteLatestClose || 0}
               availableCash={availableCash}
               availableQuantity={availableQuantity}
               onOrderSuccess={handleOrderSuccess}

@@ -47,17 +47,17 @@ function diffOrderLevels(
     if (prevLevel.price !== nextLevel.price) {
       priceChanged.push(idx);
       rowChangedSet.add(idx);
-      logs.push(
-        `📈 호가 변경 - ${levelLabel} ${idx + 1}호가 가격: ${prevLevel.price.toLocaleString()} → ${nextLevel.price.toLocaleString()}`
-      );
+      // logs.push(
+      //   `📈 호가 변경 - ${levelLabel} ${idx + 1}호가 가격: ${prevLevel.price.toLocaleString()} → ${nextLevel.price.toLocaleString()}`
+      // );
     }
 
     if (prevLevel.quantity !== nextLevel.quantity) {
       quantityChanged.push(idx);
       rowChangedSet.add(idx);
-      logs.push(
-        `📊 호가 변경 - ${levelLabel} ${idx + 1}호가 수량: ${prevLevel.quantity.toLocaleString()} → ${nextLevel.quantity.toLocaleString()}`
-      );
+      // logs.push(
+      //   `📊 호가 변경 - ${levelLabel} ${idx + 1}호가 수량: ${prevLevel.quantity.toLocaleString()} → ${nextLevel.quantity.toLocaleString()}`
+      // );
     }
   }
 
@@ -71,7 +71,7 @@ function diffOrderLevels(
 
 export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
   // 🔥 최상단 로그 - 컴포넌트가 렌더링되는지 확인
-  console.log(`🔄 [${new Date().toLocaleTimeString()}] OrderBook 컴포넌트 렌더 시작 - stockCode: ${stockCode}`);
+  // console.log(`🔄 [${new Date().toLocaleTimeString()}] OrderBook 컴포넌트 렌더 시작 - stockCode: ${stockCode}`);
 
   // ✅ 모든 Hook을 컴포넌트 최상단에 선언 (조건문보다 위에)
   const { orderBook, isLoading, error } = useOrderBook({
@@ -80,14 +80,14 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
   });
 
   // 🔥 Hook 직후 로그 - orderBook 상태 확인
-  console.log(`📦 orderBook 상태:`, {
-    exists: !!orderBook,
-    timestamp: orderBook?.timestamp,
-    asksCount: orderBook?.asks?.length,
-    bidsCount: orderBook?.bids?.length,
-    ask1Price: orderBook?.asks?.[0]?.price,
-    bid1Price: orderBook?.bids?.[0]?.price,
-  });
+  // console.log(`📦 orderBook 상태:`, {
+  //   exists: !!orderBook,
+  //   timestamp: orderBook?.timestamp,
+  //   asksCount: orderBook?.asks?.length,
+  //   bidsCount: orderBook?.bids?.length,
+  //   ask1Price: orderBook?.asks?.[0]?.price,
+  //   bid1Price: orderBook?.bids?.[0]?.price,
+  // });
 
   const [highlightedKeys, setHighlightedKeys] = useState<Record<string, boolean>>({});
   const [marketStatus, setMarketStatus] = useState<MarketStatusUpdate['data'] | null>(null);
@@ -158,7 +158,7 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
 
   // ✅ 개선: 실시간 업데이트 감지 강화 + 상세 로깅
   useEffect(() => {
-    console.log(`⚡ useEffect 실행됨 - orderBook 존재: ${!!orderBook}, timestamp: ${orderBook?.timestamp}`);
+    // console.log(`⚡ useEffect 실행됨 - orderBook 존재: ${!!orderBook}, timestamp: ${orderBook?.timestamp}`);
 
     // orderBook이 없으면 아무것도 하지 않음
     if (!orderBook?.asks || !orderBook?.bids) {
@@ -170,48 +170,48 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
     const currentAsks = (orderBook.asks ?? []).slice(0, 5).reverse();
     const currentBids = (orderBook.bids ?? []).slice(0, 5);
 
-    console.log(`⚡ useEffect 트리거 - timestamp: ${orderBook?.timestamp}, asks: ${currentAsks.length}개, bids: ${currentBids.length}개`);
+    // console.log(`⚡ useEffect 트리거 - timestamp: ${orderBook?.timestamp}, asks: ${currentAsks.length}개, bids: ${currentBids.length}개`);
 
     const hadAsksBefore = previousAsksRef.current.length > 0;
     const hadBidsBefore = previousBidsRef.current.length > 0;
 
-    console.log(`📋 이전 상태 - asks: ${hadAsksBefore ? previousAsksRef.current.length : 0}개, bids: ${hadBidsBefore ? previousBidsRef.current.length : 0}개`);
+    // console.log(`📋 이전 상태 - asks: ${hadAsksBefore ? previousAsksRef.current.length : 0}개, bids: ${hadBidsBefore ? previousBidsRef.current.length : 0}개`);
 
     // 매도 호가 변경 감지
     if (hadAsksBefore && currentAsks.length > 0) {
       const diff = diffOrderLevels(previousAsksRef.current, currentAsks, 'ask');
-      console.log(`🔴 매도 호가 diff 결과 - 가격변경: ${diff.priceChanged.length}, 수량변경: ${diff.quantityChanged.length}, 행변경: ${diff.rowChanged.length}`);
+      // console.log(`🔴 매도 호가 diff 결과 - 가격변경: ${diff.priceChanged.length}, 수량변경: ${diff.quantityChanged.length}, 행변경: ${diff.rowChanged.length}`);
 
       if (diff.logs.length > 0) {
-        console.log('🔴 매도 호가 변경:', diff.logs.length, '건');
+        // console.log('🔴 매도 호가 변경:', diff.logs.length, '건');
         diff.logs.forEach((log) => console.log(log));
       }
 
       if (diff.rowChanged.length > 0) {
-        console.log(`✨ 하이라이트 트리거 - 매도 ${diff.rowChanged.length}개 행`);
+        // console.log(`✨ 하이라이트 트리거 - 매도 ${diff.rowChanged.length}개 행`);
         diff.priceChanged.forEach((idx) => {
           console.log(`  → ask-${idx}-price 하이라이트`);
           triggerHighlight(`ask-${idx}-price`);
         });
         diff.quantityChanged.forEach((idx) => {
-          console.log(`  → ask-${idx}-quantity 하이라이트`);
+          // console.log(`  → ask-${idx}-quantity 하이라이트`);
           triggerHighlight(`ask-${idx}-quantity`);
         });
         diff.rowChanged.forEach((idx) => {
-          console.log(`  → ask-${idx}-bar 하이라이트`);
+          // console.log(`  → ask-${idx}-bar 하이라이트`);
           triggerHighlight(`ask-${idx}-bar`);
         });
       } else {
-        console.log('ℹ️ 매도 호가 변경 없음');
+        // console.log('ℹ️ 매도 호가 변경 없음');
       }
     } else {
-      console.log('ℹ️ 매도 호가 첫 로드 또는 데이터 없음');
+      // console.log('ℹ️ 매도 호가 첫 로드 또는 데이터 없음');
     }
 
     // 매수 호가 변경 감지
     if (hadBidsBefore && currentBids.length > 0) {
       const diff = diffOrderLevels(previousBidsRef.current, currentBids, 'bid');
-      console.log(`🔵 매수 호가 diff 결과 - 가격변경: ${diff.priceChanged.length}, 수량변경: ${diff.quantityChanged.length}, 행변경: ${diff.rowChanged.length}`);
+      // console.log(`🔵 매수 호가 diff 결과 - 가격변경: ${diff.priceChanged.length}, 수량변경: ${diff.quantityChanged.length}, 행변경: ${diff.rowChanged.length}`);
 
       if (diff.logs.length > 0) {
         console.log('🔵 매수 호가 변경:', diff.logs.length, '건');
@@ -219,37 +219,37 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
       }
 
       if (diff.rowChanged.length > 0) {
-        console.log(`✨ 하이라이트 트리거 - 매수 ${diff.rowChanged.length}개 행`);
+        // console.log(`✨ 하이라이트 트리거 - 매수 ${diff.rowChanged.length}개 행`);
         diff.priceChanged.forEach((idx) => {
-          console.log(`  → bid-${idx}-price 하이라이트`);
+          // console.log(`  → bid-${idx}-price 하이라이트`);
           triggerHighlight(`bid-${idx}-price`);
         });
         diff.quantityChanged.forEach((idx) => {
-          console.log(`  → bid-${idx}-quantity 하이라이트`);
+          // console.log(`  → bid-${idx}-quantity 하이라이트`);
           triggerHighlight(`bid-${idx}-quantity`);
         });
         diff.rowChanged.forEach((idx) => {
-          console.log(`  → bid-${idx}-bar 하이라이트`);
+          // console.log(`  → bid-${idx}-bar 하이라이트`);
           triggerHighlight(`bid-${idx}-bar`);
         });
       } else {
-        console.log('ℹ️ 매수 호가 변경 없음');
+        // console.log('ℹ️ 매수 호가 변경 없음');
       }
     } else {
-      console.log('ℹ️ 매수 호가 첫 로드 또는 데이터 없음');
+      // console.log('ℹ️ 매수 호가 첫 로드 또는 데이터 없음');
     }
 
     // 이전 값 업데이트
     if (currentAsks.length > 0) {
       previousAsksRef.current = currentAsks.map((item) => ({ price: item.price, quantity: item.quantity }));
-      console.log(`💾 이전 asks 업데이트 완료 - ${currentAsks.length}개`);
+      // console.log(`💾 이전 asks 업데이트 완료 - ${currentAsks.length}개`);
     }
     if (currentBids.length > 0) {
       previousBidsRef.current = currentBids.map((item) => ({ price: item.price, quantity: item.quantity }));
-      console.log(`💾 이전 bids 업데이트 완료 - ${currentBids.length}개`);
+      // console.log(`💾 이전 bids 업데이트 완료 - ${currentBids.length}개`);
     }
 
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    // console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   }, [orderBook, triggerHighlight]);
 
   useEffect(() => {
@@ -299,7 +299,7 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
   const asks = rawAsks.filter(item => item.price > 0).slice(0, 5);
   const bids = rawBids.filter(item => item.price > 0).slice(0, 5);
 
-  console.log(`🔄 [${new Date().toLocaleTimeString()}] 호가 배열 생성 - asks: ${asks.length}개 (매도1: ${asks[0]?.price?.toLocaleString()}), bids: ${bids.length}개 (매수1: ${bids[0]?.price?.toLocaleString()})`);
+  // console.log(`🔄 [${new Date().toLocaleTimeString()}] 호가 배열 생성 - asks: ${asks.length}개 (매도1: ${asks[0]?.price?.toLocaleString()}), bids: ${bids.length}개 (매수1: ${bids[0]?.price?.toLocaleString()})`);
 
   // ✅ 데이터가 있으면 시간 상관없이 표시 (시간외 거래 지원)
   const hasValidData = asks.length > 0 || bids.length > 0;

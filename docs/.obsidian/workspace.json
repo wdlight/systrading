@@ -34,9 +34,23 @@
               "icon": "lucide-file",
               "title": "2025.10.19 TODO List"
             }
+          },
+          {
+            "id": "3307f72470e0a4db",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "plan/mincandle/1021.FINAL.RTUPDATE.MINCANDLE.plan.v3.0.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "1021.FINAL.RTUPDATE.MINCANDLE.plan.v3.0"
+            }
           }
         ],
-        "currentTab": 1
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -184,32 +198,43 @@
       "bases:새 베이스 생성하기": false
     }
   },
-  "active": "0b61ac38331bd383",
+  "active": "3307f72470e0a4db",
   "lastOpenFiles": [
-    "plan/mincandle/1019.implementation-summary.md",
-    "0.TODOs/SOLUTION-FOUND.md",
-    "0.TODOs/ROOT-CAUSE-3-BACKEND-BROADCAST.md",
-    "0.TODOs/frontend-debug-guide.md",
-    "0.TODOs/FINAL-VERIFICATION-GUIDE.md",
-    "0.TODOs/DEBUG-CHECKLIST.md",
-    "0.TODOs/2025.10.19 TODO List.md",
-    "0.TODOs/FINAL-VERIFICATION-GUIDE.md.tmp.49501.1760922048844",
-    "0.TODOs/ROOT-CAUSE-3-BACKEND-BROADCAST.md.tmp.49501.1760921787057",
-    "0.TODOs/DEBUG-CHECKLIST.md.tmp.49501.1760921441617",
-    "0.TODOs/SOLUTION-FOUND.md.tmp.49501.1760921003102",
-    "0.TODOs/frontend-debug-guide.md.tmp.49501.1760920458052",
-    "plan/mincandle/minute-candle.realtime.update.final.md",
-    "plan/mincandle/minute-candle.realtime.update.final.md.tmp.24093.1760877795281",
-    "plan/mincandle/2025-10-20.impl.realtime-minute-candle-improvements.md",
-    "0.TODOs",
-    "plan/mincandle/TEST_GUIDE.md",
-    "plan/mincandle/1019.update.impl.md",
-    "plan/mincandle/1019.implementation-summary.md.tmp.24093.1760874596094",
-    "plan/mincandle/1019. Update Plan for Minute Candle.md",
-    "plan/mincandle/1019.update.impl.md.tmp.24093.1760874397912",
-    "무제.md",
-    "plan/mincandle/1018.impl.daily.plan.md",
-    "plan/mincandle/1018.review01.md",
-    "plan/mincandle/1018.impl.daily.appendix.plan.md"
+    "1021.TYPE-REFACTORING-SUMMARY.md",
+    "1021.TYPE-REFACTORING-SUMMARY.md.tmp.6623.1761057832919",
+    "1021.ALL-FIXES-COMPLETE.md.tmp.6623.1761057774628",
+    "1021.ALL-FIXES-COMPLETE.md",
+    "1021.ALL-FIXES-COMPLETE.md.tmp.6623.1761056615106",
+    "1021.FIXES-APPLIED.md.tmp.6623.1761056614397",
+    "1021.FIXES-APPLIED.md.tmp.6623.1761056613658",
+    "1021.FIXES-APPLIED.md.tmp.6623.1761056613070",
+    "1021.FIXES-APPLIED.md.tmp.6623.1761056612603",
+    "1021.FRONTEND-ISSUE-REVIEW.md",
+    "1021.FRONTEND-ISSUE-REVIEW.md.tmp.6623.1761056108316",
+    "1021.H0STCNI0.final-diagnosis.md",
+    "1021.FIXES-APPLIED.md",
+    "1021.FIXES-APPLIED.md.tmp.6623.1761054914761",
+    "1021.ISSUE-REVIEW.md",
+    "1021.ISSUE-REVIEW.md.tmp.6623.1761054557859",
+    "1021.IMPLEMENTATION-COMPLETE.md",
+    "plan/mincandle/1021.FINAL.RTUPDATE.MINCANDLE.plan.v3.0.md",
+    "plan/mincandle/1021.FINAL.RTUPDATE.MINCANDLE.plan.v2.0.md",
+    "1021.CURRENT-IMPLEMENTATION.분봉-실시간-업데이트.md",
+    "1021.URGENT-runtime-evidence-needed.md",
+    "1021.H0STACI0.debug-analysis.md",
+    "plan/mincandle/1021.work.codex.md",
+    "plan/mincandle/1021.backend.mincandle.logging.md",
+    "plan/mincandle/1021.analysis.backend.mincandle.md",
+    "1021.chart.rtupdate.plan.md.md",
+    "1021.trview.runtime-evidence-collection.md",
+    "1021.trview.realtime-candle-not-working.final-diagnosis.md",
+    "1021.trview.minute-candle-channel.diagnosis.md",
+    "1021.trview.websocket.diagnosis.md",
+    "plan/mincandle/1021.1012.rtupdate.plan.v1.1.md",
+    "plan/mincandle/1021.1010.rtupdate.plan.v1.0.md",
+    "plan/mincandle/1021.gem.rt.update.plan.md",
+    "plan/mincandle/1021.rt.update.plan.md",
+    "plan/mincandle/1021.anal.gem.md",
+    "1021.TRView차트.실시간분봉.분석.md"
   ]
 }

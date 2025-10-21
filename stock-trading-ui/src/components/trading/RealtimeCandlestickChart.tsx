@@ -15,6 +15,7 @@ interface RealtimeCandlestickChartProps {
   enableHistoricalLoad?: boolean; // 과거 데이터 자동 로딩 활성화 여부
   initialDays?: number; // 초기 프리로드 일수 (기본값: 3)
   onRangeChange?: (range: { startIndex: number; endIndex: number }) => void; // 드래그 시 과거 데이터 로드
+  onCurrentPriceChange?: (price: number) => void; // 현재가 변경 콜백
 }
 
 const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = ({
@@ -24,7 +25,8 @@ const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = ({
   timeframe,
   enableHistoricalLoad = true,
   initialDays = 3,
-  onRangeChange: externalOnRangeChange
+  onRangeChange: externalOnRangeChange,
+  onCurrentPriceChange
 }) => {
   // 🎯 과거 데이터 자동 로딩 훅 (stockCode가 제공된 경우만)
   const {
@@ -112,8 +114,15 @@ const RealtimeCandlestickChart: React.FC<RealtimeCandlestickChartProps> = ({
     }
 
     console.log(`✅ [Chart] 최종 차트 데이터: ${mergedData.length}개 분봉`);
+    
+    // 현재가 변경 콜백 호출
+    if (onCurrentPriceChange && mergedData.length > 0) {
+      const latestPrice = mergedData[mergedData.length - 1].close;
+      onCurrentPriceChange(latestPrice);
+    }
+    
     return mergedData;
-  }, [baseChartData, currentCandle, finalizedCandles]);
+  }, [baseChartData, currentCandle, finalizedCandles, onCurrentPriceChange]);
 
   // 로딩 상태 표시 (자동 로딩 모드일 때만)
   if (stockCode && !externalChartData && isLoading && baseChartData.length === 0) {

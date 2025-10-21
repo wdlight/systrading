@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { ChartCandle } from '@/lib/types/korean-stocks';
-import { MinuteCandleUpdateMessage, MinuteCandleFinalizeMessage } from '@/lib/types';
-import { subscribeToMinuteCandles, subscribeToMinuteCandleFinalize, wsManager } from '@/lib/websocket';
+import { MinuteCandleUpdateMessage, MinuteCandleFinalizedMessage } from '@/lib/types';  // ✅ Finalize → Finalized
+import { subscribeToMinuteCandles, subscribeToMinuteCandleFinalized, wsManager } from '@/lib/websocket';  // ✅ Finalize → Finalized
+
+const MAX_FINALIZED_CANDLES = 600; // 약 10시간 분량의 캐시
 
 export function useRealtimeMinuteCandles(stockCode: string, enabled: boolean = true) {
   const [currentCandle, setCurrentCandle] = useState<ChartCandle | null>(null);
@@ -57,6 +59,7 @@ export function useRealtimeMinuteCandles(stockCode: string, enabled: boolean = t
     subscribeToStock();
 
     // 1. 진행 중인 분봉 구독 (기존)
+    console.log('⚙️ [useRealtimeMinuteCandles] minute_candle_update 리스너 등록 시도');
     const unsubscribeUpdate = subscribeToMinuteCandles((message: MinuteCandleUpdateMessage) => {
       console.log('🔄 [UPDATE] 분봉 업데이트 메시지 수신:', message);
 
@@ -65,15 +68,21 @@ export function useRealtimeMinuteCandles(stockCode: string, enabled: boolean = t
         return;
       }
 
-      console.log(`✅ [UPDATE] 분봉 업데이트 처리: ${message.stock_code} ${message.data.timestamp}`);
-      const { data } = message;
+      console.log(`✅ [UPDATE] 분봉 업데이트 처리: ${message.stock_code} ${message.candle.timestamp}`);
+      const { candle, is_final } = message;  // ✅ data → candle, is_final 추가
+
+      // ✅ is_final 플래그 로깅 (디버깅용)
+      if (is_final) {
+        console.log(`🔥 [UPDATE] 완료된 분봉 수신 (is_final=true): ${candle.timestamp}`);
+      }
+
       setCurrentCandle({
-        timestamp: data.timestamp,
-        open: data.open,
-        high: data.high,
-        low: data.low,
-        close: data.close,
-        volume: data.volume,
+        timestamp: candle.timestamp,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume,
         tradingValue: null,
         foreignBuy: null,
         foreignSell: null,
@@ -83,25 +92,27 @@ export function useRealtimeMinuteCandles(stockCode: string, enabled: boolean = t
         individualSell: null,
       });
     });
+    console.log('📡 [useRealtimeMinuteCandles] minute_candle_update 리스너 등록 완료');
 
     // 2. 완성된 분봉 구독 (신규)
-    const unsubscribeFinalize = subscribeToMinuteCandleFinalize((message: MinuteCandleFinalizeMessage) => {
-      console.log('🎉 [FINALIZE] 분봉 완성 메시지 수신:', message);
+    console.log('⚙️ [useRealtimeMinuteCandles] minute_candle_finalized 리스너 등록 시도');  // ✅ finalize → finalized
+    const unsubscribeFinalize = subscribeToMinuteCandleFinalized((message: MinuteCandleFinalizedMessage) => {  // ✅ Finalize → Finalized
+      console.log('🎉 [FINALIZED] 분봉 완성 메시지 수신:', message);
 
       if (message.stock_code !== stockCode) {
-        console.log(`⚠️ [FINALIZE] 종목 코드 불일치: ${message.stock_code} !== ${stockCode}`);
+        console.log(`⚠️ [FINALIZED] 종목 코드 불일치: ${message.stock_code} !== ${stockCode}`);
         return;
       }
 
-      console.log(`✅ [FINALIZE] 완성된 분봉 처리 시작: ${message.stock_code} ${message.data.timestamp}`);
-      const { data } = message;
+      console.log(`✅ [FINALIZED] 완성된 분봉 처리 시작: ${message.stock_code} ${message.candle.timestamp}`);  // ✅ data → candle
+      const { candle } = message;  // ✅ data → candle
       const finalizedCandle: ChartCandle = {
-        timestamp: data.timestamp,
-        open: data.open,
-        high: data.high,
-        low: data.low,
-        close: data.close,
-        volume: data.volume,
+        timestamp: candle.timestamp,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume,
         tradingValue: null,
         foreignBuy: null,
         foreignSell: null,
@@ -117,17 +128,23 @@ export function useRealtimeMinuteCandles(stockCode: string, enabled: boolean = t
       setFinalizedCandles((prev) => {
         const exists = prev.some(c => c.timestamp === finalizedCandle.timestamp);
         if (exists) {
-          console.log(`⚠️ [FINALIZE] 중복 분봉 감지, 무시: ${finalizedCandle.timestamp}`);
+          console.log(`⚠️ [FINALIZED] 중복 분봉 감지, 무시: ${finalizedCandle.timestamp}`);
           return prev;
         }
-        console.log(`✅ [FINALIZE] finalizedCandles 배열에 추가: ${finalizedCandle.timestamp} (기존 ${prev.length}개 → ${prev.length + 1}개)`);
-        return [...prev, finalizedCandle];
+        console.log(`✅ [FINALIZED] finalizedCandles 배열에 추가: ${finalizedCandle.timestamp} (기존 ${prev.length}개 → ${prev.length + 1}개)`);
+        const next = [...prev, finalizedCandle];
+        if (next.length > MAX_FINALIZED_CANDLES) {
+          console.log(`♻️ [FINALIZED] finalizedCandles 사이즈 제한 적용: ${next.length} → ${MAX_FINALIZED_CANDLES}`);
+          return next.slice(-MAX_FINALIZED_CANDLES);
+        }
+        return next;
       });
 
       // 현재 분봉이 완성된 것이면 초기화
       setCurrentCandle(null);
-      console.log('✅ [FINALIZE] currentCandle 초기화 완료');
+      console.log('✅ [FINALIZED] currentCandle 초기화 완료');
     });
+    console.log('📡 [useRealtimeMinuteCandles] minute_candle_finalized 리스너 등록 완료');  // ✅ finalize → finalized
 
     return () => {
       console.log(`🔚 [useRealtimeMinuteCandles] 구독 해제: ${stockCode}`);

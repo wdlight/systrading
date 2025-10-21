@@ -1,9 +1,10 @@
 // hooks/useTRViewChart.ts
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ChartCandle } from '@/lib/types/korean-stocks';
 import { chartAPI } from '@/lib/chart-api';
+import { useRealtimeMinuteCandles } from './useRealtimeMinuteCandles';
 
 interface UseTRViewChartProps {
   stockCode: string;
@@ -60,6 +61,12 @@ export function useTRViewChart({
   const fetchData = useCallback(async ({ silent = false } = {}) => {
     if (!enabled || !stockCode) return;
 
+    console.log('📡 [useTRViewChart] fetchData 시작', {
+      stockCode,
+      timeframe,
+      silent,
+    });
+
     if (!silent) {
       setIsLoading(true);
     }
@@ -88,6 +95,14 @@ export function useTRViewChart({
       if (!hasExtendedRef.current && nextData.length > MAX_INITIAL_CANDLES) {
         nextData = nextData.slice(-MAX_INITIAL_CANDLES);
       }
+
+      console.log('✅ [useTRViewChart] 데이터 로드 완료', {
+        timeframe,
+        received: data.length,
+        merged: nextData.length,
+        firstTimestamp: nextData[0]?.timestamp,
+        lastTimestamp: nextData[nextData.length - 1]?.timestamp,
+      });
 
       chartDataRef.current = nextData;
       setChartData(nextData);
@@ -185,14 +200,85 @@ export function useTRViewChart({
 
   const refetch = useCallback(() => fetchData(), [fetchData]);
 
+  const isMinuteTimeframe = timeframe === 'minute';
+
+  const { currentCandle, finalizedCandles } = useRealtimeMinuteCandles(
+    stockCode,
+    enabled && isMinuteTimeframe
+  );
+
+  const mergedChartData = useMemo<ChartCandle[]>(() => {
+    if (!isMinuteTimeframe) {
+      return chartData;
+    }
+
+    const candleMap = new Map<string, ChartCandle>();
+
+    chartData.forEach((candle) => {
+      candleMap.set(candle.timestamp, candle);
+    });
+
+    finalizedCandles.forEach((candle) => {
+      candleMap.set(candle.timestamp, candle);
+    });
+
+    if (currentCandle) {
+      candleMap.set(currentCandle.timestamp, currentCandle);
+    }
+
+    return Array.from(candleMap.values()).sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+  }, [isMinuteTimeframe, chartData, finalizedCandles, currentCandle]);
+
+  useEffect(() => {
+    if (!isMinuteTimeframe) return;
+
+    console.log('🔁 [useTRViewChart] 분봉 merge 결과', {
+      baseLength: chartData.length,
+      finalizedLength: finalizedCandles.length,
+      hasCurrent: !!currentCandle,
+      mergedLength: mergedChartData.length,
+      lastTimestamp: mergedChartData[mergedChartData.length - 1]?.timestamp,
+    });
+  }, [isMinuteTimeframe, chartData, finalizedCandles, currentCandle, mergedChartData.length]);
+
+  const effectiveChartData = isMinuteTimeframe ? mergedChartData : chartData;
+
+  const latestClose = useMemo<number | null>(() => {
+    if (isMinuteTimeframe) {
+      if (currentCandle) {
+        return currentCandle.close;
+      }
+      const last = mergedChartData[mergedChartData.length - 1];
+      return last ? last.close : null;
+    }
+
+    const last = chartData[chartData.length - 1];
+    return last ? last.close : null;
+  }, [isMinuteTimeframe, chartData, mergedChartData, currentCandle]);
+
+  useEffect(() => {
+    console.log('📈 [useTRViewChart] latestClose 업데이트', {
+      timeframe,
+      latestClose,
+      source: isMinuteTimeframe
+        ? currentCandle
+          ? 'currentCandle'
+          : 'mergedChartData'
+        : 'chartData',
+    });
+  }, [latestClose, timeframe, isMinuteTimeframe, currentCandle]);
+
   return { 
-    chartData, 
+    chartData: effectiveChartData, 
     isLoading, 
     error, 
     refetch, 
     loadPrevious, // Renamed from loadPreviousDay
     isLoadingMore, 
     canLoadMore,
-    hasExtendedRange
+    hasExtendedRange,
+    latestClose
   };
 }

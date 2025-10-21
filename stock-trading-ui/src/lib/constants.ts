@@ -72,7 +72,7 @@ export const WS_MESSAGE_TYPES = {
   ORDER_UPDATE: 'order_update',
   MARKET_INDEX_UPDATE: 'market_index_update',
   MINUTE_CANDLE_UPDATE: 'minute_candle_update',
-  MINUTE_CANDLE_FINALIZE: 'minute_candle_finalize',
+  MINUTE_CANDLE_FINALIZED: 'minute_candle_finalized',  // ✅ "FINALIZE" → "FINALIZED"
   HEARTBEAT: 'heartbeat',
   PONG: 'pong',
 } as const;

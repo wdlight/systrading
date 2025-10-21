@@ -422,17 +422,25 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
           f"WebSocket 연결 종료 감지: code={e.code}, reason={e.reason}, was_clean={getattr(e, 'was_clean', None)}"
         )
         break
-      # websocket 전달  log 활성화   
+      # websocket 전달  log 활성화
       #logger.info(f"received data: {data} \n")
 
-      if data[0] == '0':  
+      if data[0] == '0':
         recvstr = data.split('|')
         trid0 = recvstr[1]
 
+        # 📥 [WS-DATA] 모든 수신 데이터 로깅 (with special icon)
+        data_preview = recvstr[3][:100] if len(recvstr) > 3 else 'N/A'
+        logger.info(f"📥 [WS-DATA] trid0={trid0}, data_cnt={recvstr[2] if len(recvstr) > 2 else 'N/A'}, preview={data_preview}")
+
         if trid0 == "H0STCNI0" : #주식 체결 데이터 처리
+          logger.info(f"✅ [H0STCNI0-ENTRY] Processing execution/tick data")
           data_cnt = int(recvstr[2])
           for cnt in range ( data_cnt):
-            data_dict = receive_realtime_tick_domestic(recvstr[3])
+            raw_payload = recvstr[3]
+            logger.info("[H0STCNI0] raw payload: %s", raw_payload)
+            data_dict = receive_realtime_tick_domestic(raw_payload)
+            logger.info("[H0STCNI0] parsed data: %s", data_dict)
             
             # 백프레셔 처리: Queue 상태 확인
             status = result_monitor.check_status()
@@ -463,6 +471,7 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
               metrics_collector.metrics.record_message_dropped()
             
         elif trid0 == "H0STASP0":   # 주식호가 데이터 처리
+          logger.info(f"✅ [H0STASP0-ENTRY] Processing orderbook data")
           # JSON 형식과 ^ 파이프 형식을 모두 지원
           data_dict = None
           if recvstr[3].startswith('{'):

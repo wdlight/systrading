@@ -33,9 +33,12 @@ export function useWebSocket(): UseWebSocketReturn {
       });
     }
 
-    // 컴포넌트 언마운트 시 연결 해제
+    // ⚠️ 중요: 언마운트 시 연결 해제하지 않음
+    // WebSocket은 싱글톤으로 앱 전체에서 공유되므로
+    // 컴포넌트 언마운트 시 연결을 끊으면 안 됨
+    // (React Strict Mode의 double render 문제 방지)
     return () => {
-      wsManager.disconnect();
+      // wsManager.disconnect(); // 제거됨
     };
   }, []);
 
