@@ -31,15 +31,15 @@ Portfolio History API는 사용자의 포트폴리오 평가 금액과 KOSPI 벤
 
 ### 지원 기간
 
-| 기간 코드 | 설명 | 데이터 포인트 수 (예상) |
-|-----------|------|------------------------|
-| `1D` | 1일 | 30~78 (분봉 기준) |
-| `1W` | 1주 | 5~7 (일봉 기준) |
-| `1M` | 1개월 | 20~22 (일봉 기준) |
-| `3M` | 3개월 | 60~66 (일봉 기준) |
-| `6M` | 6개월 | 120~132 (일봉 기준) |
-| `1Y` | 1년 | 240~252 (일봉 기준) |
-| `ALL` | 전체 | 가변 (계좌 개설일부터) |
+| 기간 코드 | 설명  | 데이터 포인트 수 (예상)  |
+| ----- | --- | --------------- |
+| `1D`  | 1일  | 30~78 (분봉 기준)   |
+| `1W`  | 1주  | 5~7 (일봉 기준)     |
+| `1M`  | 1개월 | 20~22 (일봉 기준)   |
+| `3M`  | 3개월 | 60~66 (일봉 기준)   |
+| `6M`  | 6개월 | 120~132 (일봉 기준) |
+| `1Y`  | 1년  | 240~252 (일봉 기준) |
+| `ALL` | 전체  | 가변 (계좌 개설일부터)   |
 
 ---
 
@@ -63,11 +63,12 @@ Portfolio History API는 사용자의 포트폴리오 평가 금액과 KOSPI 벤
 
 **Query Parameters**:
 
-| 파라미터 | 타입 | 필수 | 기본값 | 설명 | 예시 |
-|----------|------|------|--------|------|------|
-| `period` | string | ❌ | `1W` | 조회 기간 | `1D`, `1W`, `1M`, `3M`, `6M`, `1Y`, `ALL` |
+| 파라미터     | 타입     | 필수  | 기본값  | 설명    | 예시                                        |
+| -------- | ------ | --- | ---- | ----- | ----------------------------------------- |
+| `period` | string | ❌   | `1W` | 조회 기간 | `1D`, `1W`, `1M`, `3M`, `6M`, `1Y`, `ALL` |
 
 **허용되는 period 값**:
+
 - `1D`: 1일 (당일 분봉 데이터)
 - `1W`: 1주일
 - `1M`: 1개월
@@ -93,6 +94,7 @@ interface PortfolioHistoryPoint {
 ```
 
 **예시 응답**:
+
 ```json
 [
   {
@@ -126,6 +128,7 @@ interface PortfolioHistoryPoint {
 ```
 
 **발생 조건**:
+
 - 조회 기간에 거래 데이터가 없음
 - 계좌 잔고가 0원
 - 보유 종목이 없음
@@ -141,6 +144,7 @@ interface PortfolioHistoryPoint {
 ```
 
 **발생 조건**:
+
 - `period` 값이 허용 목록에 없음
 - 쿼리 파라미터 형식 오류
 
@@ -155,6 +159,7 @@ interface PortfolioHistoryPoint {
 ```
 
 **발생 조건**:
+
 - 한국투자증권 API 연동 실패
 - 데이터 계산 로직 오류
 - Redis 연결 오류 (캐시는 실패해도 동작함)
@@ -167,11 +172,11 @@ interface PortfolioHistoryPoint {
 
 포트폴리오 히스토리 데이터 포인트
 
-| 필드 | 타입 | 설명 | 예시 |
-|------|------|------|------|
-| `date` | string | ISO 8601 날짜/시간 (KST, UTC+09:00) | `"2025-10-11T15:30:00+09:00"` |
-| `portfolio` | number | 포트폴리오 총 평가 금액 (원) | `10000000` |
-| `benchmark` | number | KOSPI 벤치마크 (정규화, 원) | `9800000` |
+| 필드          | 타입     | 설명                              | 예시                            |
+| ----------- | ------ | ------------------------------- | ----------------------------- |
+| `date`      | string | ISO 8601 날짜/시간 (KST, UTC+09:00) | `"2025-10-11T15:30:00+09:00"` |
+| `portfolio` | number | 포트폴리오 총 평가 금액 (원)               | `10000000`                    |
+| `benchmark` | number | KOSPI 벤치마크 (정규화, 원)             | `9800000`                     |
 
 ### 날짜 형식
 
@@ -182,6 +187,7 @@ interface PortfolioHistoryPoint {
 ### 정규화 로직
 
 **벤치마크 정규화**:
+
 ```python
 # 시작점을 포트폴리오와 동일하게 맞춤
 benchmark_normalized = (kospi_current / kospi_start) * portfolio_start
@@ -195,12 +201,12 @@ benchmark_normalized = (kospi_current / kospi_start) * portfolio_start
 
 ### HTTP Status Codes
 
-| 코드 | 의미 | 설명 |
-|------|------|------|
-| `200` | OK | 정상 응답 |
-| `204` | No Content | 데이터 없음 |
-| `400` | Bad Request | 잘못된 요청 |
-| `500` | Internal Server Error | 서버 오류 |
+| 코드    | 의미                    | 설명     |
+| ----- | --------------------- | ------ |
+| `200` | OK                    | 정상 응답  |
+| `204` | No Content            | 데이터 없음 |
+| `400` | Bad Request           | 잘못된 요청 |
+| `500` | Internal Server Error | 서버 오류  |
 
 ### 에러 응답 형식
 
@@ -217,21 +223,25 @@ interface ErrorResponse {
 ### cURL
 
 #### 기본 요청
+
 ```bash
 curl http://localhost:8000/api/portfolio/history
 ```
 
 #### 기간 지정
+
 ```bash
 curl http://localhost:8000/api/portfolio/history?period=1M
 ```
 
 #### JSON 포맷팅
+
 ```bash
 curl http://localhost:8000/api/portfolio/history?period=1M | jq
 ```
 
 #### 응답 저장
+
 ```bash
 curl http://localhost:8000/api/portfolio/history?period=1M > portfolio.json
 ```
@@ -355,19 +365,23 @@ function PortfolioChart() {
 ### Redis 캐싱
 
 **캐시 키 형식**:
+
 ```
 portfolio_history:{period}
 ```
 
 **예시**:
+
 - `portfolio_history:1D`
 - `portfolio_history:1W`
 - `portfolio_history:1M`
 
 **TTL (Time To Live)**:
+
 - 300초 (5분)
 
 **캐싱 플로우**:
+
 1. 요청 수신
 2. Redis에서 캐시 확인
 3. 캐시 히트: 즉시 반환
@@ -376,14 +390,15 @@ portfolio_history:{period}
 
 ### 성능 특징
 
-| 상황 | 응답 시간 (예상) |
-|------|------------------|
-| 캐시 히트 | < 50ms |
+| 상황         | 응답 시간 (예상) |
+| ---------- | ---------- |
+| 캐시 히트      | < 50ms     |
 | 캐시 미스 (1D) | 500ms ~ 2s |
-| 캐시 미스 (1M) | 1s ~ 3s |
-| 캐시 미스 (1Y) | 3s ~ 10s |
+| 캐시 미스 (1M) | 1s ~ 3s    |
+| 캐시 미스 (1Y) | 3s ~ 10s   |
 
 **최적화 팁**:
+
 1. 동일 기간 반복 조회 시 캐시 활용
 2. 여러 기간 동시 조회 시 병렬 요청
 3. 프론트엔드에서 추가 캐싱 고려
@@ -416,12 +431,14 @@ portfolio_history:{period}
 ## 버전 히스토리
 
 ### v2.0.0 (2025-10-11)
+
 - ✨ Redis 캐싱 추가
 - ✨ 벤치마크 정규화 개선
 - ✨ 스냅샷 기반 계산 로직
 - 🐛 타임존 처리 버그 수정
 
 ### v1.0.0 (2025-10-10)
+
 - 🎉 최초 릴리스
 - ✨ 기본 포트폴리오 이력 조회
 - ✨ KOSPI 벤치마크 비교
