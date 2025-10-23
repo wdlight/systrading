@@ -91,7 +91,15 @@ def parse_hoga_json(json_data: dict) -> dict:
         })
     
     # 현재가 및 시간 정보
-    current_price = int(body.get("last", 0))
+    current_price = _safe_int(body.get("last", 0), 0)
+    current_price = _resolve_current_price(
+        current_price,
+        asks,
+        bids,
+        body.get("stck_prpr"),
+        body.get("new_last"),
+        body.get("base"),
+    )
     time_str = body.get("time", "000000")  # HHMMSS
     date_str = body.get("date", datetime.now().strftime("%Y%m%d"))  # YYYYMMDD
     
@@ -132,10 +140,7 @@ def receive_realtime_hoga_domestic_new(data: str) -> dict | None:
         time_str = values[1]  # HHMMSS
 
         # 현재가 (필드 2 혹은 매수/매도 1호가 평균)
-        try:
-            current_price = int(values[2])
-        except ValueError:
-            current_price = 0
+        current_price = _safe_int(values[2] if len(values) > 2 else 0, 0)
 
         asks = []
         bids = []
@@ -164,7 +169,9 @@ def receive_realtime_hoga_domestic_new(data: str) -> dict | None:
 
         timestamp = datetime.now().strftime("%Y-%m-%dT") + f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
 
-        return {
+        current_price = _resolve_current_price(current_price, asks, bids)
+
+        result = {
             "stock_code": stock_code,
             "asks": asks,
             "bids": bids,
@@ -181,6 +188,10 @@ def receive_realtime_hoga_domestic_new(data: str) -> dict | None:
                 "drate": 0.0
             }
         }
+        if current_price == 0 and stock_code:
+            logger.debug(f"호가 데이터에서 현재가를 찾지 못했습니다: {stock_code}")
+
+        return result
     except Exception as e:
         logger.error(f"호가 ^ 데이터 파싱 오류: {e}, 데이터: {data[:100]}")
         return None
@@ -317,11 +328,6 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
   
   async with websockets.connect( url, ping_interval=None) as websocket:
         
-    # 데이터 수신 카운터
-    tick_count = 0
-    hoga_count = 0
-    max_data_count = 10  # 10번 데이터 수신 후 해제
-
     ### 주문 접수/체결 통보 등록    
     send_data = korea_invest_api.get_send_data(cmd=5, stock_code=None) #주문 접수/체결 통보 등록
     logger.info(f"[실시간 체결 통보 등록]")
@@ -337,6 +343,8 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
         logger.error(f"실시간 지수 등록 실패 tr_key={tr_key}: {e}")
     
     stop_event = asyncio.Event()
+
+    subscribed_hoga: set[str] = set()
 
     async def process_queue():
       """
@@ -374,6 +382,7 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
             logger.info(f"[DEBUG] 호가 구독 데이터 전송: {send_data[:100]}...")
             await websocket.send(send_data)
             logger.info(f"[DEBUG] 호가 구독 데이터 전송 완료")
+            subscribed_hoga.add(stock_code)
 
           elif action_id == "실시간체결통보해제":
             logger.info(f"실시간체결통보해제 {stock_code}")
@@ -384,6 +393,7 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
             logger.info(f"실시간호가해제 {stock_code}")
             send_data = korea_invest_api.get_send_data(cmd=2, stock_code=stock_code)
             await websocket.send(send_data)
+            subscribed_hoga.discard(stock_code)
 
           elif action_id == "종료":
             logger.info("종료 요청 수신 – WebSocket 종료")
@@ -408,19 +418,29 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
         # Queue 태스크가 계속 동작하도록 루프 유지
         continue
       except websockets.exceptions.ConnectionClosed as e:
-        logger.info(f"WebSocket 연결 종료 감지: code={e.code}, reason={e.reason}")
+        logger.info(
+          f"WebSocket 연결 종료 감지: code={e.code}, reason={e.reason}, was_clean={getattr(e, 'was_clean', None)}"
+        )
         break
-      # websocket 전달  log 활성화   
+      # websocket 전달  log 활성화
       #logger.info(f"received data: {data} \n")
 
-      if data[0] == '0':  
+      if data[0] == '0':
         recvstr = data.split('|')
         trid0 = recvstr[1]
 
+        # 📥 [WS-DATA] 모든 수신 데이터 로깅 (with special icon)
+        data_preview = recvstr[3][:100] if len(recvstr) > 3 else 'N/A'
+        logger.info(f"📥 [WS-DATA] trid0={trid0}, data_cnt={recvstr[2] if len(recvstr) > 2 else 'N/A'}, preview={data_preview}")
+
         if trid0 == "H0STCNI0" : #주식 체결 데이터 처리
+          logger.info(f"✅ [H0STCNI0-ENTRY] Processing execution/tick data")
           data_cnt = int(recvstr[2])
           for cnt in range ( data_cnt):
-            data_dict = receive_realtime_tick_domestic(recvstr[3])
+            raw_payload = recvstr[3]
+            logger.info("[H0STCNI0] raw payload: %s", raw_payload)
+            data_dict = receive_realtime_tick_domestic(raw_payload)
+            logger.info("[H0STCNI0] parsed data: %s", data_dict)
             
             # 백프레셔 처리: Queue 상태 확인
             status = result_monitor.check_status()
@@ -438,7 +458,7 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
               ws_result_queue.put(
                 dict(
                   action_id='실시간체결',
-                  종목코드=data_dict["종목코드"],
+                  stock_code=data_dict["stock_code"],
                   data=data_dict
                 ), 
                 block=True, 
@@ -451,6 +471,7 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
               metrics_collector.metrics.record_message_dropped()
             
         elif trid0 == "H0STASP0":   # 주식호가 데이터 처리
+          logger.info(f"✅ [H0STASP0-ENTRY] Processing orderbook data")
           # JSON 형식과 ^ 파이프 형식을 모두 지원
           data_dict = None
           if recvstr[3].startswith('{'):
@@ -511,6 +532,17 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
           rt_cd = jsonObject["body"]["rt_cd"]
           if rt_cd == "1": # 에러일 경우
             logger.info(f"### ERROR Return Code [{rt_cd}] MSG [{jsonObject["body"]["msg1"]}]")
+            if jsonObject["body"].get("msg1") == "ALREADY IN SUBSCRIBE" and jsonObject["body"].get("tr_id") == "H0STASP0":
+              tr_key = jsonObject["body"].get("output", {}).get("tr_key")
+              if tr_key:
+                try:
+                  logger.info(f"기존 호가 구독 해제 후 재구독 시도: {tr_key}")
+                  await websocket.send(korea_invest_api.get_send_data(cmd=2, stock_code=tr_key))
+                  await asyncio.sleep(0.2)
+                  await websocket.send(korea_invest_api.get_send_data(cmd=1, stock_code=tr_key))
+                  logger.info(f"재구독 완료: {tr_key}")
+                except Exception as retry_error:
+                  logger.error(f"호가 재구독 실패: {tr_key}, {retry_error}")
           elif rt_cd =="0":
             logger.info(f"### SUCCESS Return Code [{rt_cd}] MSG [{jsonObject["body"]["msg1"]}]")
             #체결통보 ㅓㅊ리를 위한 AES256 KEY, IV 처리
@@ -555,6 +587,16 @@ async def connect(korea_invest_api, url, ws_req_queue, ws_result_queue):
       await queue_task
     except asyncio.CancelledError:
       pass
+
+    for code in subscribed_hoga:
+      logger.info(f"연결 종료 - 호가 구독 재요청 예정: {code}")
+      try:
+        ws_req_queue.put_nowait({
+          "action_id": "실시간호가등록",
+          "종목코드": code
+        })
+      except Exception as reinject_err:
+        logger.error(f"호가 재등록 큐 삽입 실패 ({code}): {reinject_err}")
 
 
 def receive_signing_notice(data, key, iv, account_num="", ws_result_queue=None):
@@ -629,21 +671,86 @@ def receive_signing_notice(data, key, iv, account_num="", ws_result_queue=None):
   )
 
   
-def receive_realtime_tick_domestic(data):
+def receive_realtime_tick_domestic(raw: str) -> dict:
   """
-  메뉴 순서는 '|'로 분리 해서 하나씩 접근함.
-  유가 증권단축종목코드|주식체결시간|주식현재가|전일대비부호|전일대비|전일대비율|가중평균주식가격|주식시가|주식최고가|주식최저가|
-  매도호가1|매수호가1|체결거래량|누적거래량|누적거래대금|매도체결건수|매수체결건수|순매수체결건수|체결강도|총매도수량|총매수수량|체결구분|
-  매수비율|전일거래량대비등락율|시가시간|시가대비구분|시가대비|최고가시간|고가대비구분|고가대비|최저가시간|저가대비구분|저가대비|영업일자|
-  신장운영구분코드|거래정지여부|매도호가잔량|매수호가잔량|종매도호가잔량|총매수호가잔량|거래량회전율|전일동시간누적거래량|전일동시간누적거래량비율|
-  시간구분코드|임의종료구분코드|정적VI발동기준가
+  한국투자증권 H0STCNI0 체결 채널 (^ 구분 문자열) 파싱.
+
+  필드 순서는 docs/KIS-API/KIS-ws-H0STCNI0.spec.md 기준으로 21개이다.
   """
-  values = data.split('^')
-  종목코드 = values[0]
-  체결시간 = values[1]
-  현재가 = values[2]
-  return dict( 
-    종목코드=종목코드,
-    체결결간=체결시간,
-    현재가=현재가,
-  )
+  values = raw.split("^")
+
+  def _int(idx: int, default: int = 0) -> int:
+    try:
+      return int(values[idx]) if len(values) > idx and values[idx] else default
+    except ValueError:
+      return default
+
+  def _float(idx: int, default: float = 0.0) -> float:
+    try:
+      return float(values[idx]) if len(values) > idx and values[idx] else default
+    except ValueError:
+      return default
+
+  return {
+    "stock_code": values[0] if len(values) > 0 else "",
+    "executed_time": values[1] if len(values) > 1 else "",
+    "price": _int(2),
+    "trade_volume": _int(3),
+    "change_sign": values[4] if len(values) > 4 else "",
+    "change": _int(5),
+    "change_rate": _float(6),
+    "ask_price": _int(7),
+    "bid_price": _int(8),
+    "ask_qty": _int(9),
+    "bid_qty": _int(10),
+    "market_code": values[11] if len(values) > 11 else "",
+    "total_ask_qty": _int(12),
+    "total_bid_qty": _int(13),
+    "volume_ratio": _float(14),
+    "acc_volume": _int(15),
+    "acc_value": _int(16),
+    "open_price": _int(17),
+    "high_price": _int(18),
+    "low_price": _int(19),
+    "sequence": _int(20),
+    "raw_payload": raw,
+  }
+
+def _safe_int(value, default: int = 0) -> int:
+    try:
+        if isinstance(value, (int, float)):
+            return int(value)
+        if isinstance(value, str) and value.strip():
+            return int(float(value.replace(',', '')))
+    except (ValueError, TypeError):
+        return default
+    return default
+
+
+def _resolve_current_price(
+    initial_price: int,
+    asks: list,
+    bids: list,
+    *extra_candidates
+) -> int:
+    """현재가 후보들 중 첫 번째 유효값을 반환한다."""
+    candidates = [initial_price]
+    candidates.extend(extra_candidates)
+
+    for candidate in candidates:
+        price = _safe_int(candidate, 0)
+        if price > 0:
+            return price
+
+    # 우선 매수 1호가, 이후 매도 1호가 사용
+    for bid in bids or []:
+        price = _safe_int(bid.get("price"), 0)
+        if price > 0:
+            return price
+
+    for ask in asks or []:
+        price = _safe_int(ask.get("price"), 0)
+        if price > 0:
+            return price
+
+    return 0

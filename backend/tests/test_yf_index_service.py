@@ -216,11 +216,37 @@ class TestYFinanceIndexService:
         assert yf_service._get_market_code("nikkei225") == "A"     # 아시아
         assert yf_service._get_market_code("hangseng") == "A"      # 아시아
         assert yf_service._get_market_code("shanghai") == "A"      # 아시아
-    
+
+    @pytest.mark.asyncio
+    async def test_get_market_indices_real_fetch(self, yf_service, request):
+        """실제 yfinance 데이터를 조회해 값을 출력한다."""
+        try:
+            result = await yf_service.get_market_indices()
+        except Exception as exc:
+            pytest.skip(f"실제 데이터 조회 중 예외 발생: {exc}")
+
+        assert isinstance(result, dict)
+
+        terminal_reporter = request.config.pluginmanager.get_plugin("terminalreporter")
+
+        def emit(line: str) -> None:
+            """pytest 캡처와 무관하게 터미널에 출력"""
+            if terminal_reporter is not None:
+                terminal_reporter.write_line(line)
+            else:
+                print(line)
+
+        for index_name, data in result.items():
+            emit(
+                f"[REAL] {index_name}: current={data.get('current')}, "
+                f"change={data.get('change')}, change_rate={data.get('change_rate')}, "
+                f"ticker={data.get('ticker')}, error={data.get('error')}"
+            )
+
     def test_get_default_data(self, yf_service):
         """기본값 데이터 테스트"""
         default_data = yf_service._get_default_data("kospi", "^KS11")
-        
+
         assert default_data["code"] == "0001"
         assert default_data["market"] == "U"
         assert default_data["current"] == 0.0

@@ -56,24 +56,17 @@ class YFinanceIndexService:
                     logger.info("캐시된 지수 데이터 사용")
                     return cached_data
             
-            # 각 지수별로 데이터 조회 (병렬 처리)
-            tasks = []
+            # 각 지수별로 데이터 조회 (순차 처리)
             for index_name, ticker in self.index_mapping.items():
-                task = self._fetch_and_format_index(index_name, ticker)
-                tasks.append(task)
-            
-            # 모든 지수 데이터를 병렬로 조회
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # 결과 수집
-            for i, (index_name, ticker) in enumerate(self.index_mapping.items()):
-                result = results[i]
-                if isinstance(result, Exception):
-                    logger.warning(f"{index_name} ({ticker}) 데이터 조회 실패: {result}")
-                    indices[index_name] = self._get_default_data(index_name, ticker)
-                elif result:
-                    indices[index_name] = result
-                else:
+                try:
+                    result = await self._fetch_and_format_index(index_name, ticker)
+                    if result:
+                        indices[index_name] = result
+                    else:
+                        logger.warning(f"{index_name} ({ticker}) 데이터 조회 실패: 결과 없음")
+                        indices[index_name] = self._get_default_data(index_name, ticker)
+                except Exception as e:
+                    logger.error(f"{index_name} ({ticker}) 처리 중 예외 발생: {e}")
                     indices[index_name] = self._get_default_data(index_name, ticker)
             
             # 캐시 저장

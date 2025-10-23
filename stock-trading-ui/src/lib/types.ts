@@ -144,8 +144,12 @@ export interface OrderBookData {
   error?: string;  // 오류 메시지
 }
 
-export interface OrderBookUpdate {
-  type: 'orderbook_update';
+type TimestampedMessage<TType extends string> = {
+  type: TType;
+  timestamp?: string;
+};
+
+export interface OrderBookUpdate extends TimestampedMessage<'orderbook_update'> {
   stock_code: string;
   data: {
     asks: OrderBookRow[];
@@ -156,14 +160,28 @@ export interface OrderBookUpdate {
 }
 
 // WebSocket 메시지 타입
-export interface RealtimeMessage {
-  type: 'account_update' | 'watchlist_update' | 'price_update' | 'trading_status' | 'order_update' | 'connection_status' | 'market_index_update' | 'orderbook_update' | 'market_status_update';
+export interface MinuteCandlePayload {
   timestamp: string;
-  data: any;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  last_tick?: string;
 }
 
-export interface MarketStatusUpdate {
-  type: 'market_status_update';
+export interface MinuteCandleUpdateMessage extends TimestampedMessage<'minute_candle_update'> {
+  stock_code: string;
+  candle: MinuteCandlePayload;  // ✅ "data" → "candle" (Backend 스키마 일치)
+  is_final: boolean;  // ✅ 진행 중(false) 또는 완료(true) 표시
+}
+
+export interface MinuteCandleFinalizedMessage extends TimestampedMessage<'minute_candle_finalized'> {  // ✅ "Finalize" → "Finalized"
+  stock_code: string;
+  candle: MinuteCandlePayload;  // ✅ "data" → "candle" (Backend 스키마 일치)
+}
+
+export interface MarketStatusUpdate extends TimestampedMessage<'market_status_update'> {
   data: {
     status: 'open' | 'closed';
     session: 'pre_market' | 'regular' | 'after_market' | 'closed';
@@ -171,11 +189,9 @@ export interface MarketStatusUpdate {
     next_open: string;
     last_data_timestamp?: string;
   };
-  timestamp: string;
 }
 
-export interface PriceUpdate {
-  type: 'price_update';
+export interface PriceUpdate extends TimestampedMessage<'price_update'> {
   data: {
     stock_code: string;
     current_price: number;
@@ -186,18 +202,15 @@ export interface PriceUpdate {
   };
 }
 
-export interface AccountUpdate {
-  type: 'account_update';
+export interface AccountUpdate extends TimestampedMessage<'account_update'> {
   data: AccountBalance;
 }
 
-export interface WatchlistUpdate {
-  type: 'watchlist_update';
+export interface WatchlistUpdate extends TimestampedMessage<'watchlist_update'> {
   data: WatchlistItem[];
 }
 
-export interface TradingStatusUpdate {
-  type: 'trading_status';
+export interface TradingStatusUpdate extends TimestampedMessage<'trading_status'> {
   data: {
     is_active: boolean;
     current_positions: number;
@@ -207,19 +220,39 @@ export interface TradingStatusUpdate {
   };
 }
 
-export interface OrderUpdate {
-  type: 'order_update';
+export interface OrderUpdate extends TimestampedMessage<'order_update'> {
   data: Order;
 }
 
-export interface ConnectionStatus {
-  type: 'connection_status';
+export interface ConnectionStatus extends TimestampedMessage<'connection_status'> {
   data: {
     status: 'connected' | 'disconnected' | 'reconnecting';
     last_update: string;
     error_message?: string;
   };
 }
+
+export interface MarketIndexUpdate extends TimestampedMessage<'market_index_update'> {
+  data: Record<string, MarketIndex>;
+}
+
+export type HeartbeatMessage = TimestampedMessage<'heartbeat'>;
+export type PongMessage = TimestampedMessage<'pong'>;
+
+export type RealtimeMessage =
+  | MinuteCandleUpdateMessage
+  | MinuteCandleFinalizedMessage
+  | OrderBookUpdate
+  | MarketStatusUpdate
+  | MarketIndexUpdate
+  | AccountUpdate
+  | WatchlistUpdate
+  | PriceUpdate
+  | TradingStatusUpdate
+  | OrderUpdate
+  | ConnectionStatus
+  | HeartbeatMessage
+  | PongMessage;
 
 // 시장 정보 타입
 export interface MarketIndex {

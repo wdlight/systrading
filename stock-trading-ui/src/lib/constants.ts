@@ -71,6 +71,10 @@ export const WS_MESSAGE_TYPES = {
   TRADING_STATUS: 'trading_status',
   ORDER_UPDATE: 'order_update',
   MARKET_INDEX_UPDATE: 'market_index_update',
+  MINUTE_CANDLE_UPDATE: 'minute_candle_update',
+  MINUTE_CANDLE_FINALIZED: 'minute_candle_finalized',  // ✅ "FINALIZE" → "FINALIZED"
+  HEARTBEAT: 'heartbeat',
+  PONG: 'pong',
 } as const;
 
 // 매매 조건 타입

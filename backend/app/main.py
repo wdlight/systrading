@@ -123,9 +123,59 @@ async def lifespan(app: FastAPI):
     logger.info("성능 모니터링 시스템 초기화 완료")
     
     realtime_service = RealtimeDataService(korea_invest_service, connection_manager, ws_result_queue)
-    
+
+    # ==========================================
+    # 분봉 Persistence Handler 연결
+    # ==========================================
+    from datetime import datetime
+    from app.services.trading_service import TradingService
+    from app.models.schemas import ChartCandle
+
+    # TradingService 인스턴스 생성
+    trading_service = TradingService(korea_invest_service)
+
+    # Persistence 콜백 함수 정의
+    async def minute_persist_callback(stock_code: str, candle: ChartCandle):
+        """
+        WebSocket으로 완성된 분봉을 kordata/ 캐시에 저장
+
+        Args:
+            stock_code: 종목 코드 (예: "005930")
+            candle: 완성된 분봉 데이터
+        """
+        try:
+            # candle.timestamp: "2025-10-19T14:35:00+09:00" 형식
+            target_date = datetime.fromisoformat(candle.timestamp)
+
+            # 캐시 파일 업데이트
+            success = await trading_service.update_minute_candle(
+                stock_code=stock_code,
+                target_date=target_date,
+                candle_data=candle
+            )
+
+            if success:
+                logger.info(
+                    f"✅ [Persistence] 분봉 캐시 저장 성공: "
+                    f"{stock_code} {candle.timestamp} "
+                    f"(O:{candle.open} H:{candle.high} L:{candle.low} C:{candle.close} V:{candle.volume})"
+                )
+            else:
+                logger.warning(f"⚠️ [Persistence] 분봉 저장 실패: {stock_code} {candle.timestamp}")
+
+        except Exception as e:
+            logger.error(
+                f"❌ [Persistence] 분봉 저장 오류: {stock_code} {candle.timestamp} - {e}",
+                exc_info=True
+            )
+
+    # RealtimeDataService에 핸들러 주입
+    realtime_service.set_minute_persist_handler(minute_persist_callback)
+    logger.info("🔗 [Startup] 분봉 Persistence Handler 연결 완료")
+
     # FastAPI app.state에 저장 (싱글톤 대신)
     app.state.realtime_service = realtime_service
+    app.state.trading_service = trading_service  # TradingService도 등록
     app.state.ws_req_queue = ws_req_queue
     app.state.ws_result_queue = ws_result_queue
     logger.info("RealtimeDataService가 app.state에 등록되었습니다.")

@@ -1,12 +1,15 @@
+
+setuptools
+
 # FastAPI 및 웹서버
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
-websockets==12.0
+websockets>=15.0.1
 
 # 데이터 처리
 pandas==2.1.3
 numpy==1.26.0
-TA-Lib  # 추가
+ta-lib
 
 # HTTP 클라이언트
 requests==2.31.0
@@ -60,3 +63,8 @@ holidays==0.41
 
 # 스케줄러
 apscheduler==3.10.4
+
+# yahoo finance
+yfinance
+
+

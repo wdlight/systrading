@@ -1,0 +1,240 @@
+{
+  "main": {
+    "id": "812fe745f112f32b",
+    "type": "split",
+    "children": [
+      {
+        "id": "4016d8ee6c6fcd88",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "1cb723ff92762568",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "plan/mincandle/1018.impl.daily.plan.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "1018.impl.daily.plan"
+            }
+          },
+          {
+            "id": "0b61ac38331bd383",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "0.TODOs/2025.10.19 TODO List.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "2025.10.19 TODO List"
+            }
+          },
+          {
+            "id": "3307f72470e0a4db",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "plan/mincandle/1021.FINAL.RTUPDATE.MINCANDLE.plan.v3.0.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "1021.FINAL.RTUPDATE.MINCANDLE.plan.v3.0"
+            }
+          }
+        ],
+        "currentTab": 2
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "cd9710e651ef3358",
+    "type": "split",
+    "children": [
+      {
+        "id": "8f3e5b5320363944",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "7353edb2b00333eb",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "파일 탐색기"
+            }
+          },
+          {
+            "id": "36019913ea66c308",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "검색"
+            }
+          },
+          {
+            "id": "0e177b8444c3dabd",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "북마크"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 510.5
+  },
+  "right": {
+    "id": "d2bd04e3740befe6",
+    "type": "split",
+    "children": [
+      {
+        "id": "7ece96f501266b57",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "902719481e18751a",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "plan/mincandle/minute-candle.realtime.update.final.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "minute-candle.realtime.update.final 의 백링크"
+            }
+          },
+          {
+            "id": "97b10201592df334",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "plan/mincandle/minute-candle.realtime.update.final.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "minute-candle.realtime.update.final 의 나가는 링크"
+            }
+          },
+          {
+            "id": "7f8e29b31e6d20a6",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "태그"
+            }
+          },
+          {
+            "id": "78031703ccf2a991",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "plan/mincandle/minute-candle.realtime.update.final.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "minute-candle.realtime.update.final 의 개요"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:빠른 전환기 열기": false,
+      "graph:그래프 뷰 열기": false,
+      "canvas:새 캔버스 만들기": false,
+      "daily-notes:오늘의 일일 노트 열기": false,
+      "templates:템플릿 삽입": false,
+      "command-palette:명령어 팔레트 열기": false,
+      "bases:새 베이스 생성하기": false
+    }
+  },
+  "active": "3307f72470e0a4db",
+  "lastOpenFiles": [
+    "1021.TYPE-REFACTORING-SUMMARY.md",
+    "1021.TYPE-REFACTORING-SUMMARY.md.tmp.6623.1761057832919",
+    "1021.ALL-FIXES-COMPLETE.md.tmp.6623.1761057774628",
+    "1021.ALL-FIXES-COMPLETE.md",
+    "1021.ALL-FIXES-COMPLETE.md.tmp.6623.1761056615106",
+    "1021.FIXES-APPLIED.md.tmp.6623.1761056614397",
+    "1021.FIXES-APPLIED.md.tmp.6623.1761056613658",
+    "1021.FIXES-APPLIED.md.tmp.6623.1761056613070",
+    "1021.FIXES-APPLIED.md.tmp.6623.1761056612603",
+    "1021.FRONTEND-ISSUE-REVIEW.md",
+    "1021.FRONTEND-ISSUE-REVIEW.md.tmp.6623.1761056108316",
+    "1021.H0STCNI0.final-diagnosis.md",
+    "1021.FIXES-APPLIED.md",
+    "1021.FIXES-APPLIED.md.tmp.6623.1761054914761",
+    "1021.ISSUE-REVIEW.md",
+    "1021.ISSUE-REVIEW.md.tmp.6623.1761054557859",
+    "1021.IMPLEMENTATION-COMPLETE.md",
+    "plan/mincandle/1021.FINAL.RTUPDATE.MINCANDLE.plan.v3.0.md",
+    "plan/mincandle/1021.FINAL.RTUPDATE.MINCANDLE.plan.v2.0.md",
+    "1021.CURRENT-IMPLEMENTATION.분봉-실시간-업데이트.md",
+    "1021.URGENT-runtime-evidence-needed.md",
+    "1021.H0STACI0.debug-analysis.md",
+    "plan/mincandle/1021.work.codex.md",
+    "plan/mincandle/1021.backend.mincandle.logging.md",
+    "plan/mincandle/1021.analysis.backend.mincandle.md",
+    "1021.chart.rtupdate.plan.md.md",
+    "1021.trview.runtime-evidence-collection.md",
+    "1021.trview.realtime-candle-not-working.final-diagnosis.md",
+    "1021.trview.minute-candle-channel.diagnosis.md",
+    "1021.trview.websocket.diagnosis.md",
+    "plan/mincandle/1021.1012.rtupdate.plan.v1.1.md",
+    "plan/mincandle/1021.1010.rtupdate.plan.v1.0.md",
+    "plan/mincandle/1021.gem.rt.update.plan.md",
+    "plan/mincandle/1021.rt.update.plan.md",
+    "plan/mincandle/1021.anal.gem.md",
+    "1021.TRView차트.실시간분봉.분석.md"
+  ]
+}

@@ -8,7 +8,8 @@ import {
   ISeriesApi,
   CandlestickSeries,
   HistogramSeries,
-  LogicalRange
+  LogicalRange,
+  LineStyle,
 } from 'lightweight-charts';
 import { ChartCandle } from '@/lib/types/korean-stocks';
 import { getTRViewChartOptions } from '@/lib/tradingview/chartConfig';
@@ -57,6 +58,9 @@ export function TRViewChart({
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const lastCandleRef = useRef<ChartCandle | null>(null);
   const loadingIndicatorRef = useRef<HTMLDivElement>(null);
+  const priceLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(null);
+  const priceLineTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastHighlightedRef = useRef<{ timestamp: string; price: number } | null>(null);
 
   const formatKST = useCallback(
     (
@@ -83,21 +87,34 @@ export function TRViewChart({
     if (!chartContainerRef.current) return;
 
     const chart = createChart(chartContainerRef.current, {
-      ...getTRViewChartOptions(),
+      ...getTRViewChartOptions(timeframe),
       width: chartContainerRef.current.clientWidth,
       height,
     });
     chartRef.current = chart;
     chart.applyOptions({
       localization: {
-        timeFormatter: (timestamp: number) =>
-          formatKST(new Date(timestamp * 1000), {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
+        timeFormatter: (timestamp: number) => {
+          const date = new Date(timestamp * 1000);
+
+          if (timeframe === 'day') {
+            // 일봉: YYYY-MM-DD 형식 (툴팁/범례용)
+            return formatKST(date, {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+            });
+          } else {
+            // 분봉: YYYY-MM-DD HH:MM 형식
+            return formatKST(date, {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit',
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+          }
+        },
       },
     });
 
@@ -154,7 +171,7 @@ export function TRViewChart({
       window.removeEventListener('resize', handleResize);
       chart.remove();
     };
-  }, [height, showVolume, formatKST]);
+  }, [height, showVolume, formatKST, timeframe]);
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -170,37 +187,74 @@ export function TRViewChart({
 
   useEffect(() => {
     if (volumeSeriesRef.current) {
-        volumeSeriesRef.current.applyOptions({ visible: showVolume });
+      volumeSeriesRef.current.applyOptions({ visible: showVolume });
     }
   }, [showVolume]);
 
   useEffect(() => {
     if (!chartRef.current) return;
 
-    const isDay = timeframe === 'day';
-
     chartRef.current.timeScale().applyOptions({
-      timeVisible: !isDay,
+      timeVisible: true,  // 항상 시간 표시
       secondsVisible: false,
-      // tickMarkFormatter는 lightweight-charts 타입 정의에 없으므로 주석 처리
-      // tickMarkFormatter: (time: number) => {
-      //   const date = new Date(time * 1000);
-      //
-      //   if (isDay) {
-      //     return formatKST(date, {
-      //       year: 'numeric',
-      //       month: '2-digit',
-      //       day: '2-digit',
-      //     });
-      //   } else {
-      //     return formatKST(date, {
-      //       hour: '2-digit',
-      //       minute: '2-digit',
-      //     });
-      //   }
-      // },
     });
-  }, [timeframe, formatKST]);
+  }, [timeframe]);
+
+  const flashPriceLine = useCallback((price: number) => {
+    const series = candleSeriesRef.current;
+    if (!series) return;
+
+    if (priceLineRef.current) {
+      series.removePriceLine(priceLineRef.current);
+      priceLineRef.current = null;
+    }
+
+    priceLineRef.current = series.createPriceLine({
+      price,
+      color: '#F97316',
+      lineStyle: LineStyle.Solid,
+      lineWidth: 2,
+      axisLabelVisible: true,
+      title: '현재가',
+    });
+
+    if (priceLineTimeoutRef.current) {
+      clearTimeout(priceLineTimeoutRef.current);
+    }
+
+    priceLineTimeoutRef.current = setTimeout(() => {
+      if (priceLineRef.current && candleSeriesRef.current) {
+        candleSeriesRef.current.removePriceLine(priceLineRef.current);
+        priceLineRef.current = null;
+      }
+    }, 700);
+  }, []);
+
+  useEffect(() => {
+    if (timeframe !== 'minute') return;
+    const last = chartData[chartData.length - 1];
+    if (!last) return;
+
+    const prev = lastHighlightedRef.current;
+    if (!prev || prev.timestamp !== last.timestamp || prev.price !== last.close) {
+      flashPriceLine(last.close);
+      lastHighlightedRef.current = { timestamp: last.timestamp, price: last.close };
+    }
+  }, [chartData, timeframe, flashPriceLine]);
+
+  useEffect(() => {
+    return () => {
+      if (priceLineTimeoutRef.current) {
+        clearTimeout(priceLineTimeoutRef.current);
+        priceLineTimeoutRef.current = null;
+      }
+      if (priceLineRef.current && candleSeriesRef.current) {
+        candleSeriesRef.current.removePriceLine(priceLineRef.current);
+        priceLineRef.current = null;
+      }
+      lastHighlightedRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const chart = chartRef.current;
@@ -223,12 +277,12 @@ export function TRViewChart({
       }
     }
     if (volumeSeriesRef.current) {
-        if (volumeData && volumeData.length > 0) {
-            volumeSeriesRef.current.setData(volumeData);
-        }
-        else {
-            volumeSeriesRef.current.setData([]);
-        }
+      if (volumeData && volumeData.length > 0) {
+        volumeSeriesRef.current.setData(volumeData);
+      }
+      else {
+        volumeSeriesRef.current.setData([]);
+      }
     }
   }, [candleData, volumeData, chartData, hasExtendedRange, initialVisibleCandles]);
 
