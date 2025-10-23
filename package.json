@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "puppeteer": "^24.26.0",
     "shadcn": "^3.2.1",
     "ws": "^8.18.3"
   },

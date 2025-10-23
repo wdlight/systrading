@@ -8,7 +8,8 @@ import {
   ISeriesApi,
   CandlestickSeries,
   HistogramSeries,
-  LogicalRange
+  LogicalRange,
+  LineStyle,
 } from 'lightweight-charts';
 import { ChartCandle } from '@/lib/types/korean-stocks';
 import { getTRViewChartOptions } from '@/lib/tradingview/chartConfig';
@@ -57,6 +58,9 @@ export function TRViewChart({
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const lastCandleRef = useRef<ChartCandle | null>(null);
   const loadingIndicatorRef = useRef<HTMLDivElement>(null);
+  const priceLineRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']> | null>(null);
+  const priceLineTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastHighlightedRef = useRef<{ timestamp: string; price: number } | null>(null);
 
   const formatKST = useCallback(
     (
@@ -195,6 +199,62 @@ export function TRViewChart({
       secondsVisible: false,
     });
   }, [timeframe]);
+
+  const flashPriceLine = useCallback((price: number) => {
+    const series = candleSeriesRef.current;
+    if (!series) return;
+
+    if (priceLineRef.current) {
+      series.removePriceLine(priceLineRef.current);
+      priceLineRef.current = null;
+    }
+
+    priceLineRef.current = series.createPriceLine({
+      price,
+      color: '#F97316',
+      lineStyle: LineStyle.Solid,
+      lineWidth: 2,
+      axisLabelVisible: true,
+      title: '현재가',
+    });
+
+    if (priceLineTimeoutRef.current) {
+      clearTimeout(priceLineTimeoutRef.current);
+    }
+
+    priceLineTimeoutRef.current = setTimeout(() => {
+      if (priceLineRef.current && candleSeriesRef.current) {
+        candleSeriesRef.current.removePriceLine(priceLineRef.current);
+        priceLineRef.current = null;
+      }
+    }, 700);
+  }, []);
+
+  useEffect(() => {
+    if (timeframe !== 'minute') return;
+    const last = chartData[chartData.length - 1];
+    if (!last) return;
+
+    const prev = lastHighlightedRef.current;
+    if (!prev || prev.timestamp !== last.timestamp || prev.price !== last.close) {
+      flashPriceLine(last.close);
+      lastHighlightedRef.current = { timestamp: last.timestamp, price: last.close };
+    }
+  }, [chartData, timeframe, flashPriceLine]);
+
+  useEffect(() => {
+    return () => {
+      if (priceLineTimeoutRef.current) {
+        clearTimeout(priceLineTimeoutRef.current);
+        priceLineTimeoutRef.current = null;
+      }
+      if (priceLineRef.current && candleSeriesRef.current) {
+        candleSeriesRef.current.removePriceLine(priceLineRef.current);
+        priceLineRef.current = null;
+      }
+      lastHighlightedRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const chart = chartRef.current;
