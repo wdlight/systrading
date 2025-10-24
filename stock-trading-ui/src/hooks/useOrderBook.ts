@@ -39,8 +39,9 @@ export function useOrderBook({
   const [orderBook, setOrderBook] = useState<OrderBookData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const subscribedStockRef = useRef<string | null>(null);
   const lastUpdateRef = useRef<number>(0);
+  const isSubscribingRef = useRef(false);
 
   const normalizeOrderBook = useCallback((raw: OrderBookData | null): OrderBookData | null => {
     if (!raw) return null;
@@ -101,11 +102,49 @@ export function useOrderBook({
     }
   }, [stockCode, normalizeOrderBook]);
 
+  const sendUnsubscribe = useCallback(
+    async (targetStockCode: string) => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/realtime/unsubscribe/orderbook?stock_code=${targetStockCode}`,
+          { method: 'POST' }
+        );
+        if (!response.ok) {
+          console.warn(`⚠️ 호가 구독 해제 실패: ${targetStockCode} status=${response.status}`);
+        }
+      } catch (error) {
+        console.warn(`⚠️ 호가 구독 해제 API 호출 오류: ${targetStockCode}`, error);
+      }
+
+      if (wsManager.isConnected()) {
+        wsManager.send({
+          type: 'unsubscribe',
+          stock_code: targetStockCode,
+        });
+      }
+      wsManager.removePendingSubscription(targetStockCode);
+    },
+    []
+  );
+
   // WebSocket 구독
   const subscribe = useCallback(async () => {
-    if (isSubscribed) return;
+    if (isSubscribingRef.current) {
+      console.log(`⚠️ 호가 구독 진행 중 – 요청 스킵: ${stockCode}`);
+      return;
+    }
+
+    if (subscribedStockRef.current === stockCode) return;
+
+    isSubscribingRef.current = true;
 
     try {
+      const previousStock = subscribedStockRef.current;
+      if (previousStock && previousStock !== stockCode) {
+        await sendUnsubscribe(previousStock);
+        subscribedStockRef.current = null;
+      }
+
       // REST API로 백엔드 KIS WebSocket 구독 요청
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/realtime/subscribe/orderbook?stock_code=${stockCode}`,
@@ -134,7 +173,7 @@ export function useOrderBook({
         // 구독 성공 시 pending list에 추가
         wsManager.addPendingSubscription(stockCode);
         lastUpdateRef.current = Date.now() - 1000;
-        setIsSubscribed(true);
+        subscribedStockRef.current = stockCode;
         console.log(`✅ 호가 구독 시작: ${stockCode}`);
       } else {
         throw new Error('WebSocket 연결 타임아웃');
@@ -144,43 +183,18 @@ export function useOrderBook({
       console.error('호가 구독 오류:', err);
       throw err; // 호출 측에서 처리할 수 있도록 에러 재throw
     }
-  }, [stockCode, isSubscribed]);
+    finally {
+      isSubscribingRef.current = false;
+    }
+  }, [stockCode, sendUnsubscribe]);
 
   // WebSocket 구독 해제
   const unsubscribe = useCallback(async () => {
-    if (!isSubscribed) return;
-
-    try {
-      // # 임시 비활성화: 백엔드 지속 구독 테스트용
-      // const response = await fetch(
-      //   `${process.env.NEXT_PUBLIC_API_URL}/api/realtime/unsubscribe/orderbook?stock_code=${stockCode}`,
-      //   { method: 'POST' }
-      // );
-      //
-      // if (!response.ok) {
-      //   throw new Error('호가 구독 해제 실패');
-      // }
-      //
-      // // WebSocket 구독 해제
-      // if (wsManager.isConnected()) {
-      //   wsManager.send({
-      //     type: 'unsubscribe',
-      //     stock_code: stockCode
-      //   });
-      //   console.log(`❌ 호가 WebSocket 구독 해제: ${stockCode}`);
-      // }
-      //
-      // // pending list에서 제거
-      // wsManager.removePendingSubscription(stockCode);
-      // setIsSubscribed(false);
-      // console.log(`❌ 호가 구독 해제: ${stockCode}`);
-
-      console.warn('⚠️ 호가 구독 해제 호출이 임시로 비활성화되었습니다. (백엔드 지속 구독 테스트)');
-    } catch (err) {
-      console.error('호가 구독 해제 오류:', err);
-      throw err; // 호출 측에서 처리할 수 있도록 에러 재throw
-    }
-  }, [stockCode, isSubscribed]);
+    if (!subscribedStockRef.current) return;
+    const targetStock = subscribedStockRef.current;
+    await sendUnsubscribe(targetStock);
+    subscribedStockRef.current = null;
+  }, [sendUnsubscribe]);
 
   // 데이터 새로고침
   const refresh = useCallback(async () => {
@@ -256,29 +270,21 @@ export function useOrderBook({
 
   // 초기 데이터 로드
   useEffect(() => {
+    setOrderBook(null);
+    lastUpdateRef.current = 0;
     loadInitialData();
-  }, [loadInitialData]);
+  }, [loadInitialData, stockCode]);
 
   // 자동 구독
   useEffect(() => {
-    if (autoSubscribe && !isSubscribed) {
+    if (autoSubscribe) {
       subscribe();
     }
 
     return () => {
-      // # 임시 비활성화: 백엔드 지속 구독 모니터링을 위해 cleanup 시 구독 해제하지 않음
-      // if (isSubscribed) {
-      //   unsubscribe();
-      // }
-      //
-      // if (wsManager.isConnected()) {
-      //   wsManager.send({
-      //     type: 'unsubscribe',
-      //     stock_code: stockCode
-      //   });
-      // }
+      unsubscribe();
     };
-  }, [autoSubscribe, isSubscribed, subscribe, unsubscribe, stockCode]);
+  }, [autoSubscribe, subscribe, unsubscribe, stockCode]);
 
   useEffect(() => {
     const timer = setInterval(() => {

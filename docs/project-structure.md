@@ -1,6 +1,7 @@
 # 주식 자동매매 시스템 프로젝트 구조
 
 ## 📁 프로젝트 개요
+
 - **프로젝트명**: 주식 자동매매 시스템
 - **아키텍처**: FastAPI Backend + Next.js Frontend
 - **정리일**: 2025-09-20
@@ -12,6 +13,7 @@
 ### 📂 Core 디렉토리
 
 #### `backend/` - FastAPI 백엔드
+
 ```
 backend/
 ├── app/
@@ -28,6 +30,7 @@ backend/
 ```
 
 #### `stock-trading-ui/` - Next.js 프론트엔드
+
 ```
 stock-trading-ui/
 ├── src/
@@ -47,6 +50,7 @@ stock-trading-ui/
 ### 📂 Legacy 지원 디렉토리 (Backend 의존성)
 
 #### `brokers/` - 브로커 API 인터페이스
+
 ```
 brokers/
 ├── __init__.py
@@ -57,6 +61,7 @@ brokers/
 ```
 
 #### `core/` - 핵심 비즈니스 로직
+
 ```
 core/
 ├── __init__.py
@@ -66,6 +71,7 @@ core/
 ```
 
 #### `services/` - 서비스 레이어
+
 ```
 services/
 ├── __init__.py
@@ -74,6 +80,7 @@ services/
 ```
 
 #### `utils/` - 유틸리티 함수
+
 ```
 utils/
 ├── __init__.py
@@ -82,12 +89,14 @@ utils/
 ```
 
 #### `data/` - 데이터 저장소
+
 ```
 data/
 └── realtime_watchlist_df.pkl  # 실시간 관심종목 데이터
 ```
 
 #### `krxinfo/` - 한국거래소 정보
+
 ```
 krxinfo/
 ├── kosdaq.py                # 코스닥 종목 정보
@@ -97,6 +106,7 @@ krxinfo/
 ### 📂 기타 디렉토리
 
 #### `docs/` - 문서
+
 ```
 docs/
 ├── project-structure.md     # 프로젝트 구조 문서 (이 파일)
@@ -104,30 +114,35 @@ docs/
 ```
 
 #### `logs/` - 로그 파일
+
 ```
 logs/
 └── [날짜별 로그 파일들]
 ```
 
 #### `tests/` - 테스트
+
 ```
 tests/
 └── [테스트 파일들]
 ```
 
 #### `token_backup/` - 토큰 백업
+
 ```
 token_backup/
 └── [토큰 백업 파일들]
 ```
 
 #### `PRD/` - 운영 관련
+
 ```
 PRD/
 └── [운영 관련 파일들]
 ```
 
 ### 📂 루트 파일들
+
 ```
 ├── .env                     # 환경 변수
 ├── .gitignore              # Git 무시 파일
@@ -147,6 +162,7 @@ PRD/
 Legacy 파일들이 정리되어 backup 폴더로 이동되었습니다:
 
 #### `backup/legacy-qt/` - Qt UI 관련 Legacy 파일
+
 ```
 backup/legacy-qt/
 ├── qt-ui/                   # Qt 기반 UI 파일들
@@ -162,6 +178,7 @@ backup/legacy-qt/
 ```
 
 #### `backup/misc/` - 기타 Legacy 파일
+
 ```
 backup/misc/
 ├── 주식현재가_시세.csv      # 이전 시세 데이터
@@ -175,6 +192,7 @@ backup/misc/
 ## 🔄 아키텍처 플로우
 
 ### 데이터 흐름
+
 ```
 한국투자증권 API ↔ Backend (FastAPI) ↔ Frontend (Next.js)
                      ↕
@@ -182,6 +200,7 @@ backup/misc/
 ```
 
 ### 주요 컴포넌트 관계
+
 1. **Frontend** → API 호출 → **Backend**
 2. **Backend** → 브로커 API 호출 → **brokers/**
 3. **Backend** → 비즈니스 로직 → **core/, services/**
@@ -193,17 +212,20 @@ backup/misc/
 ## 📋 정리 결과
 
 ### ✅ 완료된 작업
+
 - Qt 기반 UI 파일들을 backup으로 이동
 - Legacy Python 파일들을 backup으로 이동
 - 기타 불필요한 파일들을 backup으로 이동
 - 프로젝트 구조 문서 작성
 
 ### 🔄 현재 상태
+
 - **Backend**: FastAPI 기반으로 정상 동작
 - **Frontend**: Next.js 기반으로 정상 동작
 - **Legacy 지원**: 기존 brokers, core, services 등은 backend 의존성으로 유지
 
 ### 📝 추후 작업 고려사항
+
 1. Legacy 폴더들 (brokers, core, services, utils 등)의 backend 의존성 재검토
 2. 필요 시 legacy 코드를 backend/app으로 통합
 3. 불필요한 의존성 제거 및 코드 정리
@@ -213,18 +235,21 @@ backup/misc/
 ## 🚀 실행 방법
 
 ### Backend 실행
+
 ```bash
 cd backend
 python app/main.py
 ```
 
 ### Frontend 실행
+
 ```bash
 cd stock-trading-ui
 npm run dev
 ```
 
 ### 통합 실행
+
 ```bash
 # 루트 디렉토리에서
 ./frontend-control.bat

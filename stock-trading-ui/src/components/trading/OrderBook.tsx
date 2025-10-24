@@ -167,8 +167,12 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
     }
 
     // useEffect 내부에서 직접 계산 (초기화 순서 문제 해결)
-    const currentAsks = (orderBook.asks ?? []).slice(0, 5).reverse();
-    const currentBids = (orderBook.bids ?? []).slice(0, 5);
+    const currentAsks = [...(orderBook.asks ?? [])]
+      .filter(item => item.price > 0)
+      .sort((a, b) => b.price - a.price);
+    const currentBids = [...(orderBook.bids ?? [])]
+      .filter(item => item.price > 0)
+      .sort((a, b) => b.price - a.price);
 
     // console.log(`⚡ useEffect 트리거 - timestamp: ${orderBook?.timestamp}, asks: ${currentAsks.length}개, bids: ${currentBids.length}개`);
 
@@ -291,13 +295,12 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
   }
 
   // ✅ 조건부 리턴 이후 - 데이터가 확실히 있을 때만 실행됨
-  // 백엔드에서 3개만 오더라도 5개 행 유지 (빈 행은 필터링하여 표시 안 함)
-  const rawAsks = (orderBook.asks ?? []).reverse();
-  const rawBids = (orderBook.bids ?? []);
-
-  // 실제 데이터만 필터링 (가격이 0보다 큰 것만)
-  const asks = rawAsks.filter(item => item.price > 0).slice(0, 5);
-  const bids = rawBids.filter(item => item.price > 0).slice(0, 5);
+  const asks = [...(orderBook.asks ?? [])]
+    .filter(item => item.price > 0)
+    .sort((a, b) => b.price - a.price);
+  const bids = [...(orderBook.bids ?? [])]
+    .filter(item => item.price > 0)
+    .sort((a, b) => b.price - a.price);
 
   // console.log(`🔄 [${new Date().toLocaleTimeString()}] 호가 배열 생성 - asks: ${asks.length}개 (매도1: ${asks[0]?.price?.toLocaleString()}), bids: ${bids.length}개 (매수1: ${bids[0]?.price?.toLocaleString()})`);
 

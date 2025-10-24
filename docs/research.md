@@ -3,11 +3,13 @@
 ## 📊 현재 프로젝트 구조
 
 ### 🔧 **레거시 구조** (기존 파일들)
+
 - `rsimacd_trading.py` (26,909 lines): 메인 트레이딩 로직, PyQt5 GUI 포함
 - `utils.py` (49,289 lines): KoreaInvestAPI, TokenManager 등 핵심 유틸리티
 - `kismain.ui`: PyQt5 UI 정의 파일
 
 ### 🏗️ **새로운 모듈화 구조** (진행 중)
+
 ```
 📁 brokers/          # 증권사 API 추상화
 ├── factory.py       # 브로커 팩토리 패턴
@@ -32,17 +34,20 @@
 ```
 
 ### 🚨 **핵심 문제 (CLAUDE.md 기반)**
+
 - **수익률 0.0% 표시 이슈**: 매수 시 평균단가가 None으로 초기화되어 수익률 계산 불가
 - **타이밍 문제**: 계좌조회(2초 주기) vs 실시간 가격 업데이트
 - **데이터 플로우**: 매수 주문 → 체결 완료 → 계좌조회 → 평균단가 업데이트
 
 ### ⚡ **기술 스택**
+
 - **Backend**: Python, PyQt5, pandas, talib, loguru
 - **API**: 한국투자증권 OpenAPI
 - **Frontend**: Next.js, TypeScript, shadcn/ui
 - **Data**: pandas DataFrame 기반 실시간 데이터 관리
 
 ### 🔄 **데이터 흐름**
+
 1. **실시간 가격 수신** → WebSocket 연결
 2. **RSI/MACD 계산** → talib 라이브러리
 3. **매수/매도 시그널** → 조건 검증 후 주문 실행
@@ -50,6 +55,7 @@
 5. **UI 업데이트** → PyQt5 테이블 모델
 
 ## 🎯 개선 방향
+
 1. **즉시 수정**: `rsimacd_trading.py:475` - 평균단가 초기값을 현재가로 설정
 2. **구조 개선**: 레거시 코드를 새로운 모듈 구조로 점진적 마이그레이션
 3. **UI 통합**: PyQt5와 Next.js 웹 UI 연동
@@ -58,6 +64,7 @@
 ## 📋 상세 분석
 
 ### 파일 구조 상세
+
 ```
 D:\stocktrading\0908.claude-init\
 ├── 📄 rsimacd_trading.py       # 메인 트레이딩 애플리케이션
@@ -86,12 +93,14 @@ D:\stocktrading\0908.claude-init\
 ```
 
 ### 아키텍처 패턴
+
 - **팩토리 패턴**: `brokers/factory.py`로 다양한 증권사 API 지원
 - **인터페이스 분리**: `core/interfaces/`로 추상화 계층 구현
 - **서비스 계층**: `services/`로 비즈니스 로직 분리
 - **멀티 UI 지원**: PyQt5, Web, Mobile UI 동시 지원
 
 ### 데이터 관리
+
 - **실시간 데이터**: `realtime_watchlist_df` pandas DataFrame
 - **계좌 정보**: `account_info_df` pandas DataFrame  
 - **타이머 기반 업데이트**: 
@@ -101,16 +110,19 @@ D:\stocktrading\0908.claude-init\
   - `timer4`: 2초마다 등락률 상위 조회
 
 ### 프로세스 아키텍처
+
 - **메인 프로세스**: PyQt5 GUI 및 실시간 데이터 처리
 - **주문 처리 프로세스**: `send_tr_process()` - 별도 프로세스에서 주문 실행
 - **프로세스 간 통신**: `Queue` 기반 메시지 전달
 
 ### 보안 고려사항
+
 - API 키 및 토큰이 `config.yaml`에 평문 저장
 - 토큰 만료 시 자동 갱신 로직 포함
 - 백업 토큰 관리 (`token_backup/` 디렉토리)
 
 ### 성능 특성
+
 - 실시간 데이터 처리: WebSocket 기반
 - 지표 계산: talib 라이브러리 사용
 - UI 업데이트: PyQt5 모델/뷰 패턴

@@ -312,6 +312,7 @@ API 전반에서 사용되는 주요 데이터 모델입니다.
     "stock_code": "035720"
   }
   ```
+
 - **응답 (200 OK)**: `ApiResponse`
 
 ### `DELETE /api/watchlist/{stock_code}`
