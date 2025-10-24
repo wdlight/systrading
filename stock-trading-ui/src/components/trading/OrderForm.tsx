@@ -5,13 +5,12 @@
  * 매수/매도 주문을 입력하고 실행하는 폼
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { cn } from '@/lib/utils';
 import {
@@ -24,7 +23,7 @@ import {
   getOrderTypeName,
 } from '@/lib/types/order';
 import { useOrders } from '@/hooks/useOrders';
-import { TrendingUp, TrendingDown, AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { OrderBook } from './OrderBook';
 
 interface OrderFormProps {
@@ -155,6 +154,12 @@ export function OrderForm({
     }
   };
 
+  const handleSelectPrice = useCallback((priceValue: number, side: 'ask' | 'bid') => {
+    setOrderSide(side === 'ask' ? 'sell' : 'buy');
+    setOrderType(OrderType.LIMIT);
+    setPrice(priceValue.toString());
+  }, []);
+
   // 주문 실행
   const handleSubmit = async () => {
     if (validationError) return;
@@ -192,237 +197,239 @@ export function OrderForm({
         <CardTitle className="text-white text-sm">주문하기</CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-2 px-3 pb-3">
-        {/* 매수/매도 탭 */}
-        <Tabs value={orderSide} onValueChange={(v) => setOrderSide(v as 'buy' | 'sell')}>
-          <TabsList className="grid w-full grid-cols-2 bg-[#2a2a2a]">
-            <TabsTrigger
-              value="buy"
-              className="data-[state=active]:bg-red-500 data-[state=active]:text-white"
-            >
-              <TrendingUp className="w-4 h-4 mr-1" />
-              매수
-            </TabsTrigger>
-            <TabsTrigger
-              value="sell"
-              className="data-[state=active]:bg-blue-500 data-[state=active]:text-white"
-            >
-              <TrendingDown className="w-4 h-4 mr-1" />
-              매도
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="buy" className="space-y-2 mt-2">
-            <div className="text-[10px] text-gray-400">
-              매수 가능: <span className="text-white font-medium">{availableCash.toLocaleString()}원</span>
-              {maxBuyQuantity > 0 && (
-                <span className="ml-2">
-                  (최대 {maxBuyQuantity.toLocaleString()}주)
-                </span>
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="sell" className="space-y-2 mt-2">
-            <div className="text-[10px] text-gray-400">
-              매도 가능: <span className="text-white font-medium">{availableQuantity.toLocaleString()}주</span>
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        {/* 주문 유형 선택 */}
-        <div className="space-y-1">
-          <Label className="text-gray-300 text-[10px]">주문 유형</Label>
-          <div className="grid grid-cols-2 gap-1">
-            <Button
-              type="button"
-              variant={orderType === OrderType.LIMIT ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setOrderType(OrderType.LIMIT)}
-              className={cn(
-                'text-xs h-7 py-1',
-                orderType === OrderType.LIMIT
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-[#2a2a2a] text-gray-300 hover:bg-gray-700'
-              )}
-            >
-              {getOrderTypeName(OrderType.LIMIT)}
-            </Button>
-            <Button
-              type="button"
-              variant={orderType === OrderType.MARKET ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setOrderType(OrderType.MARKET)}
-              className={cn(
-                'text-xs h-7 py-1',
-                orderType === OrderType.MARKET
-                  ? 'bg-blue-600 text-white hover:bg-blue-700'
-                  : 'bg-[#2a2a2a] text-gray-300 hover:bg-gray-700'
-              )}
-            >
-              {getOrderTypeName(OrderType.MARKET)}
-            </Button>
-          </div>
-        </div>
-
-        {/* 가격 입력 (지정가만) */}
-        {orderType === OrderType.LIMIT && (
-          <div className="space-y-1">
-            <Label className="text-gray-300 text-[10px]">
-              주문 가격
-              <span className="ml-2 text-gray-500">(호가단위: {tickSize}원)</span>
-            </Label>
-            <div className="flex gap-1">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => changePrice(-1)}
-                className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 w-8 p-0"
-              >
-                -
-              </Button>
-              <Input
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                onBlur={(e) => adjustPriceInput(e.target.value)}
-                placeholder="가격 입력"
-                className="bg-[#2a2a2a] text-white border-gray-600 text-right h-8 text-sm"
+      <CardContent className="px-3 pb-3">
+        <div className="grid grid-cols-2 gap-3 items-start">
+          <div className="bg-[#1f1f20] border border-gray-700 rounded-lg p-2 h-full">
+            {currentPrice > 0 ? (
+              <OrderBook
+                stockCode={stockCode}
+                currentPrice={currentPrice}
+                onSelectPrice={handleSelectPrice}
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => changePrice(1)}
-                className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 w-8 p-0"
-              >
-                +
-              </Button>
-            </div>
-            {adjustedPrice > 0 && adjustedPrice !== parseInt(price) && (
-              <p className="text-[10px] text-yellow-500">
-                호가 단위 조정: {adjustedPrice.toLocaleString()}원
-              </p>
+            ) : (
+              <div className="text-xs text-gray-400 flex items-center justify-center h-full text-center px-2">
+                호가 데이터를 불러오는 중입니다.
+              </div>
             )}
           </div>
-        )}
 
-        {/* 수량 입력 */}
-        <div className="space-y-1">
-          <Label className="text-gray-300 text-[10px]">주문 수량</Label>
-          <div className="flex gap-1">
+          <div className="flex flex-col space-y-2">
+            <Tabs value={orderSide} onValueChange={(v) => setOrderSide(v as 'buy' | 'sell')}>
+              <TabsList className="grid w-full grid-cols-2 bg-[#2a2a2a] rounded-md overflow-hidden">
+                <TabsTrigger
+                  value="buy"
+                  className="data-[state=active]:bg-red-500 data-[state=active]:text-white flex items-center justify-center gap-1"
+                >
+                  <span className="text-white font-extrabold text-sm">＋</span>
+                  <span className="text-xs sm:text-[13px] text-white">매수 <span className="text-[10px] text-white/80">(BUY)</span></span>
+                </TabsTrigger>
+                <TabsTrigger
+                  value="sell"
+                  className="data-[state=active]:bg-blue-500 data-[state=active]:text-white flex items-center justify-center gap-1"
+                >
+                  <span className="text-white font-extrabold text-sm">－</span>
+                  <span className="text-xs sm:text-[13px] text-white">매도 <span className="text-[10px] text-white/80">(SELL)</span></span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="buy" className="space-y-2 mt-2">
+                <div className="text-[10px] text-gray-400">
+                  매수 가능: <span className="text-white font-medium">{availableCash.toLocaleString()}원</span>
+                  {maxBuyQuantity > 0 && (
+                    <span className="ml-2">
+                      (최대 {maxBuyQuantity.toLocaleString()}주)
+                    </span>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="sell" className="space-y-2 mt-2">
+                <div className="text-[10px] text-gray-400">
+                  매도 가능: <span className="text-white font-medium">{availableQuantity.toLocaleString()}주</span>
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <div className="space-y-1">
+              <Label className="text-gray-300 text-[14px]">주문 유형</Label>
+              <div className="grid grid-cols-2 gap-1">
+                <Button
+                  type="button"
+                  variant={orderType === OrderType.LIMIT ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setOrderType(OrderType.LIMIT)}
+                  className={cn(
+                    'text-xs h-7 py-1',
+                    orderType === OrderType.LIMIT
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-[#2a2a2a] text-gray-300 hover:bg-gray-700'
+                  )}
+                >
+                  {getOrderTypeName(OrderType.LIMIT)}
+                </Button>
+                <Button
+                  type="button"
+                  variant={orderType === OrderType.MARKET ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setOrderType(OrderType.MARKET)}
+                  className={cn(
+                    'text-xs h-7 py-1',
+                    orderType === OrderType.MARKET
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-[#2a2a2a] text-gray-300 hover:bg-gray-700'
+                  )}
+                >
+                  {getOrderTypeName(OrderType.MARKET)}
+                </Button>
+              </div>
+            </div>
+
+            {orderType === OrderType.LIMIT && (
+              <div className="space-y-1">
+                <Label className="text-gray-300 text-[10px]">
+                  주문 가격
+                  <span className="ml-2 text-gray-500">(호가단위: {tickSize}원)</span>
+                </Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => changePrice(-1)}
+                    className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 w-8 p-0"
+                  >
+                    -
+                  </Button>
+                  <Input
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    onBlur={(e) => adjustPriceInput(e.target.value)}
+                    placeholder="가격 입력"
+                    className="bg-[#2a2a2a] text-white border-gray-600 text-right h-8 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => changePrice(1)}
+                    className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 w-8 p-0"
+                  >
+                    +
+                  </Button>
+                </div>
+                {adjustedPrice > 0 && adjustedPrice !== parseInt(price) && (
+                  <p className="text-[10px] text-yellow-500">
+                    호가 단위 조정: {adjustedPrice.toLocaleString()}원
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <Label className="text-gray-300 text-[10px]">주문 수량</Label>
+              <div className="flex gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => changeQuantity(-10)}
+                  className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
+                >
+                  -10
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => changeQuantity(-1)}
+                  className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
+                >
+                  -1
+                </Button>
+                <Input
+                  type="number"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  placeholder="수량"
+                  className="bg-[#2a2a2a] text-white border-gray-600 text-right h-8 text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => changeQuantity(1)}
+                  className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
+                >
+                  +1
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => changeQuantity(10)}
+                  className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
+                >
+                  +10
+                </Button>
+              </div>
+            </div>
+
+            {orderQuantity > 0 && estimatedAmount > 0 && (
+              <div className="bg-[#2a2a2a] rounded-lg p-3 space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-400">예상 {orderSide === 'buy' ? '매수' : '매도'} 금액</span>
+                  <span className="text-white font-medium">
+                    {estimatedAmount.toLocaleString()}원
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <Alert variant="destructive" className="bg-red-900/20 border-red-500">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {validationError && (
+              <Alert className="bg-yellow-900/20 border-yellow-500">
+                <AlertCircle className="h-4 w-4 text-yellow-500" />
+                <AlertDescription className="text-yellow-500">{validationError}</AlertDescription>
+              </Alert>
+            )}
+
             <Button
-              type="button"
-              variant="outline"
+              onClick={handleSubmit}
+              disabled={!!validationError || isLoading}
               size="sm"
-              onClick={() => changeQuantity(-10)}
-              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
+              className={cn(
+                'w-full font-bold h-9 text-sm text-white transition-colors duration-150 shadow-sm',
+                orderSide === 'buy'
+                  ? 'bg-red-500 hover:bg-red-400 focus-visible:ring-red-200'
+                  : 'bg-blue-500 hover:bg-blue-400 focus-visible:ring-blue-200'
+              )}
             >
-              -10
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => changeQuantity(-1)}
-              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
-            >
-              -1
-            </Button>
-            <Input
-              type="number"
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              placeholder="수량"
-              className="bg-[#2a2a2a] text-white border-gray-600 text-right h-8 text-sm"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => changeQuantity(1)}
-              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
-            >
-              +1
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => changeQuantity(10)}
-              className="bg-[#2a2a2a] text-gray-300 hover:bg-gray-700 h-8 px-2 text-xs"
-            >
-              +10
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  주문 처리 중...
+                </>
+              ) : orderSide === 'buy' ? (
+                <span className="flex items-center justify-center text-sm">
+                  <span className="font-extrabold text-white text-base mr-2 drop-shadow">＋</span>매수(BUY) 주문
+                </span>
+              ) : (
+                <span className="flex items-center justify-center text-sm">
+                  <span className="font-extrabold text-white text-base mr-2 drop-shadow">－</span>매도(SELL) 주문
+                </span>
+              )}
             </Button>
           </div>
         </div>
-
-        {/* 예상 금액 */}
-        {orderQuantity > 0 && estimatedAmount > 0 && (
-          <div className="bg-[#2a2a2a] rounded-lg p-3 space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-400">예상 {orderSide === 'buy' ? '매수' : '매도'} 금액</span>
-              <span className="text-white font-medium">
-                {estimatedAmount.toLocaleString()}원
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* 에러 메시지 */}
-        {error && (
-          <Alert variant="destructive" className="bg-red-900/20 border-red-500">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* 유효성 검증 메시지 */}
-        {validationError && (
-          <Alert className="bg-yellow-900/20 border-yellow-500">
-            <AlertCircle className="h-4 w-4 text-yellow-500" />
-            <AlertDescription className="text-yellow-500">{validationError}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Order Book - Show only for limit orders */}
-        {orderType === OrderType.LIMIT && currentPrice > 0 && (
-          <div className="border-t border-gray-700 pt-2 mt-2">
-            {/* <div className="flex items-center justify-between mb-1">
-              <Label className="text-gray-300 text-[10px]">호가창--</Label>
-              <Badge variant="outline" className="text-[9px] px-1 py-0">
-                실시간
-              </Badge>
-            </div> */}
-            <OrderBook stockCode={stockCode} currentPrice={currentPrice} />
-          </div>
-        )}
-
-        {/* 주문 버튼 */}
-        <Button
-          onClick={handleSubmit}
-          disabled={!!validationError || isLoading}
-          size="sm"
-          className={cn(
-            'w-full font-bold h-9 text-sm',
-            orderSide === 'buy'
-              ? 'bg-red-500 hover:bg-red-600'
-              : 'bg-blue-500 hover:bg-blue-600'
-          )}
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              주문 처리 중...
-            </>
-          ) : (
-            <>
-              {orderSide === 'buy' ? '매수' : '매도'} 주문
-            </>
-          )}
-        </Button>
       </CardContent>
+
     </Card>
   );
 }

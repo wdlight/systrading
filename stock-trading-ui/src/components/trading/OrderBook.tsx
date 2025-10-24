@@ -10,6 +10,7 @@ import clsx from 'clsx';
 interface OrderBookProps {
   stockCode: string;
   currentPrice?: number;
+  onSelectPrice?: (price: number, side: 'ask' | 'bid') => void;
 }
 
 interface OrderLevel {
@@ -69,7 +70,7 @@ function diffOrderLevels(
   };
 }
 
-export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
+export function OrderBook({ stockCode, currentPrice, onSelectPrice }: OrderBookProps) {
   // 🔥 최상단 로그 - 컴포넌트가 렌더링되는지 확인
   // console.log(`🔄 [${new Date().toLocaleTimeString()}] OrderBook 컴포넌트 렌더 시작 - stockCode: ${stockCode}`);
 
@@ -380,7 +381,12 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
           const barKey = `ask-${idx}-bar`;
 
           return (
-            <div key={`ask-${idx}`} className="relative">
+            <button
+              key={`ask-${idx}`}
+              type="button"
+              onClick={() => onSelectPrice?.(ask.price, 'ask')}
+              className="relative w-full text-left focus:outline-none"
+            >
               <div
                 className={clsx(
                   'absolute right-0 top-0 h-full bg-red-900/20 transition-colors duration-150',
@@ -406,7 +412,7 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
                   {ask.quantity.toLocaleString()}
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
@@ -425,7 +431,12 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
           const barKey = `bid-${idx}-bar`;
 
           return (
-            <div key={`bid-${idx}`} className="relative">
+            <button
+              key={`bid-${idx}`}
+              type="button"
+              onClick={() => onSelectPrice?.(bid.price, 'bid')}
+              className="relative w-full text-left focus:outline-none"
+            >
               <div
                 className={clsx(
                   'absolute right-0 top-0 h-full bg-blue-900/20 transition-colors duration-150',
@@ -436,7 +447,7 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
               <div className="relative grid grid-cols-2 text-[11px] py-0.5 gap-1">
                 <div
                   className={clsx(
-                    'relative z-10 text-right text-blue-400 font-medium px-1 rounded-sm transition-colors duration-150',
+                    'relative z-10 text-right text-blue-400 font-medium px-1 rounded-sm transition-colors.duration-150',
                     highlightedKeys[priceKey] && 'bg-blue-500/40'
                   )}
                 >
@@ -444,14 +455,14 @@ export function OrderBook({ stockCode, currentPrice }: OrderBookProps) {
                 </div>
                 <div
                   className={clsx(
-                    'relative z-10 text-right text-gray-300 px-1 rounded-sm transition-colors duration-150',
+                    'relative z-10 text-right text-gray-300 px-1 rounded-sm transition-colors.duration-150',
                     highlightedKeys[quantityKey] && 'bg-blue-500/25'
                   )}
                 >
                   {bid.quantity.toLocaleString()}
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>
